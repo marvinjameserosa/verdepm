@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import type { ReactNode } from "react"
+import type { ReactNode } from "react";
 import {
   BarChart2,
   Receipt,
@@ -16,17 +16,18 @@ import {
   HelpCircle,
   Menu,
   Home,
-} from "lucide-react"
+} from "lucide-react";
 
-import Link from "next/link"
-import { useState } from "react"
-import Image from "next/image"
+import Link from "next/link";
+import { useState } from "react";
+import Image from "next/image";
+import { Bar } from "recharts";
 
 export default function Sidebar() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   function handleNavigation() {
-    setIsMobileMenuOpen(false)
+    setIsMobileMenuOpen(false);
   }
 
   function NavItem({
@@ -34,9 +35,9 @@ export default function Sidebar() {
     icon: Icon,
     children,
   }: {
-    href: string
-    icon: typeof Home
-    children: ReactNode
+    href: string;
+    icon: typeof Home;
+    children: ReactNode;
   }) {
     return (
       <Link
@@ -47,7 +48,7 @@ export default function Sidebar() {
         <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
         {children}
       </Link>
-    )
+    );
   }
 
   return (
@@ -70,26 +71,28 @@ export default function Sidebar() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <Link
-            href="https://kokonutui.com/"
+            href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-16 items-center gap-3 border-b border-gray-200 px-6 dark:border-[#1F1F23]"
+            className="flex h-16 items-center gap-2 border-b border-gray-200 px-6 dark:border-[#1F1F23]"
           >
             <Image
-              src="https://kokonutui.com/logo.svg"
-              alt="KokonutUI"
-              width={32}
-              height={32}
+              src="logo.svg"
+              alt="VerdePM"
+              width={40}
+              height={40}
               className="hidden flex-shrink-0 dark:block"
             />
             <Image
-              src="https://kokonutui.com/logo-black.svg"
+              src="logo.svg"
               alt="KokonutUI"
-              width={32}
-              height={32}
+              width={40}
+              height={40}
               className="block flex-shrink-0 dark:hidden"
             />
-            <span className="text-lg font-semibold text-gray-900 hover:cursor-pointer dark:text-white">KokonutUI</span>
+            <span className="text-lg font-semibold text-gray-900 hover:cursor-pointer dark:text-white">
+              VerdePM
+            </span>
           </Link>
 
           {/* Navigation groups */}
@@ -104,32 +107,11 @@ export default function Sidebar() {
                   <NavItem href="/dashboard" icon={Home}>
                     Dashboard
                   </NavItem>
-                  <NavItem href="/analytics" icon={BarChart2}>
-                    Analytics
-                  </NavItem>
-                  <NavItem href="#" icon={Building2}>
-                    Organization
-                  </NavItem>
-                  <NavItem href="#" icon={Folder}>
+                  <NavItem href="/dashboard/projects" icon={Folder}>
                     Projects
                   </NavItem>
-                </div>
-              </div>
-
-              {/* Finance */}
-              <div>
-                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Finance
-                </p>
-                <div className="space-y-1">
-                  <NavItem href="#" icon={Wallet}>
-                    Transactions
-                  </NavItem>
-                  <NavItem href="#" icon={Receipt}>
-                    Invoices
-                  </NavItem>
-                  <NavItem href="#" icon={CreditCard}>
-                    Payments
+                  <NavItem href="/dashboard/reports" icon={BarChart2}>
+                    Reports
                   </NavItem>
                 </div>
               </div>
@@ -140,17 +122,11 @@ export default function Sidebar() {
                   Team
                 </p>
                 <div className="space-y-1">
-                  <NavItem href="#" icon={Users2}>
+                  <NavItem href="/dashboard/members" icon={Users2}>
                     Members
                   </NavItem>
-                  <NavItem href="#" icon={Shield}>
+                  <NavItem href="/dashboard/permissions" icon={Shield}>
                     Permissions
-                  </NavItem>
-                  <NavItem href="#" icon={MessagesSquare}>
-                    Chat
-                  </NavItem>
-                  <NavItem href="#" icon={Video}>
-                    Meetings
                   </NavItem>
                 </div>
               </div>
@@ -160,7 +136,7 @@ export default function Sidebar() {
           {/* Footer */}
           <div className="border-t border-gray-200 px-4 py-4 dark:border-[#1F1F23]">
             <div className="space-y-1">
-              <NavItem href="#" icon={Settings}>
+              <NavItem href="/dashboard/settings" icon={Settings}>
                 Settings
               </NavItem>
               <NavItem href="#" icon={HelpCircle}>
@@ -181,5 +157,5 @@ export default function Sidebar() {
         />
       )}
     </>
-  )
+  );
 }
