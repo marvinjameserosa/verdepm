@@ -95,15 +95,13 @@ export const Hero = () => {
                 </Link>
 
                 <h1 className="mt-8 max-w-4xl mx-auto text-balance text-6xl md:text-7xl lg:mt-16 xl:text-[5.25rem]">
-                  Transform Your Business with{" "}
+                  Building Sustainably.{" "}
                   <span className="inline-block text-orange-500 text-6xl md:text-7xl xl:text-[5.25rem] font-semibold">
-                    Custom Software
+                    Managing Intelligently
                   </span>
                 </h1>
                 <p className="mx-auto mt-8 max-w-2xl text-balance text-lg text-muted-foreground">
-                  We build scalable, efficient software solutions tailored to
-                  your business needs. From web applications to mobile apps, we
-                  help small businesses grow with technology.
+                  VerdePM transforms construction project management through data-driven ESG tracking — unifying environmental, social, and governance performance into one intelligent, transparent system.
                 </p>
               </AnimatedGroup>
 
