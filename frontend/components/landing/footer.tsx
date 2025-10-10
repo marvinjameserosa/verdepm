@@ -3,19 +3,21 @@ import Link from "next/link";
 
 export const Footer = () => {
   return (
-    <footer className="bg-background border-t border-orange-200">
+    <footer className="bg-background border-t border-green-200">
       <div className="mx-auto max-w-7xl py-16 px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Company Info */}
           <div className="space-y-4 sm:col-span-2 lg:col-span-1">
             <Logo />
             <p className="text-sm text-muted-foreground max-w-xs">
-              Transform construction project management through data-driven ESG tracking — unifying environmental, social, and governance performance into one intelligent, transparent system.
+              VerdePM transforms construction project management through
+              data-driven ESG tracking — unifying environmental, social, and
+              governance performance into one intelligent, transparent system.
             </p>
             <div className="flex space-x-4">
               <Link
                 href="#"
-                className="text-muted-foreground hover:text-orange-500 transition-colors"
+                className="text-muted-foreground hover:text-green-600 transition-colors"
               >
                 <svg
                   className="h-5 w-5"
@@ -32,7 +34,7 @@ export const Footer = () => {
               </Link>
               <Link
                 href="#"
-                className="text-muted-foreground hover:text-orange-500 transition-colors"
+                className="text-muted-foreground hover:text-green-600 transition-colors"
               >
                 <svg
                   className="h-5 w-5"
@@ -45,7 +47,7 @@ export const Footer = () => {
               </Link>
               <Link
                 href="#"
-                className="text-muted-foreground hover:text-orange-500 transition-colors"
+                className="text-muted-foreground hover:text-green-600 transition-colors"
               >
                 <svg
                   className="h-5 w-5 mt-0.5"
@@ -64,48 +66,50 @@ export const Footer = () => {
             </div>
           </div>
 
-          {/* Services */}
+          {/* Platform */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Services</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              Platform
+            </h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#overview"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  Web Development
+                  Overview
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#esg"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  Mobile Apps
+                  ESG Tracking
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#features"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  Custom Software
+                  Key Features
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#collaboration"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  API Development
+                  Collaboration
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#dashboard"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  Cloud Solutions
+                  Dashboard
                 </Link>
               </li>
             </ul>
@@ -113,46 +117,48 @@ export const Footer = () => {
 
           {/* Company */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Company</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              Company
+            </h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#about"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  About Us
+                  About VerdePM
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#team"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
                   Our Team
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#careers"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
                   Careers
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#blog"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  Case Studies
+                  Insights & Updates
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-orange-500 transition-colors"
+                  href="#contact"
+                  className="text-muted-foreground hover:text-green-600 transition-colors"
                 >
-                  Blog
+                  Contact Us
                 </Link>
               </li>
             </ul>
@@ -176,7 +182,7 @@ export const Footer = () => {
                     d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
-                <span className="break-all">hello@devsolutions.com</span>
+                <span className="break-all">hello@verdepm.com</span>
               </li>
               <li className="flex items-center space-x-2">
                 <svg
@@ -192,7 +198,7 @@ export const Footer = () => {
                     d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                   />
                 </svg>
-                <span>+1 (555) 123-4567</span>
+                <span>+1 (555) 987-6543</span>
               </li>
               <li className="flex items-start space-x-2">
                 <svg
@@ -215,7 +221,7 @@ export const Footer = () => {
                   />
                 </svg>
                 <span>
-                  123 Tech Street
+                  45 Verde Avenue
                   <br />
                   San Francisco, CA 94105
                 </span>
@@ -225,29 +231,29 @@ export const Footer = () => {
         </div>
 
         {/* Bottom section */}
-        <div className="mt-12 pt-8 border-t border-orange-200">
+        <div className="mt-12 pt-8 border-t border-green-200">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <div className="text-sm text-muted-foreground">
-              © 2024 DevSolutions. All rights reserved.
+              © {new Date().getFullYear()} VerdePM. All rights reserved.
             </div>
             <div className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-2 text-sm">
               <Link
                 href="#"
-                className="text-muted-foreground hover:text-orange-500 transition-colors"
+                className="text-muted-foreground hover:text-green-600 transition-colors"
               >
                 Privacy Policy
               </Link>
               <Link
                 href="#"
-                className="text-muted-foreground hover:text-orange-500 transition-colors"
+                className="text-muted-foreground hover:text-green-600 transition-colors"
               >
                 Terms of Service
               </Link>
               <Link
                 href="#"
-                className="text-muted-foreground hover:text-orange-500 transition-colors"
+                className="text-muted-foreground hover:text-green-600 transition-colors"
               >
-                Cookie Policy
+                Sustainability Policy
               </Link>
             </div>
           </div>
