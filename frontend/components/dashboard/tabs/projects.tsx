@@ -5,12 +5,11 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ListFilter, PlusCircle, Search } from "lucide-react";
+import { ListFilter, Search } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,

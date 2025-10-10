@@ -3,15 +3,9 @@
 import type { ReactNode } from "react";
 import {
   BarChart2,
-  Receipt,
-  Building2,
-  CreditCard,
   Folder,
-  Wallet,
   Users2,
   Shield,
-  MessagesSquare,
-  Video,
   Settings,
   HelpCircle,
   Menu,
@@ -21,7 +15,6 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
-import { Bar } from "recharts";
 
 export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -72,20 +65,18 @@ export default function Sidebar() {
           {/* Logo */}
           <Link
             href="/"
-            target="_blank"
-            rel="noopener noreferrer"
             className="flex h-16 items-center gap-2 border-b border-gray-200 px-6 dark:border-[#1F1F23]"
           >
             <Image
-              src="logo.svg"
+              src="/logo.svg"
               alt="VerdePM"
               width={40}
               height={40}
               className="hidden flex-shrink-0 dark:block"
             />
             <Image
-              src="logo.svg"
-              alt="KokonutUI"
+              src="/logo.svg"
+              alt="VerdePM"
               width={40}
               height={40}
               className="block flex-shrink-0 dark:hidden"

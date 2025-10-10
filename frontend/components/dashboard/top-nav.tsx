@@ -74,7 +74,7 @@ export default function TopNav() {
 
   return (
     <nav className="px-3 sm:px-6 flex items-center justify-between bg-white dark:bg-[#0F0F12] border-gray-200 dark:border-[#1F1F23] h-full">
-      <div className="font-medium text-sm hidden sm:flex items-center space-x-1 truncate max-w-[300px]">
+      <div className="font-medium text-sm hidden lg:flex items-center space-x-1 truncate max-w-[300px]">
         {breadcrumbs.map((crumb, index) => (
           <React.Fragment key={index}>
             {index > 0 && (
@@ -96,7 +96,7 @@ export default function TopNav() {
         ))}
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4 ml-auto sm:ml-0">
+      <div className="flex items-center gap-2 sm:gap-4 ml-auto">
         <button
           type="button"
           className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-[#1F1F23] rounded-full transition-colors"
