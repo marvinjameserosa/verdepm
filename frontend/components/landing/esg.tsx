@@ -19,10 +19,11 @@ export const ESG = () => {
             Turn Sustainability into Measurable Progress
           </h2>
           <p className="text-lg text-gray-300 leading-relaxed">
-            ESG data doesn't have to be complicated.{" "}
+            ESG data doesn&apos;t have to be complicated.{" "}
             <span className="text-emerald-400 font-semibold">VerdePM</span> simplifies tracking by dividing metrics into
             three intuitive tabs.
           </p>
+
         </div>
 
         {/* ESG Cards */}
