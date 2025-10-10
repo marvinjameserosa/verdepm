@@ -1,83 +1,77 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Settings2, Sparkles, Zap } from "lucide-react";
+"use client";
 
-const CardDecorator = ({ children }: { children: React.ReactNode }) => (
-  <div
-    aria-hidden
-    className="relative mx-auto size-36 [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"
-  >
-    <div className="absolute inset-0 [--border:black] dark:[--border:white] bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:24px_24px] opacity-10" />
-    <div className="bg-background absolute inset-0 m-auto flex size-12 items-center justify-center border-t border-l border-orange-200">
-      {children}
-    </div>
-  </div>
-);
+import { BarChart3, Database, FileText, Smartphone, Users, Lock } from "lucide-react";
+import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
 
 export const Features = () => {
   return (
-    <section className="bg-muted/50 py-16 md:py-32 dark:bg-transparent">
-      <div className="@container mx-auto max-w-5xl px-6">
-        <div className="text-center">
-          <h2 className="text-balance text-4xl font-semibold lg:text-5xl">
-            Why Choose <span className="text-orange-500">DevSolutions</span>
+    <section
+      id="features"
+      className="py-20 sm:py-32 bg-gradient-to-b from-black via-emerald-950/40 to-black text-white relative overflow-hidden"
+    >
+      {/* Subtle background grid */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20"
+      />
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+        {/* Header */}
+        <div className="max-w-3xl mx-auto text-center space-y-4 mb-16">
+          <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-green-500 to-lime-400 bg-clip-text text-transparent">
+            Everything You Need in One Platform
           </h2>
-          <p className="mt-4 text-muted-foreground">
-            We deliver high-quality software solutions that help your business
-            grow and succeed in the digital world.
+          <p className="text-gray-300 text-lg">
+            Designed for sustainability and efficiency — VerdePM brings all your project essentials under one green roof.
           </p>
         </div>
-        <Card className="@min-4xl:max-w-full @min-4xl:grid-cols-3 @min-4xl:divide-x @min-4xl:divide-y-0 mx-auto mt-8 grid max-w-sm divide-y overflow-hidden shadow-zinc-950/5 border-orange-200 *:text-center md:mt-16">
-          <div className="group shadow-zinc-950/5">
-            <CardHeader className="pb-3">
-              <CardDecorator>
-                <Zap className="size-6 text-orange-500" aria-hidden />
-              </CardDecorator>
 
-              <h3 className="mt-6 font-medium">Fast Development</h3>
-            </CardHeader>
-
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Rapid prototyping and agile development process to get your
-                software to market quickly.
-              </p>
-            </CardContent>
-          </div>
-
-          <div className="group shadow-zinc-950/5">
-            <CardHeader className="pb-3">
-              <CardDecorator>
-                <Settings2 className="size-6 text-orange-500" aria-hidden />
-              </CardDecorator>
-
-              <h3 className="mt-6 font-medium">Scalable Solutions</h3>
-            </CardHeader>
-
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Built to grow with your business, our solutions scale seamlessly
-                as your needs evolve.
-              </p>
-            </CardContent>
-          </div>
-
-          <div className="group shadow-zinc-950/5">
-            <CardHeader className="pb-3">
-              <CardDecorator>
-                <Sparkles className="size-6 text-orange-500" aria-hidden />
-              </CardDecorator>
-
-              <h3 className="mt-6 font-medium">Modern Technology</h3>
-            </CardHeader>
-
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Using the latest technologies and best practices to ensure your
-                software is future-proof.
-              </p>
-            </CardContent>
-          </div>
-        </Card>
+        {/* Feature Cards */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            {
+              icon: <BarChart3 className="h-10 w-10 text-emerald-400 mb-3" />,
+              title: "Centralized Dashboard",
+              desc: "View project performance and ESG progress at a glance",
+            },
+            {
+              icon: <FileText className="h-10 w-10 text-green-400 mb-3" />,
+              title: "Automated Reports",
+              desc: "Generate PDF and visual summaries ready for investor or auditor submission",
+            },
+            {
+              icon: <Users className="h-10 w-10 text-lime-400 mb-3" />,
+              title: "Role-Based Access",
+              desc: "Define permissions for Project Managers, Accountants, and Suppliers",
+            },
+            {
+              icon: <Database className="h-10 w-10 text-emerald-400 mb-3" />,
+              title: "Data Backup & Security",
+              desc: "Secure storage with version control and access tracking",
+            },
+            {
+              icon: <Smartphone className="h-10 w-10 text-green-400 mb-3" />,
+              title: "Responsive Design",
+              desc: "Manage your projects anytime, on any device",
+            },
+            {
+              icon: <Lock className="h-10 w-10 text-lime-400 mb-3" />,
+              title: "Compliance Ready",
+              desc: "Built-in templates for industry standards and regulations",
+            },
+          ].map((feature, index) => (
+            <Card
+              key={index}
+              className="border border-emerald-700/40 bg-gradient-to-b from-emerald-900/20 to-transparent hover:from-emerald-800/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all duration-300 group"
+            >
+              <CardHeader>
+                {feature.icon}
+                <CardTitle className="text-white">{feature.title}</CardTitle>
+                <CardDescription className="text-gray-300">{feature.desc}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
       </div>
     </section>
   );
