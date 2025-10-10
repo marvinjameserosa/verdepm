@@ -10,8 +10,7 @@ export const Footer = () => {
           <div className="space-y-4 sm:col-span-2 lg:col-span-1">
             <Logo />
             <p className="text-sm text-muted-foreground max-w-xs">
-              Transform your business with custom software solutions. We build
-              scalable applications that grow with your success.
+              Transform construction project management through data-driven ESG tracking — unifying environmental, social, and governance performance into one intelligent, transparent system.
             </p>
             <div className="flex space-x-4">
               <Link
