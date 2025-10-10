@@ -9,14 +9,12 @@ export const Platform = () => {
     <section
       className="relative overflow-hidden py-24 sm:py-32 bg-gradient-to-b from-black via-emerald-950/40 to-black text-white transition-colors duration-300"
     >
-      {/* Subtle background grid */}
       <div
         aria-hidden="true"
         className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20"
       />
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-        {/* Header Section */}
         <motion.div
           className="max-w-3xl mx-auto text-center space-y-6 mb-20"
           initial={{ opacity: 0, y: 30 }}
@@ -37,7 +35,6 @@ export const Platform = () => {
           </p>
         </motion.div>
 
-        {/* Cards Section */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           {[
             {
@@ -78,7 +75,6 @@ export const Platform = () => {
           ))}
         </div>
 
-        {/* Bottom Note */}
         <motion.div
           className="bg-emerald-900/40 border border-emerald-700/50 rounded-2xl p-10 sm:p-12 shadow-inner backdrop-blur-sm"
           initial={{ opacity: 0, scale: 0.97 }}
