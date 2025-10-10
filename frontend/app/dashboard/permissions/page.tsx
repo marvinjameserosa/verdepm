@@ -1,4 +1,4 @@
-import PermissionsTab from "@/components/dashboard/tabs/permissions";
+import PermissionsTab from "@/components/dashboard/permissions/permissions";
 
 export default function PermissionsPage() {
   return <PermissionsTab />;

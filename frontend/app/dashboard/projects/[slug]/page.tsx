@@ -1,4 +1,4 @@
-import ProjectPhases from "@/components/dashboard/phases/project-phases";
+import ProjectPhases from "@/components/dashboard/projects/project-phases";
 import { projects } from "@/lib/data";
 import { notFound } from "next/navigation";
 

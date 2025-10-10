@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { projects } from "@/lib/data";
-import { AddProjectModal } from "../add-project-modal";
+import { AddProjectModal } from "./add-project-modal";
 
 export default function ProjectsTab() {
   return (
