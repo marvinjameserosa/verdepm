@@ -1,176 +1,117 @@
-import { Logo } from "@/components/ui/logo";
+"use client";
+
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 
 export const Footer = () => {
   return (
-    <footer className="bg-background border-t border-green-200">
-      <div className="mx-auto max-w-7xl py-16 px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+    <footer className="relative bg-black text-gray-300 pt-20 pb-10 overflow-hidden">
+      {/* Subtle background grid */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-10"
+      />
+
+      {/* Soft gradient glow on top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-green-500 to-lime-400" />
+
+      <div className="relative container mx-auto px-6 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-16">
           {/* Company Info */}
-          <div className="space-y-4 sm:col-span-2 lg:col-span-1">
+          <div className="space-y-5 sm:col-span-2 lg:col-span-1">
             <Logo />
-            <p className="text-sm text-muted-foreground max-w-xs">
-              VerdePM transforms construction project management through
-              data-driven ESG tracking — unifying environmental, social, and
-              governance performance into one intelligent, transparent system.
+            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+              VerdePM empowers construction management with intelligent ESG tracking — integrating sustainability, transparency, and performance in one platform.
             </p>
-            <div className="flex space-x-4">
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-green-600 transition-colors"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
+
+            <div className="flex space-x-4 mt-4">
+              {[
+                {
+                  href: "#",
+                  path: "M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z",
+                },
+                {
+                  href: "#",
+                  path: "M15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                },
+                {
+                  href: "#",
+                  path: "M17.657 16.657L13.414 20.9a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+                },
+              ].map((icon, i) => (
+                <Link
+                  key={i}
+                  href={icon.href}
+                  className="text-gray-400 hover:text-emerald-400 transition-colors"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </Link>
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-green-600 transition-colors"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </Link>
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-green-600 transition-colors"
-              >
-                <svg
-                  className="h-5 w-5 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
-              </Link>
+                  <svg
+                    className="h-5 w-5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d={icon.path} />
+                  </svg>
+                </Link>
+              ))}
             </div>
           </div>
 
           {/* Platform */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">
+            <h3 className="text-sm font-semibold text-white tracking-wide">
               Platform
             </h3>
             <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="#overview"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Overview
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#esg"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  ESG Tracking
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#features"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Key Features
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#collaboration"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Collaboration
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#dashboard"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Dashboard
-                </Link>
-              </li>
+              {["Overview", "ESG Tracking", "Key Features", "Collaboration", "Dashboard"].map(
+                (item, i) => (
+                  <li key={i}>
+                    <Link
+                      href="#"
+                      className="text-gray-400 hover:text-emerald-400 transition-colors"
+                    >
+                      {item}
+                    </Link>
+                  </li>
+                )
+              )}
             </ul>
           </div>
 
           {/* Company */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">
+            <h3 className="text-sm font-semibold text-white tracking-wide">
               Company
             </h3>
             <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="#about"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  About VerdePM
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#team"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Our Team
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#careers"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Careers
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#blog"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Insights & Updates
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#contact"
-                  className="text-muted-foreground hover:text-green-600 transition-colors"
-                >
-                  Contact Us
-                </Link>
-              </li>
+              {[
+                "About VerdePM",
+                "Our Team",
+                "Careers",
+                "Insights & Updates",
+                "Contact Us",
+              ].map((item, i) => (
+                <li key={i}>
+                  <Link
+                    href="#"
+                    className="text-gray-400 hover:text-emerald-400 transition-colors"
+                  >
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Contact */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Contact</h3>
-            <ul className="space-y-3 text-sm text-muted-foreground">
+            <h3 className="text-sm font-semibold text-white tracking-wide">
+              Contact
+            </h3>
+            <ul className="space-y-3 text-sm text-gray-400">
               <li className="flex items-center space-x-2">
                 <svg
-                  className="h-4 w-4 flex-shrink-0"
+                  className="h-4 w-4 flex-shrink-0 text-emerald-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -182,11 +123,11 @@ export const Footer = () => {
                     d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
-                <span className="break-all">hello@verdepm.com</span>
+                <span>hello@verdepm.com</span>
               </li>
               <li className="flex items-center space-x-2">
                 <svg
-                  className="h-4 w-4 flex-shrink-0"
+                  className="h-4 w-4 flex-shrink-0 text-emerald-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -202,7 +143,7 @@ export const Footer = () => {
               </li>
               <li className="flex items-start space-x-2">
                 <svg
-                  className="h-4 w-4 mt-0.5 flex-shrink-0"
+                  className="h-4 w-4 mt-0.5 flex-shrink-0 text-emerald-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -230,32 +171,24 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom section */}
-        <div className="mt-12 pt-8 border-t border-green-200">
-          <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-            <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} VerdePM. All rights reserved.
-            </div>
-            <div className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-2 text-sm">
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-green-600 transition-colors"
-              >
-                Privacy Policy
-              </Link>
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-green-600 transition-colors"
-              >
-                Terms of Service
-              </Link>
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-green-600 transition-colors"
-              >
-                Sustainability Policy
-              </Link>
-            </div>
+        {/* Divider */}
+        <div className="mt-16 border-t border-emerald-900/40 pt-8" />
+
+        {/* Bottom Section */}
+        <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-500 gap-4">
+          <p>© {new Date().getFullYear()} VerdePM. All rights reserved.</p>
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+            {["Privacy Policy", "Terms of Service", "Sustainability Policy"].map(
+              (item, i) => (
+                <Link
+                  key={i}
+                  href="#"
+                  className="hover:text-emerald-400 transition-colors"
+                >
+                  {item}
+                </Link>
+              )
+            )}
           </div>
         </div>
       </div>

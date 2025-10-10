@@ -1,66 +1,109 @@
-import { Building2, ChevronRight, Database, FileText } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+"use client";
+
+import { motion } from "framer-motion";
+import { Building2, Database, FileText } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
 
 export const Platform = () => {
   return (
-    <section className="bg-background py-16 md:py-32">
-      {/* Platform Overview */}
-      <section id="platform" className="py-20 sm:py-32">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center space-y-4 mb-16">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-balance">
-              A Smarter Way to Manage Construction Projects
-            </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed text-pretty">
-              From planning to post-construction, VerdePM centralizes your project workflows — allowing teams to monitor
-              progress, track resource usage, and generate compliance-ready ESG reports in real time.
-            </p>
-          </div>
+    <section
+      className="relative overflow-hidden py-24 sm:py-32 bg-gradient-to-b from-black via-emerald-950/40 to-black text-white transition-colors duration-300"
+    >
+      {/* Subtle background grid */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20"
+      />
 
-          <div className="grid md:grid-cols-3 gap-8 mb-12">
-            <Card className="border-2 hover:border-primary transition-colors">
-              <CardHeader>
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                  <Building2 className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle>Unified Platform</CardTitle>
-                <CardDescription>One centralized system for all project management needs</CardDescription>
-              </CardHeader>
-            </Card>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+        {/* Header Section */}
+        <motion.div
+          className="max-w-3xl mx-auto text-center space-y-6 mb-20"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-green-400 to-lime-300 bg-clip-text text-transparent">
+            A Smarter Way to Manage Construction Projects
+          </h2>
+          <p className="text-lg text-gray-300 leading-relaxed">
+            From planning to post-construction,{" "}
+            <span className="font-semibold text-emerald-400">
+              VerdePM
+            </span>{" "}
+            centralizes your workflows — enabling real-time monitoring, resource
+            tracking, and ESG reporting for sustainable project success.
+          </p>
+        </motion.div>
 
-            <Card className="border-2 hover:border-primary transition-colors">
-              <CardHeader>
-                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
-                  <FileText className="h-6 w-6 text-accent" />
-                </div>
-                <CardTitle>Automated Reports</CardTitle>
-                <CardDescription>Generate compliance-ready documentation instantly</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-2 hover:border-primary transition-colors">
-              <CardHeader>
-                <div className="h-12 w-12 rounded-lg bg-chart-3/10 flex items-center justify-center mb-4">
-                  <Database className="h-6 w-6 text-chart-3" />
-                </div>
-                <CardTitle>Centralized Data</CardTitle>
-                <CardDescription>All stakeholders work from the same reliable source</CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-
-          <div className="bg-muted/50 rounded-2xl p-8 sm:p-12">
-            <p className="text-center text-lg text-muted-foreground">
-              Built for <span className="font-semibold text-foreground">Project Managers</span>,{" "}
-              <span className="font-semibold text-foreground">Construction Accountants</span>, and{" "}
-              <span className="font-semibold text-foreground">Suppliers</span> — ensuring every stakeholder works from
-              the same reliable data source.
-            </p>
-          </div>
+        {/* Cards Section */}
+        <div className="grid md:grid-cols-3 gap-8 mb-16">
+          {[
+            {
+              icon: <Building2 className="h-8 w-8 text-emerald-400" />,
+              title: "Unified Platform",
+              desc: "A centralized system for every project management need.",
+            },
+            {
+              icon: <FileText className="h-8 w-8 text-green-400" />,
+              title: "Automated Reports",
+              desc: "Generate compliance-ready documentation instantly.",
+            },
+            {
+              icon: <Database className="h-8 w-8 text-lime-400" />,
+              title: "Centralized Data",
+              desc: "Ensure all stakeholders work from the same reliable source.",
+            },
+          ].map((card, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: i * 0.15 }}
+              viewport={{ once: true }}
+            >
+              <Card className="border border-emerald-700/40 bg-gradient-to-b from-emerald-900/20 to-transparent hover:from-emerald-800/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all duration-300 group">
+                <CardHeader>
+                  <div className="h-12 w-12 rounded-xl bg-emerald-900/40 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    {card.icon}
+                  </div>
+                  <CardTitle className="text-white">{card.title}</CardTitle>
+                  <CardDescription className="text-gray-300">
+                    {card.desc}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </motion.div>
+          ))}
         </div>
-      </section>
+
+        {/* Bottom Note */}
+        <motion.div
+          className="bg-emerald-900/40 border border-emerald-700/50 rounded-2xl p-10 sm:p-12 shadow-inner backdrop-blur-sm"
+          initial={{ opacity: 0, scale: 0.97 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7 }}
+          viewport={{ once: true }}
+        >
+          <p className="text-center text-lg text-gray-200 leading-relaxed">
+            Built for{" "}
+            <span className="font-semibold text-emerald-400">
+              Project Managers
+            </span>
+            ,{" "}
+            <span className="font-semibold text-green-400">
+              Construction Accountants
+            </span>
+            , and{" "}
+            <span className="font-semibold text-lime-400">
+              Suppliers
+            </span>{" "}
+            — ensuring every stakeholder collaborates seamlessly under one
+            sustainable digital roof.
+          </p>
+        </motion.div>
+      </div>
     </section>
   );
 };

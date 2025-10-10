@@ -6,6 +6,7 @@ import { Platform } from "@/components/landing/platform";
 import { ESG } from "@/components/landing/esg";
 import { Footer } from "@/components/landing/footer";
 import { Features } from "@/components/landing/features";
+import { Collaboration } from "@/components/landing/collaboration";
 
 export const metadata: Metadata = {
   title: "Welcome to Verde - Your Trusted Software Development Partner",
@@ -20,6 +21,7 @@ export default function Home() {
         <Platform />
         <ESG />
         <Features />
+        <Collaboration />
       </main>
 
       <Footer />
