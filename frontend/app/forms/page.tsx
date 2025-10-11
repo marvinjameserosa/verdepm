@@ -111,7 +111,7 @@ export default function CareersPage() {
           <Card>
             <CardContent className="p-8">
               {showSuccess && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--blackish)]/50">
                   <div className="mx-4 max-w-md rounded-lg bg-white p-8 shadow-xl">
                     <div className="mb-4 flex items-center gap-3">
                       <CheckCircle className="size-8 text-green-600" />

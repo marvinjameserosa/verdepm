@@ -7,6 +7,7 @@ import { ESG } from "@/components/landing/esg";
 import { Footer } from "@/components/landing/footer";
 import { Features } from "@/components/landing/features";
 import { Collaboration } from "@/components/landing/collaboration";
+import { Background } from "@/components/ui/background";
 
 export const metadata: Metadata = {
   title: "Welcome to Verde - Your Trusted Software Development Partner",
@@ -14,17 +15,16 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <>
+    <Background variant="subtle">
       <Header />
-      <main className="overflow-hidden">
+      <main className="relative overflow-hidden">
         <Hero />
         <Platform />
         <ESG />
         <Features />
         <Collaboration />
       </main>
-
       <Footer />
-    </>
+    </Background>
   );
 }

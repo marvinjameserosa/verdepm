@@ -1,13 +1,18 @@
-"use client";
-
 import { cn } from "@/lib/utils";
-import { Leaf } from "lucide-react";
+import Image from "next/image";
 
 export const Logo = ({ className }: { className?: string }) => {
   return (
     <div className={cn("flex items-center space-x-2", className)}>
-      <div className="bg-green-600 rounded-lg p-2">
-        <Leaf className="h-6 w-6 text-white" />
+      {/* Change this div to be fully rounded */}
+      <div className="rounded-2xl overflow-hidden">
+        <Image
+          src="/logo.svg"
+          alt="VerdePM Logo"
+          width={60}
+          height={60}
+          className="w-10 h-10 object-contain"
+        />
       </div>
       <span className="text-xl font-bold text-foreground">VerdePM</span>
     </div>
