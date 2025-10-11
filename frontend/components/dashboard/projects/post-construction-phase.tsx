@@ -28,8 +28,6 @@ import {
 import {
   CheckCircle,
   AlertTriangle,
-  Download,
-  FileText,
   Award,
   TreePine,
   Droplets,
@@ -171,7 +169,6 @@ export default function PostConstructionPhase() {
           { id: "overview", label: "Overview", icon: Target },
           { id: "metrics", label: "ESG Metrics", icon: TrendingUp },
           { id: "compliance", label: "Compliance", icon: CheckCircle },
-          { id: "documentation", label: "Documentation", icon: FileText },
         ].map((tab) => (
           <Button
             key={tab.id}
@@ -566,78 +563,6 @@ export default function PostConstructionPhase() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {/* Documentation Tab */}
-      {selectedTab === "documentation" && (
-        <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-emerald-700 dark:text-emerald-300">
-              Project Documentation
-            </CardTitle>
-            <CardDescription>
-              Comprehensive reports, certifications, and stakeholder materials
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {documentationItems.map((doc, index) => (
-                <div
-                  key={index}
-                  className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                        <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <div className="font-semibold">{doc.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {doc.description}
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                          <span>{doc.type}</span>
-                          <span>{doc.size}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge
-                        variant="secondary"
-                        className={getStatusBadge(doc.status)}
-                      >
-                        {doc.status}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-lg"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-blue-600" />
-                <div>
-                  <div className="font-semibold text-blue-700 dark:text-blue-300">
-                    Stakeholder Access
-                  </div>
-                  <div className="text-sm text-blue-600 dark:text-blue-400">
-                    All documentation has been shared with relevant stakeholders
-                    and regulatory bodies.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );
