@@ -5,11 +5,14 @@ import { Logo } from "@/components/ui/logo";
 
 export const Footer = () => {
   return (
-    <footer className="relative bg-black text-gray-300 pt-20 pb-10 overflow-hidden">
+    <footer
+      style={{ backgroundColor: "var(--background)" }}
+      className="relative text-muted-foreground pt-20 pb-10 overflow-hidden"
+    >
       {/* Subtle background grid */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-10"
+        className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:32px_32px] opacity-10"
       />
 
       {/* Soft gradient glow on top */}
@@ -20,8 +23,10 @@ export const Footer = () => {
           {/* Company Info */}
           <div className="space-y-5 sm:col-span-2 lg:col-span-1">
             <Logo />
-            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
-              VerdePM empowers construction management with intelligent ESG tracking — integrating sustainability, transparency, and performance in one platform.
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              VerdePM empowers construction management with intelligent ESG
+              tracking — integrating sustainability, transparency, and
+              performance in one platform.
             </p>
 
             <div className="flex space-x-4 mt-4">
@@ -42,7 +47,7 @@ export const Footer = () => {
                 <Link
                   key={i}
                   href={icon.href}
-                  className="text-gray-400 hover:text-emerald-400 transition-colors"
+                  className="text-muted-foreground hover:text-emerald-500 transition-colors"
                 >
                   <svg
                     className="h-5 w-5"
@@ -59,28 +64,32 @@ export const Footer = () => {
 
           {/* Platform */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-white tracking-wide">
+            <h3 className="text-sm font-semibold text-foreground tracking-wide">
               Platform
             </h3>
             <ul className="space-y-2 text-sm">
-              {["Overview", "ESG Tracking", "Key Features", "Collaboration", "Dashboard"].map(
-                (item, i) => (
-                  <li key={i}>
-                    <Link
-                      href="#"
-                      className="text-gray-400 hover:text-emerald-400 transition-colors"
-                    >
-                      {item}
-                    </Link>
-                  </li>
-                )
-              )}
+              {[
+                "Overview",
+                "ESG Tracking",
+                "Key Features",
+                "Collaboration",
+                "Dashboard",
+              ].map((item, i) => (
+                <li key={i}>
+                  <Link
+                    href="#"
+                    className="text-muted-foreground hover:text-emerald-500 transition-colors"
+                  >
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Company */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-white tracking-wide">
+            <h3 className="text-sm font-semibold text-foreground tracking-wide">
               Company
             </h3>
             <ul className="space-y-2 text-sm">
@@ -94,7 +103,7 @@ export const Footer = () => {
                 <li key={i}>
                   <Link
                     href="#"
-                    className="text-gray-400 hover:text-emerald-400 transition-colors"
+                    className="text-muted-foreground hover:text-emerald-500 transition-colors"
                   >
                     {item}
                   </Link>
@@ -105,13 +114,13 @@ export const Footer = () => {
 
           {/* Contact */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-white tracking-wide">
+            <h3 className="text-sm font-semibold text-foreground tracking-wide">
               Contact
             </h3>
-            <ul className="space-y-3 text-sm text-gray-400">
+            <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center space-x-2">
                 <svg
-                  className="h-4 w-4 flex-shrink-0 text-emerald-400"
+                  className="h-4 w-4 flex-shrink-0 text-emerald-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -127,7 +136,7 @@ export const Footer = () => {
               </li>
               <li className="flex items-center space-x-2">
                 <svg
-                  className="h-4 w-4 flex-shrink-0 text-emerald-400"
+                  className="h-4 w-4 flex-shrink-0 text-emerald-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -143,7 +152,7 @@ export const Footer = () => {
               </li>
               <li className="flex items-start space-x-2">
                 <svg
-                  className="h-4 w-4 mt-0.5 flex-shrink-0 text-emerald-400"
+                  className="h-4 w-4 mt-0.5 flex-shrink-0 text-emerald-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -172,23 +181,25 @@ export const Footer = () => {
         </div>
 
         {/* Divider */}
-        <div className="mt-16 border-t border-emerald-900/40 pt-8" />
+        <div className="mt-16 border-t border-border pt-8" />
 
         {/* Bottom Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-500 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground gap-4">
           <p>© {new Date().getFullYear()} VerdePM. All rights reserved.</p>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-            {["Privacy Policy", "Terms of Service", "Sustainability Policy"].map(
-              (item, i) => (
-                <Link
-                  key={i}
-                  href="#"
-                  className="hover:text-emerald-400 transition-colors"
-                >
-                  {item}
-                </Link>
-              )
-            )}
+            {[
+              "Privacy Policy",
+              "Terms of Service",
+              "Sustainability Policy",
+            ].map((item, i) => (
+              <Link
+                key={i}
+                href="#"
+                className="hover:text-emerald-500 transition-colors"
+              >
+                {item}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
