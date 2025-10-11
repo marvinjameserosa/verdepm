@@ -22,19 +22,19 @@ const gridItems = [
   "https://images.unsplash.com/photo-1607369165516-0e831913b397?auto=format&fit=crop&q=80&w=1074",
   "https://plus.unsplash.com/premium_photo-1742202420312-ecc1e77b5a29?auto=format&fit=crop&q=80&w=1170",
   "https://images.unsplash.com/photo-1744656160802-c1a63908fee3?auto=format&fit=crop&q=60&w=500",
-    "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
+  "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
   "https://images.unsplash.com/photo-1607369165516-0e831913b397?auto=format&fit=crop&q=80&w=1074",
   "https://plus.unsplash.com/premium_photo-1742202420312-ecc1e77b5a29?auto=format&fit=crop&q=80&w=1170",
   "https://images.unsplash.com/photo-1744656160802-c1a63908fee3?auto=format&fit=crop&q=60&w=500",
-    "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
+  "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
   "https://images.unsplash.com/photo-1607369165516-0e831913b397?auto=format&fit=crop&q=80&w=1074",
   "https://plus.unsplash.com/premium_photo-1742202420312-ecc1e77b5a29?auto=format&fit=crop&q=80&w=1170",
   "https://images.unsplash.com/photo-1744656160802-c1a63908fee3?auto=format&fit=crop&q=60&w=500",
-    "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
+  "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
   "https://images.unsplash.com/photo-1607369165516-0e831913b397?auto=format&fit=crop&q=80&w=1074",
   "https://plus.unsplash.com/premium_photo-1742202420312-ecc1e77b5a29?auto=format&fit=crop&q=80&w=1170",
   "https://images.unsplash.com/photo-1744656160802-c1a63908fee3?auto=format&fit=crop&q=60&w=500",
-    "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
+  "https://images.unsplash.com/photo-1547462713-a208daf9d997?auto=format&fit=crop&q=80&w=1576",
   "https://images.unsplash.com/photo-1607369165516-0e831913b397?auto=format&fit=crop&q=80&w=1074",
   "https://plus.unsplash.com/premium_photo-1742202420312-ecc1e77b5a29?auto=format&fit=crop&q=80&w=1170",
   "https://images.unsplash.com/photo-1744656160802-c1a63908fee3?auto=format&fit=crop&q=60&w=500",
@@ -42,34 +42,19 @@ const gridItems = [
 
 export const Hero = () => {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-neutral-900 via-neutral-950 to-black text-white">
-      {/* --- BACKGROUND DESIGN --- */}
-      <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
-        {/* Subtle green aurora gradient */}
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[90rem] h-[90rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.15)_0%,transparent_70%)] blur-3xl opacity-70 animate-pulse" />
-
-        {/* Light streaks / wave effect */}
-        <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(115deg,rgba(34,197,94,0.08)_0%,transparent_40%,rgba(255,255,255,0.05)_70%,transparent_100%)] opacity-40 animate-[pulse_8s_ease-in-out_infinite]" />
-
-        {/* Subtle noise texture overlay */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-mosaic.png')] opacity-5 mix-blend-overlay" />
-
-        {/* Glow at the bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-b from-transparent via-neutral-950 to-black" />
-      </div>
-
+    <section className="relative overflow-hidden bg-transparent">
       {/* --- CONTENT --- */}
       <div className="relative pt-32 pb-20 sm:pt-40 sm:pb-32">
         <div className="mx-auto max-w-7xl px-6 text-center">
           <AnimatedGroup variants={{ item: transitionVariants.item }}>
-            <h1 className="text-5xl md:text-6xl xl:text-7xl font-bold leading-tight tracking-tight">
+            <h1 className="text-5xl md:text-6xl xl:text-7xl font-bold leading-tight tracking-tight text-foreground">
               Building Sustainably.{" "}
-              <span className="block text-green-500 font-semibold">
+              <span className="block text-emerald-500 font-semibold">
                 Managing Intelligently.
               </span>
             </h1>
 
-            <p className="mx-auto mt-8 max-w-2xl text-lg text-gray-300 leading-relaxed">
+            <p className="mx-auto mt-8 max-w-2xl text-lg text-muted-foreground leading-relaxed">
               VerdePM transforms construction project management through
               data-driven ESG tracking — unifying environmental, social, and
               governance performance into one intelligent, transparent system.
@@ -90,14 +75,14 @@ export const Hero = () => {
           >
             <Button
               size="lg"
-              className="rounded-xl px-6 text-base bg-green-600 hover:bg-green-700 transition"
+              className="rounded-xl px-6 text-base bg-emerald-600 hover:bg-emerald-700 transition"
             >
               Get Free Consultation
             </Button>
             <Button
               size="lg"
               variant="ghost"
-              className="rounded-xl px-6 text-base text-gray-300 hover:text-green-500"
+              className="rounded-xl px-6 text-base text-muted-foreground hover:text-emerald-500"
             >
               View Our Work
             </Button>
@@ -116,7 +101,14 @@ export const Hero = () => {
           }}
         >
           <div className="relative mx-auto mt-16 max-w-6xl px-4">
-            <div className="relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-sm shadow-lg shadow-green-500/10">
+            <div
+              style={{
+                backgroundColor: "var(--blackish)",
+                borderColor: "hsl(var(--border))",
+                boxShadow: "0 25px 50px -12px rgba(16, 185, 129, 0.1)",
+              }}
+              className="relative overflow-hidden rounded-2xl border backdrop-blur-sm shadow-lg"
+            >
               <div className="aspect-[15/8]">
                 <GridMotion
                   items={gridItems}
