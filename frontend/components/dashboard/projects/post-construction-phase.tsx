@@ -35,7 +35,6 @@ import {
   Zap,
   Target,
   TrendingUp,
-  Users,
 } from "lucide-react";
 
 // Sample data for charts
@@ -83,38 +82,38 @@ const certifications = [
   { name: "WELL Building Standard", status: "Achieved", date: "2024-10-10" },
 ];
 
-const documentationItems = [
-  {
-    name: "GRI Sustainability Report 2024",
-    type: "PDF Report",
-    size: "2.4 MB",
-    status: "Complete",
-    description: "Comprehensive ESG performance report following GRI standards",
-  },
-  {
-    name: "LEED Certification Package",
-    type: "Documentation",
-    size: "8.7 MB",
-    status: "Complete",
-    description:
-      "Complete LEED Platinum certification documents and scorecards",
-  },
-  {
-    name: "Lessons Learned Summary",
-    type: "Analysis Report",
-    size: "1.2 MB",
-    status: "Complete",
-    description: "Key insights and recommendations for future projects",
-  },
-  {
-    name: "Stakeholder Presentation",
-    type: "Presentation",
-    size: "15.3 MB",
-    status: "Complete",
-    description:
-      "Executive summary presentation for stakeholders and investors",
-  },
-];
+// const documentationItems = [
+//   {
+//     name: "GRI Sustainability Report 2024",
+//     type: "PDF Report",
+//     size: "2.4 MB",
+//     status: "Complete",
+//     description: "Comprehensive ESG performance report following GRI standards",
+//   },
+//   {
+//     name: "LEED Certification Package",
+//     type: "Documentation",
+//     size: "8.7 MB",
+//     status: "Complete",
+//     description:
+//       "Complete LEED Platinum certification documents and scorecards",
+//   },
+//   {
+//     name: "Lessons Learned Summary",
+//     type: "Analysis Report",
+//     size: "1.2 MB",
+//     status: "Complete",
+//     description: "Key insights and recommendations for future projects",
+//   },
+//   {
+//     name: "Stakeholder Presentation",
+//     type: "Presentation",
+//     size: "15.3 MB",
+//     status: "Complete",
+//     description:
+//       "Executive summary presentation for stakeholders and investors",
+//   },
+// ];
 
 export default function PostConstructionPhase() {
   const [selectedTab, setSelectedTab] = useState("overview");
