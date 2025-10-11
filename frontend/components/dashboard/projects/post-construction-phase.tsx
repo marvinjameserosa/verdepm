@@ -37,7 +37,6 @@ import {
   Zap,
   Target,
   TrendingUp,
-  Calendar,
   Users,
 } from "lucide-react";
 
@@ -87,33 +86,35 @@ const certifications = [
 ];
 
 const documentationItems = [
-  { 
-    name: "GRI Sustainability Report 2024", 
-    type: "PDF Report", 
-    size: "2.4 MB", 
+  {
+    name: "GRI Sustainability Report 2024",
+    type: "PDF Report",
+    size: "2.4 MB",
     status: "Complete",
-    description: "Comprehensive ESG performance report following GRI standards"
+    description: "Comprehensive ESG performance report following GRI standards",
   },
-  { 
-    name: "LEED Certification Package", 
-    type: "Documentation", 
-    size: "8.7 MB", 
+  {
+    name: "LEED Certification Package",
+    type: "Documentation",
+    size: "8.7 MB",
     status: "Complete",
-    description: "Complete LEED Platinum certification documents and scorecards"
+    description:
+      "Complete LEED Platinum certification documents and scorecards",
   },
-  { 
-    name: "Lessons Learned Summary", 
-    type: "Analysis Report", 
-    size: "1.2 MB", 
+  {
+    name: "Lessons Learned Summary",
+    type: "Analysis Report",
+    size: "1.2 MB",
     status: "Complete",
-    description: "Key insights and recommendations for future projects"
+    description: "Key insights and recommendations for future projects",
   },
-  { 
-    name: "Stakeholder Presentation", 
-    type: "Presentation", 
-    size: "15.3 MB", 
+  {
+    name: "Stakeholder Presentation",
+    type: "Presentation",
+    size: "15.3 MB",
     status: "Complete",
-    description: "Executive summary presentation for stakeholders and investors"
+    description:
+      "Executive summary presentation for stakeholders and investors",
   },
 ];
 
@@ -133,9 +134,12 @@ export default function PostConstructionPhase() {
 
   const getStatusBadge = (status: string) => {
     const colors = {
-      "Achieved": "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
-      "In Progress": "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
-      "Complete": "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+      Achieved:
+        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
+      "In Progress":
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+      Complete:
+        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
     };
     return colors[status as keyof typeof colors] || colors["Complete"];
   };
@@ -211,13 +215,19 @@ export default function PostConstructionPhase() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Progress value={goal.target} className="flex-1 h-2 bg-gray-200" />
-                      <Progress 
-                        value={goal.achieved} 
-                        className="flex-1 h-2" 
-                        style={{ 
-                          backgroundColor: goal.achieved >= goal.target ? '#10b981' : '#f59e0b' 
-                        }} 
+                      <Progress
+                        value={goal.target}
+                        className="flex-1 h-2 bg-gray-200"
+                      />
+                      <Progress
+                        value={goal.achieved}
+                        className="flex-1 h-2"
+                        style={{
+                          backgroundColor:
+                            goal.achieved >= goal.target
+                              ? "#10b981"
+                              : "#f59e0b",
+                        }}
                       />
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -242,23 +252,33 @@ export default function PostConstructionPhase() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
                   <TreePine className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-emerald-700">2,650</div>
-                  <div className="text-sm text-muted-foreground">tCO₂e Saved</div>
+                  <div className="text-2xl font-bold text-emerald-700">
+                    2,650
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    tCO₂e Saved
+                  </div>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                   <Droplets className="h-8 w-8 text-blue-600 mx-auto mb-2" />
                   <div className="text-2xl font-bold text-blue-700">85%</div>
-                  <div className="text-sm text-muted-foreground">Water Efficiency</div>
+                  <div className="text-sm text-muted-foreground">
+                    Water Efficiency
+                  </div>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20">
                   <Trash2 className="h-8 w-8 text-amber-600 mx-auto mb-2" />
                   <div className="text-2xl font-bold text-amber-700">85%</div>
-                  <div className="text-sm text-muted-foreground">Waste Diverted</div>
+                  <div className="text-sm text-muted-foreground">
+                    Waste Diverted
+                  </div>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
                   <Zap className="h-8 w-8 text-purple-600 mx-auto mb-2" />
                   <div className="text-2xl font-bold text-purple-700">30%</div>
-                  <div className="text-sm text-muted-foreground">Energy Reduction</div>
+                  <div className="text-sm text-muted-foreground">
+                    Energy Reduction
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -272,9 +292,12 @@ export default function PostConstructionPhase() {
           {/* Carbon Footprint Analysis */}
           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">Final Carbon Footprint Analysis</CardTitle>
+              <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                Final Carbon Footprint Analysis
+              </CardTitle>
               <CardDescription>
-                Comparison between planned vs. actual carbon emissions across project phases
+                Comparison between planned vs. actual carbon emissions across
+                project phases
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -284,14 +307,20 @@ export default function PostConstructionPhase() {
                   <XAxis dataKey="phase" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="planned" fill="#94a3b8" name="Planned (tCO₂e)" />
+                  <Bar
+                    dataKey="planned"
+                    fill="#94a3b8"
+                    name="Planned (tCO₂e)"
+                  />
                   <Bar dataKey="actual" fill="#10b981" name="Actual (tCO₂e)" />
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                 <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
                   <CheckCircle className="h-5 w-5" />
-                  <span className="font-semibold">Carbon Reduction Achieved: 275 tCO₂e (9.4% below target)</span>
+                  <span className="font-semibold">
+                    Carbon Reduction Achieved: 275 tCO₂e (9.4% below target)
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -300,7 +329,9 @@ export default function PostConstructionPhase() {
           {/* Waste Management Summary */}
           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">Waste Disposal Summary</CardTitle>
+              <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                Waste Disposal Summary
+              </CardTitle>
               <CardDescription>
                 Final waste management performance and disposal methods
               </CardDescription>
@@ -327,10 +358,13 @@ export default function PostConstructionPhase() {
                 <div className="space-y-3">
                   <h4 className="font-semibold">Waste Stream Analysis</h4>
                   {wasteDisposalData.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                    >
                       <div className="flex items-center gap-3">
-                        <div 
-                          className="w-4 h-4 rounded-full" 
+                        <div
+                          className="w-4 h-4 rounded-full"
                           style={{ backgroundColor: item.color }}
                         />
                         <span className="font-medium">{item.type}</span>
@@ -340,7 +374,8 @@ export default function PostConstructionPhase() {
                   ))}
                   <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                     <div className="text-sm text-emerald-700 dark:text-emerald-300">
-                      <strong>Total Waste Diverted from Landfill:</strong> 85% (645 tons)
+                      <strong>Total Waste Diverted from Landfill:</strong> 85%
+                      (645 tons)
                     </div>
                   </div>
                 </div>
@@ -351,9 +386,12 @@ export default function PostConstructionPhase() {
           {/* Monthly Progress Trends */}
           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">Monthly Performance Trends</CardTitle>
+              <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                Monthly Performance Trends
+              </CardTitle>
               <CardDescription>
-                Environmental performance improvements over the construction period
+                Environmental performance improvements over the construction
+                period
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -363,24 +401,24 @@ export default function PostConstructionPhase() {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="carbon" 
-                    stroke="#10b981" 
+                  <Line
+                    type="monotone"
+                    dataKey="carbon"
+                    stroke="#10b981"
                     strokeWidth={2}
                     name="Carbon (tCO₂e/month)"
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="waste" 
-                    stroke="#3b82f6" 
+                  <Line
+                    type="monotone"
+                    dataKey="waste"
+                    stroke="#3b82f6"
                     strokeWidth={2}
                     name="Waste (tons/month)"
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="energy" 
-                    stroke="#f59e0b" 
+                  <Line
+                    type="monotone"
+                    dataKey="energy"
+                    stroke="#f59e0b"
                     strokeWidth={2}
                     name="Energy (MWh/month)"
                   />
@@ -397,7 +435,9 @@ export default function PostConstructionPhase() {
           {/* Environmental Compliance Scores */}
           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">Environmental Compliance Score</CardTitle>
+              <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                Environmental Compliance Score
+              </CardTitle>
               <CardDescription>
                 Final compliance assessment across all environmental regulations
               </CardDescription>
@@ -417,14 +457,18 @@ export default function PostConstructionPhase() {
                         <span className="font-bold text-lg">{item.score}%</span>
                       </div>
                     </div>
-                    <Progress 
-                      value={item.score} 
-                      className="h-3"
-                    />
+                    <Progress value={item.score} className="h-3" />
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Benchmark: {item.benchmark}%</span>
-                      <span className={item.score >= item.benchmark ? "text-emerald-600" : "text-amber-600"}>
-                        {item.score >= item.benchmark ? "Exceeds" : "Below"} Requirement
+                      <span
+                        className={
+                          item.score >= item.benchmark
+                            ? "text-emerald-600"
+                            : "text-amber-600"
+                        }
+                      >
+                        {item.score >= item.benchmark ? "Exceeds" : "Below"}{" "}
+                        Requirement
                       </span>
                     </div>
                   </div>
@@ -432,8 +476,12 @@ export default function PostConstructionPhase() {
               </div>
               <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-emerald-700 mb-1">91.6%</div>
-                  <div className="text-sm text-emerald-600">Overall Compliance Score</div>
+                  <div className="text-3xl font-bold text-emerald-700 mb-1">
+                    91.6%
+                  </div>
+                  <div className="text-sm text-emerald-600">
+                    Overall Compliance Score
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -442,7 +490,9 @@ export default function PostConstructionPhase() {
           {/* Certifications */}
           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">Certifications Achieved</CardTitle>
+              <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                Certifications Achieved
+              </CardTitle>
               <CardDescription>
                 Third-party certifications and recognition received
               </CardDescription>
@@ -450,17 +500,22 @@ export default function PostConstructionPhase() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {certifications.map((cert, index) => (
-                  <div key={index} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div
+                    key={index}
+                    className="p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <Award className="h-6 w-6 text-emerald-600" />
                         <div>
                           <div className="font-semibold">{cert.name}</div>
-                          <div className="text-sm text-muted-foreground">{cert.date}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {cert.date}
+                          </div>
                         </div>
                       </div>
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className={getStatusBadge(cert.status)}
                       >
                         {cert.status}
@@ -475,11 +530,15 @@ export default function PostConstructionPhase() {
           {/* Post-Audit Remarks */}
           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">Post-Audit Remarks</CardTitle>
+              <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                Post-Audit Remarks
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border-l-4 border-emerald-500">
-                <h4 className="font-semibold text-emerald-700 dark:text-emerald-300 mb-2">Strengths</h4>
+                <h4 className="font-semibold text-emerald-700 dark:text-emerald-300 mb-2">
+                  Strengths
+                </h4>
                 <ul className="text-sm space-y-1">
                   <li>• Exceeded carbon reduction targets by 9.4%</li>
                   <li>• Achieved LEED Platinum certification</li>
@@ -488,11 +547,20 @@ export default function PostConstructionPhase() {
                 </ul>
               </div>
               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-l-4 border-amber-500">
-                <h4 className="font-semibold text-amber-700 dark:text-amber-300 mb-2">Areas for Improvement</h4>
+                <h4 className="font-semibold text-amber-700 dark:text-amber-300 mb-2">
+                  Areas for Improvement
+                </h4>
                 <ul className="text-sm space-y-1">
-                  <li>• Social impact metrics slightly below target (78% vs 80%)</li>
-                  <li>• Water efficiency could be improved in future projects</li>
-                  <li>• Earlier supplier engagement recommended for better outcomes</li>
+                  <li>
+                    • Social impact metrics slightly below target (78% vs 80%)
+                  </li>
+                  <li>
+                    • Water efficiency could be improved in future projects
+                  </li>
+                  <li>
+                    • Earlier supplier engagement recommended for better
+                    outcomes
+                  </li>
                 </ul>
               </div>
             </CardContent>
@@ -504,7 +572,9 @@ export default function PostConstructionPhase() {
       {selectedTab === "documentation" && (
         <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
           <CardHeader>
-            <CardTitle className="text-emerald-700 dark:text-emerald-300">Project Documentation</CardTitle>
+            <CardTitle className="text-emerald-700 dark:text-emerald-300">
+              Project Documentation
+            </CardTitle>
             <CardDescription>
               Comprehensive reports, certifications, and stakeholder materials
             </CardDescription>
@@ -512,7 +582,10 @@ export default function PostConstructionPhase() {
           <CardContent>
             <div className="space-y-4">
               {documentationItems.map((doc, index) => (
-                <div key={index} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <div
+                  key={index}
+                  className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
@@ -520,7 +593,9 @@ export default function PostConstructionPhase() {
                       </div>
                       <div>
                         <div className="font-semibold">{doc.name}</div>
-                        <div className="text-sm text-muted-foreground">{doc.description}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {doc.description}
+                        </div>
                         <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                           <span>{doc.type}</span>
                           <span>{doc.size}</span>
@@ -528,13 +603,17 @@ export default function PostConstructionPhase() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className={getStatusBadge(doc.status)}
                       >
                         {doc.status}
                       </Badge>
-                      <Button size="sm" variant="outline" className="rounded-lg">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-lg"
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
@@ -547,9 +626,12 @@ export default function PostConstructionPhase() {
               <div className="flex items-center gap-3">
                 <Users className="h-5 w-5 text-blue-600" />
                 <div>
-                  <div className="font-semibold text-blue-700 dark:text-blue-300">Stakeholder Access</div>
+                  <div className="font-semibold text-blue-700 dark:text-blue-300">
+                    Stakeholder Access
+                  </div>
                   <div className="text-sm text-blue-600 dark:text-blue-400">
-                    All documentation has been shared with relevant stakeholders and regulatory bodies.
+                    All documentation has been shared with relevant stakeholders
+                    and regulatory bodies.
                   </div>
                 </div>
               </div>
