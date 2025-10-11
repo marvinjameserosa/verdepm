@@ -40,7 +40,6 @@ export const Header = () => {
           )}
         >
           <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-2">
-            {/* Logo */}
             <div className="flex w-full justify-between lg:w-auto">
               <Link
                 href="/"
@@ -50,7 +49,6 @@ export const Header = () => {
                 <Logo />
               </Link>
 
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setMenuState(!menuState)}
                 aria-label={menuState ? "Close Menu" : "Open Menu"}
@@ -61,7 +59,6 @@ export const Header = () => {
               </button>
             </div>
 
-            {/* Desktop Menu */}
             <div className="absolute inset-0 m-auto hidden size-fit lg:block">
               <ul className="flex gap-10 text-sm font-medium">
                 {menuItems.map((item, index) => (
@@ -77,9 +74,7 @@ export const Header = () => {
               </ul>
             </div>
 
-            {/* Right Section (Buttons + Mobile Menu Items) */}
             <div className="bg-emerald-950/95 group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border border-emerald-800/60 p-6 shadow-xl md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent">
-              {/* Mobile Menu Links */}
               <div className="lg:hidden">
                 <ul className="space-y-6 text-base">
                   {menuItems.map((item, index) => (
@@ -95,10 +90,9 @@ export const Header = () => {
                 </ul>
               </div>
 
-              {/* Auth Buttons */}
               <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-                {/* Login */}
                 <Button
+                  asChild
                   variant="outline"
                   size="sm"
                   className={cn(
@@ -106,10 +100,9 @@ export const Header = () => {
                     isScrolled && "lg:hidden"
                   )}
                 >
-                  Login
+                  <Link href="/login">Login</Link>
                 </Button>
 
-                {/* Get Started */}
                 <Button
                   size="sm"
                   className={cn(
@@ -124,7 +117,6 @@ export const Header = () => {
           </div>
         </div>
 
-        {/* Emerald glow accent line */}
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent opacity-70" />
       </nav>
     </header>
