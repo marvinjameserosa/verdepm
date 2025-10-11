@@ -25,9 +25,52 @@ import {
   TreePine,
   Users,
   Award,
-  TrendingUp,
 } from "lucide-react";
 import { Background } from "@/components/ui/background";
+import { LucideIcon } from "lucide-react";
+
+// Report data interfaces
+interface ESGData {
+  environmental: { score: number; target: number; status: string };
+  social: { score: number; target: number; status: string };
+  governance: { score: number; target: number; status: string };
+  carbonFootprint: number;
+  wasteRecycled: number;
+  energyEfficiency: number;
+}
+
+interface CarbonData {
+  totalEmissions: number;
+  reductionTarget: number;
+  reductionAchieved: number;
+  scopes: {
+    scope1: number;
+    scope2: number;
+    scope3: number;
+  };
+}
+
+interface ComplianceData {
+  certifications: number;
+  totalCertifications: number;
+  complianceRate: number;
+}
+
+interface StakeholderData {
+  communityPrograms: number;
+  localJobs: number;
+  stakeholderSatisfaction: number;
+}
+
+// Report template interface
+interface ReportTemplate {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  color: string;
+  data: Record<string, unknown>;
+}
 
 // Documentation items from post-construction phase
 const documentationItems = [
@@ -148,7 +191,9 @@ const reportTemplates = [
 ];
 
 export default function ReportsTab() {
-  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<ReportTemplate | null>(
+    null
+  );
   const [reportContent, setReportContent] = useState("");
   const [reportTitle, setReportTitle] = useState("");
 
@@ -165,7 +210,7 @@ export default function ReportsTab() {
   };
 
   // Function to generate report content based on template and dashboard data
-  function generateReportContent(template: any) {
+  function generateReportContent(template: ReportTemplate) {
     const currentDate = new Date().toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -173,7 +218,8 @@ export default function ReportsTab() {
     });
 
     switch (template.id) {
-      case "esg-summary":
+      case "esg-summary": {
+        const data = template.data as unknown as ESGData;
         return `# ESG Performance Summary Report
 
 **Project:** Verde Tower Construction Project
@@ -185,28 +231,24 @@ export default function ReportsTab() {
 This comprehensive ESG performance report provides an overview of our project's Environmental, Social, and Governance achievements during the post-construction phase.
 
 ## Environmental Performance
-- **Score:** ${template.data.environmental.score}/100 (Target: ${
-          template.data.environmental.target
+- **Score:** ${data.environmental.score}/100 (Target: ${
+          data.environmental.target
         })
-- **Status:** ${template.data.environmental.status.toUpperCase()}
-- **Carbon Footprint:** ${template.data.carbonFootprint} tCO₂e
-- **Waste Recycling Rate:** ${template.data.wasteRecycled}%
-- **Energy Efficiency:** ${template.data.energyEfficiency}%
+- **Status:** ${data.environmental.status.toUpperCase()}
+- **Carbon Footprint:** ${data.carbonFootprint} tCO₂e
+- **Waste Recycling Rate:** ${data.wasteRecycled}%
+- **Energy Efficiency:** ${data.energyEfficiency}%
 
 ## Social Impact
-- **Score:** ${template.data.social.score}/100 (Target: ${
-          template.data.social.target
-        })
-- **Status:** ${template.data.social.status.toUpperCase()}
+- **Score:** ${data.social.score}/100 (Target: ${data.social.target})
+- **Status:** ${data.social.status.toUpperCase()}
 - **Community Programs:** 8 initiatives launched
 - **Local Employment:** 145 jobs created
 - **Safety Record:** Zero incidents during construction
 
 ## Governance Excellence
-- **Score:** ${template.data.governance.score}/100 (Target: ${
-          template.data.governance.target
-        })
-- **Status:** ${template.data.governance.status.toUpperCase()}
+- **Score:** ${data.governance.score}/100 (Target: ${data.governance.target})
+- **Status:** ${data.governance.status.toUpperCase()}
 - **Certifications Achieved:** 4 out of 4 planned
 - **Compliance Rate:** 100%
 - **Stakeholder Engagement:** 25 sessions conducted
@@ -219,8 +261,10 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ---
 *Report generated from live dashboard data*`;
+      }
 
-      case "carbon-footprint":
+      case "carbon-footprint": {
+        const data = template.data as unknown as CarbonData;
         return `# Carbon Footprint Analysis Report
 
 **Project:** Verde Tower Construction Project
@@ -229,14 +273,14 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ## Carbon Emissions Overview
 
-**Total Project Emissions:** ${template.data.totalEmissions} tCO₂e
-**Original Target:** ${template.data.reductionTarget} tCO₂e
-**Reduction Achieved:** ${template.data.reductionAchieved}%
+**Total Project Emissions:** ${data.totalEmissions} tCO₂e
+**Original Target:** ${data.reductionTarget} tCO₂e
+**Reduction Achieved:** ${data.reductionAchieved}%
 
 ## Emissions by Scope
-- **Scope 1 (Direct):** ${template.data.scopes.scope1} tCO₂e
-- **Scope 2 (Electricity):** ${template.data.scopes.scope2} tCO₂e
-- **Scope 3 (Indirect):** ${template.data.scopes.scope3} tCO₂e
+- **Scope 1 (Direct):** ${data.scopes.scope1} tCO₂e
+- **Scope 2 (Electricity):** ${data.scopes.scope2} tCO₂e
+- **Scope 3 (Indirect):** ${data.scopes.scope3} tCO₂e
 
 ## Carbon Reduction Strategies Implemented
 1. **Energy Efficient Systems:** 15% reduction in electricity consumption
@@ -251,8 +295,10 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ---
 *Analysis based on verified emissions data and third-party calculations*`;
+      }
 
-      case "compliance-report":
+      case "compliance-report": {
+        const data = template.data as unknown as ComplianceData;
         return `# Compliance & Certifications Report
 
 **Project:** Verde Tower Construction Project
@@ -261,7 +307,7 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ## Certification Status
 
-**Achieved Certifications (${template.data.certifications}/${template.data.totalCertifications}):**
+**Achieved Certifications (${data.certifications}/${data.totalCertifications}):**
 - LEED Platinum (October 1, 2024)
 - BREEAM Excellent (September 28, 2024)
 - WELL Building Standard (October 10, 2024)
@@ -270,7 +316,7 @@ This comprehensive ESG performance report provides an overview of our project's 
 - ISO 14001 Environmental Management (Expected: November 15, 2024)
 
 ## Regulatory Compliance
-**Overall Compliance Rate:** ${template.data.complianceRate}%
+**Overall Compliance Rate:** ${data.complianceRate}%
 
 ### Environmental Regulations
 - ✅ Air Quality Standards: Fully compliant
@@ -294,8 +340,10 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ---
 *All compliance data verified by independent auditors*`;
+      }
 
-      case "stakeholder-summary":
+      case "stakeholder-summary": {
+        const data = template.data as unknown as StakeholderData;
         return `# Stakeholder Impact Report
 
 **Project:** Verde Tower Construction Project
@@ -304,9 +352,9 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ## Community Engagement Overview
 
-**Programs Implemented:** ${template.data.communityPrograms}
-**Local Jobs Created:** ${template.data.localJobs}
-**Stakeholder Satisfaction:** ${template.data.stakeholderSatisfaction}%
+**Programs Implemented:** ${data.communityPrograms}
+**Local Jobs Created:** ${data.localJobs}
+**Stakeholder Satisfaction:** ${data.stakeholderSatisfaction}%
 
 ## Key Stakeholder Groups
 
@@ -343,6 +391,7 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ---
 *Report compiled from stakeholder feedback surveys and engagement records*`;
+      }
 
       default:
         return `# ${template.title}
