@@ -14,7 +14,7 @@ import {
 
 import Link from "next/link";
 import { useState } from "react";
-import Image from "next/image";
+import { Logo } from "@/components/ui/logo";
 
 export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -36,7 +36,7 @@ export default function Sidebar() {
       <Link
         href={href}
         onClick={handleNavigation}
-        className="flex items-center px-3 py-2 text-sm rounded-md transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1F1F23]"
+        className="flex items-center px-3 py-2 text-sm rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
       >
         <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
         {children}
@@ -49,15 +49,15 @@ export default function Sidebar() {
       {/* Mobile trigger */}
       <button
         type="button"
-        className="lg:hidden fixed top-4 left-4 z-[70] p-2 rounded-lg bg-white dark:bg-[#0F0F12] shadow-md"
+        className="lg:hidden fixed top-4 left-4 z-[70] p-2 rounded-lg bg-background/80 backdrop-blur-sm shadow-md border border-border/50"
         onClick={() => setIsMobileMenuOpen((prev) => !prev)}
       >
-        <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+        <Menu className="h-5 w-5 text-muted-foreground" />
       </button>
 
       {/* Sidebar */}
       <nav
-        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-white dark:bg-[#0F0F12] transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64 border-r border-gray-200 dark:border-[#1F1F23] ${
+        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-background/80 backdrop-blur-xl transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64 border-r border-border/50 ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -65,25 +65,9 @@ export default function Sidebar() {
           {/* Logo */}
           <Link
             href="/"
-            className="flex h-16 items-center gap-2 border-b border-gray-200 px-6 dark:border-[#1F1F23]"
+            className="flex h-16 items-center gap-2 border-b border-border px-6"
           >
-            <Image
-              src="/logo.svg"
-              alt="VerdePM"
-              width={40}
-              height={40}
-              className="hidden flex-shrink-0 dark:block"
-            />
-            <Image
-              src="/logo.svg"
-              alt="VerdePM"
-              width={40}
-              height={40}
-              className="block flex-shrink-0 dark:hidden"
-            />
-            <span className="text-lg font-semibold text-gray-900 hover:cursor-pointer dark:text-white">
-              VerdePM
-            </span>
+            <Logo className="h-2" />
           </Link>
 
           {/* Navigation groups */}
@@ -91,7 +75,7 @@ export default function Sidebar() {
             <div className="space-y-6">
               {/* Overview */}
               <div>
-                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Overview
                 </p>
                 <div className="space-y-1">
@@ -109,7 +93,7 @@ export default function Sidebar() {
 
               {/* Team */}
               <div>
-                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Team
                 </p>
                 <div className="space-y-1">
@@ -125,7 +109,7 @@ export default function Sidebar() {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 px-4 py-4 dark:border-[#1F1F23]">
+          <div className="border-t border-border px-4 py-4">
             <div className="space-y-1">
               <NavItem href="/dashboard/settings" icon={Settings}>
                 Settings
@@ -143,7 +127,7 @@ export default function Sidebar() {
         <div
           role="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 z-[65] bg-black/50 lg:hidden"
+          className="fixed inset-0 z-[65] bg-[color:var(--blackish)]/50 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

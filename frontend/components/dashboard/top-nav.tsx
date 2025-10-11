@@ -73,24 +73,22 @@ export default function TopNav() {
   }
 
   return (
-    <nav className="px-3 sm:px-6 flex items-center justify-between bg-white dark:bg-[#0F0F12] border-gray-200 dark:border-[#1F1F23] h-full">
+    <nav className="px-3 sm:px-6 flex items-center justify-between bg-background h-full">
       <div className="font-medium text-sm hidden lg:flex items-center space-x-1 truncate max-w-[300px]">
         {breadcrumbs.map((crumb, index) => (
           <React.Fragment key={index}>
             {index > 0 && (
-              <ChevronRight className="h-4 w-4 text-gray-500 dark:text-gray-400 mx-1" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />
             )}
             {crumb.href ? (
               <Link
                 href={crumb.href}
-                className="text-gray-700 dark:text-gray-300"
+                className="text-muted-foreground hover:text-foreground"
               >
                 {crumb.label}
               </Link>
             ) : (
-              <span className="text-gray-900 dark:text-gray-100">
-                {crumb.label}
-              </span>
+              <span className="text-foreground font-medium">{crumb.label}</span>
             )}
           </React.Fragment>
         ))}
@@ -99,9 +97,9 @@ export default function TopNav() {
       <div className="flex items-center gap-2 sm:gap-4 ml-auto">
         <button
           type="button"
-          className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-[#1F1F23] rounded-full transition-colors"
+          className="p-1.5 sm:p-2 hover:bg-muted rounded-full transition-colors"
         >
-          <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-300" />
+          <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
         </button>
 
         <ThemeToggle />
@@ -113,7 +111,7 @@ export default function TopNav() {
               alt="User avatar"
               width={28}
               height={28}
-              className="rounded-full ring-2 ring-gray-200 dark:ring-[#2B2B30] sm:w-8 sm:h-8 cursor-pointer"
+              className="rounded-full ring-2 ring-border sm:w-8 sm:h-8 cursor-pointer"
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent

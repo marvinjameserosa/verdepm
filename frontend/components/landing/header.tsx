@@ -35,7 +35,7 @@ export const Header = () => {
           className={cn(
             "mx-auto mt-2 max-w-6xl px-4 transition-all duration-300 lg:px-8",
             isScrolled
-              ? "bg-emerald-950/70 backdrop-blur-2xl border border-emerald-800/60 rounded-2xl shadow-lg shadow-emerald-900/40"
+              ? "bg-background/70 backdrop-blur-2xl border border-border rounded-2xl shadow-lg"
               : "bg-transparent"
           )}
         >
@@ -54,8 +54,8 @@ export const Header = () => {
                 aria-label={menuState ? "Close Menu" : "Open Menu"}
                 className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden"
               >
-                <Menu className="m-auto size-6 text-emerald-300 transition-all duration-200 group-data-[state=active]:opacity-0 group-data-[state=active]:scale-0" />
-                <X className="absolute inset-0 m-auto size-6 text-emerald-300 opacity-0 scale-0 transition-all duration-200 group-data-[state=active]:opacity-100 group-data-[state=active]:scale-100" />
+                <Menu className="m-auto size-6 text-emerald-500 transition-all duration-200 group-data-[state=active]:opacity-0 group-data-[state=active]:scale-0" />
+                <X className="absolute inset-0 m-auto size-6 text-emerald-500 opacity-0 scale-0 transition-all duration-200 group-data-[state=active]:opacity-100 group-data-[state=active]:scale-100" />
               </button>
             </div>
 
@@ -65,7 +65,7 @@ export const Header = () => {
                   <li key={index}>
                     <Link
                       href={item.href}
-                      className="relative text-gray-200 transition-all duration-150 hover:text-emerald-400 after:absolute after:bottom-[-4px] after:left-0 after:h-[2px] after:w-0 after:bg-emerald-400 after:transition-all after:duration-300 hover:after:w-full"
+                      className="relative text-muted-foreground transition-all duration-150 hover:text-emerald-500 after:absolute after:bottom-[-4px] after:left-0 after:h-[2px] after:w-0 after:bg-emerald-500 after:transition-all after:duration-300 hover:after:w-full"
                     >
                       {item.name}
                     </Link>
@@ -74,14 +74,14 @@ export const Header = () => {
               </ul>
             </div>
 
-            <div className="bg-emerald-950/95 group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border border-emerald-800/60 p-6 shadow-xl md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent">
+            <div className="group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 p-6 lg:m-0 lg:flex lg:w-fit backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-2xl shadow-emerald-500/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none lg:shadow-none lg:rounded-none">
               <div className="lg:hidden">
                 <ul className="space-y-6 text-base">
                   {menuItems.map((item, index) => (
                     <li key={index}>
                       <Link
                         href={item.href}
-                        className="text-gray-200 hover:text-emerald-400 block duration-150"
+                        className="text-muted-foreground hover:text-emerald-500 block duration-150"
                       >
                         {item.name}
                       </Link>
@@ -96,7 +96,7 @@ export const Header = () => {
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 transition-colors duration-200",
+                    "border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors duration-200",
                     isScrolled && "lg:hidden"
                   )}
                 >
@@ -106,7 +106,7 @@ export const Header = () => {
                 <Button
                   size="sm"
                   className={cn(
-                    "bg-gradient-to-r from-emerald-500 via-green-500 to-lime-400 hover:from-emerald-600 hover:via-green-500 hover:to-lime-500 text-black font-semibold shadow-md transition-all duration-200 hover:shadow-[0_0_20px_rgba(52,211,153,0.4)] hover:scale-[1.03]",
+                    "bg-gradient-to-r from-emerald-500 via-green-500 to-lime-400 hover:from-emerald-600 hover:via-green-500 hover:to-lime-500 text-white font-semibold shadow-md transition-all duration-200 hover:shadow-[0_0_20px_rgba(52,211,153,0.4)] hover:scale-[1.03]",
                     isScrolled ? "lg:inline-flex" : "hidden"
                   )}
                 >
