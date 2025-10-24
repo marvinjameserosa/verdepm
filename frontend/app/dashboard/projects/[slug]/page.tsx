@@ -1,4 +1,5 @@
 import ProjectPhases from "@/components/dashboard/projects/project-phases";
+import { Background } from "@/components/ui/background";
 import { projects } from "@/lib/data";
 import { notFound } from "next/navigation";
 
@@ -17,20 +18,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4">
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {project.name}
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              {project.description}
-            </p>
-          </div>
-          <ProjectPhases />
-        </main>
+    <Background variant="subtle" className="min-h-screen">
+      <div className="relative z-10">
+        <div className="flex flex-col gap-6 p-6">
+          <main className="space-y-6">
+            {/* Project Header */}
+            <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl border border-white/20 shadow-2xl p-6">
+              <div className="space-y-2">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
+                  {project.name}
+                </h1>
+                <p className="text-base sm:text-lg text-muted-foreground">
+                  {project.description}
+                </p>
+              </div>
+            </div>
+            <ProjectPhases />
+          </main>
+        </div>
       </div>
-    </div>
+    </Background>
   );
 }

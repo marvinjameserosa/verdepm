@@ -78,22 +78,24 @@ function PreAssessmentChecklistGuide() {
   ];
   const StatusIcon = ({ status }: { status: string }) => {
     if (status === "Completed")
-      return <CheckCircle className="h-6 w-6 text-green-500" />;
+      return <CheckCircle className="h-6 w-6 text-emerald-500" />;
     if (status === "Active")
-      return <CircleDot className="h-6 w-6 text-blue-500" />;
+      return <CircleDot className="h-6 w-6 text-emerald-600" />;
     return <Circle className="h-6 w-6 text-gray-400" />;
   };
   return (
-    <Card>
+    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
       <CardHeader>
-        <CardTitle>Pre-Assessment Progress</CardTitle>
+        <CardTitle className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+          Pre-Assessment Progress
+        </CardTitle>
         <CardDescription>
           A visual guide to the pre-construction workflow.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="relative pl-6">
-          <div className="absolute left-9 top-0 bottom-0 w-0.5 bg-gray-200" />
+          <div className="absolute left-9 top-0 bottom-0 w-0.5 bg-emerald-200 dark:bg-emerald-800/50" />
           <div className="space-y-8">
             {assessmentSteps.map((step) => (
               <div key={step.name} className="flex items-start space-x-6">
@@ -103,7 +105,9 @@ function PreAssessmentChecklistGuide() {
                 <div>
                   <h4
                     className={`font-semibold ${
-                      step.status === "Active" ? "text-blue-600" : ""
+                      step.status === "Active"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : ""
                     }`}
                   >
                     {step.name}
@@ -151,15 +155,17 @@ export default function PreConstructionPhase() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
+    <div className="space-y-6">
       <PreAssessmentChecklistGuide />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* --- Section 1 & 2 (No changes) --- */}
-        <Card>
+        <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-6 w-6" />
+            <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                <ClipboardList className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
               Step 1: Project Setup & Due Diligence
             </CardTitle>
           </CardHeader>
@@ -202,10 +208,12 @@ export default function PreConstructionPhase() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-6 w-6" />
+            <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
               Step 2: Impact Assessment & Target Setting
             </CardTitle>
           </CardHeader>
@@ -290,10 +298,12 @@ export default function PreConstructionPhase() {
         </Card>
 
         {/* --- Section 3: OVERHAULED MATERIAL SOURCING --- */}
-        <Card>
+        <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="h-6 w-6" />
+            <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                <Layers className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
               Step 3: Material Sourcing & Due Diligence
             </CardTitle>
             <CardDescription>
