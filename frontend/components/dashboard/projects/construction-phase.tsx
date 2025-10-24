@@ -100,10 +100,14 @@ function MetricCard({
   const isOverTarget = numericValue > dailyGoal && dailyGoal > 0;
 
   return (
-    <Card>
+    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
+        <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          {title}
+        </CardTitle>
+        <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
+          {icon}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex items-center text-xs text-muted-foreground mb-4 p-2 bg-secondary rounded-md">
@@ -240,10 +244,12 @@ export default function ConstructionPhase() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <Card>
+    <div className="space-y-6">
+      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardHeader>
-          <CardTitle>Construction Phase: Daily ESG Monitoring</CardTitle>
+          <CardTitle className="text-emerald-700 dark:text-emerald-300">
+            Construction Phase: Daily ESG Monitoring
+          </CardTitle>
           <CardDescription>
             Log daily metrics and material deliveries to track performance
             against pre-construction targets.
@@ -263,10 +269,12 @@ export default function ConstructionPhase() {
       </div>
 
       {/* --- NEW MATERIAL SOURCING LOG --- */}
-      <Card>
+      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PackageCheck className="h-6 w-6" />
+          <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+            <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+              <PackageCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
             Material Sourcing Log
           </CardTitle>
           <CardDescription>

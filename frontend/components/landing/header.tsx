@@ -74,7 +74,10 @@ export const Header = () => {
               </ul>
             </div>
 
-            <div className="group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 p-6 lg:m-0 lg:flex lg:w-fit backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-2xl shadow-emerald-500/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none lg:shadow-none lg:rounded-none">
+            <div
+              className="group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 p-6 lg:m-0 lg:flex lg:w-fit backdrop-blur-xl  
+            rounded-2xl shadow-2xl shadow-emerald-500/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none lg:shadow-none lg:rounded-none"
+            >
               <div className="lg:hidden">
                 <ul className="space-y-6 text-base">
                   {menuItems.map((item, index) => (
