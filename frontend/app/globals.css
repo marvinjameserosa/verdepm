@@ -123,4 +123,9 @@
   body {
     @apply bg-background text-foreground;
   }
+  input,
+  textarea,
+  select {
+    @apply bg-white/80 dark:bg-gray-900/80 border-gray-300 dark:border-gray-700;
+  }
 }
