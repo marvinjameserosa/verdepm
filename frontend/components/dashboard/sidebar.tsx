@@ -38,6 +38,7 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
           className={`transition-opacity duration-200 ${
             isSidebarOpen ? "opacity-100" : "opacity-0"
           }`}
+          aria-hidden={!isSidebarOpen}
         >
           {children}
         </span>
