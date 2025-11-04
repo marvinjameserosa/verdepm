@@ -30,7 +30,7 @@ export function AddProjectModal() {
           <span className="sm:hidden">Add</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border border-white/20 rounded-2xl shadow-2xl">
+      <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border border-white/20 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
         <DialogHeader className="text-center sm:text-left">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50">
@@ -46,7 +46,7 @@ export function AddProjectModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-4">
+        <div className="space-y-5 py-4 overflow-y-auto pr-4">
           <div className="space-y-2">
             <Label
               htmlFor="name"
@@ -87,10 +87,11 @@ export function AddProjectModal() {
                 <SelectTrigger className="rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[100]">
                   <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="on-track">On Track</SelectItem>
-                  <SelectItem value="delayed">Delayed</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="on-hold">On Hold</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -106,14 +107,112 @@ export function AddProjectModal() {
                 <SelectTrigger className="rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[100]">
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="project-manager"
+              className="text-sm font-medium text-foreground"
+            >
+              Project Manager / Owner
+            </Label>
+            <Input
+              id="project-manager"
+              placeholder="Enter project manager's name..."
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label
+                htmlFor="start-date"
+                className="text-sm font-medium text-foreground"
+              >
+                Start Date
+              </Label>
+              <Input id="start-date" type="date" className="rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="end-date"
+                className="text-sm font-medium text-foreground"
+              >
+                Target End Date
+              </Label>
+              <Input id="end-date" type="date" className="rounded-xl" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="client"
+              className="text-sm font-medium text-foreground"
+            >
+              Client / Customer
+            </Label>
+            <Input
+              id="client"
+              placeholder="Enter client's name..."
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label
+                htmlFor="project-type"
+                className="text-sm font-medium text-foreground"
+              >
+                Project Type / Category
+              </Label>
+              <Select>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent className="z-[100]">
+                  <SelectItem value="commercial">Commercial</SelectItem>
+                  <SelectItem value="residential">Residential</SelectItem>
+                  <SelectItem value="infrastructure">Infrastructure</SelectItem>
+                  <SelectItem value="renovation">Renovation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="budget"
+                className="text-sm font-medium text-foreground"
+              >
+                Total Budget
+              </Label>
+              <Input
+                id="budget"
+                type="number"
+                placeholder="e.g., 500000"
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="location"
+              className="text-sm font-medium text-foreground"
+            >
+              Location / Address
+            </Label>
+            <Input
+              id="location"
+              placeholder="Enter project address..."
+              className="rounded-xl"
+            />
           </div>
         </div>
 

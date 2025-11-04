@@ -1,5 +1,6 @@
 export type Material = {
   id: number;
+  category: string;
   name: string;
   supplier: string;
   cost: string;
@@ -12,6 +13,7 @@ export type Material = {
 export const initialMaterials: Material[] = [
   {
     id: 1,
+    category: "Concrete",
     name: "Low-Carbon Concrete Mix",
     supplier: "EcoCrete Inc.",
     cost: "15000",
@@ -21,6 +23,7 @@ export const initialMaterials: Material[] = [
   },
   {
     id: 2,
+    category: "Structural Steel",
     name: "Recycled Steel Beams",
     supplier: "SteelAgain Corp.",
     cost: "80000",
@@ -30,6 +33,7 @@ export const initialMaterials: Material[] = [
   },
   {
     id: 3,
+    category: "Carpentry",
     name: "Bamboo Composite Decking",
     supplier: "GreenDeck Solutions",
     cost: "5000",
