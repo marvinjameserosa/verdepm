@@ -89,6 +89,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
           type="button"
           className="p-1.5 sm:p-2 hover:bg-muted rounded-full transition-colors"
           onClick={toggleSidebar}
+          aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           {isSidebarOpen ? (
             <PanelLeftClose className="h-5 w-5 text-muted-foreground" />
