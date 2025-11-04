@@ -988,9 +988,16 @@ export default function Dashboard() {
             <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader
                 className="flex flex-row items-center justify-between cursor-pointer"
+                role="button"
+                tabIndex={0}
                 onClick={() =>
                   setIsProjectEmissionsOpen(!isProjectEmissionsOpen)
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    setIsProjectEmissionsOpen(!isProjectEmissionsOpen);
+                  }
+                }}
               >
                 <div>
                   <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
