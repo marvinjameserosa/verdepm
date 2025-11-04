@@ -54,6 +54,7 @@ export default function Step2TargetSetting({
   addMaterial,
 }: Props) {
   const [newMaterial, setNewMaterial] = useState<Partial<Material>>({
+    category: "",
     name: "",
     supplier: "",
     cost: "",
@@ -80,6 +81,7 @@ export default function Step2TargetSetting({
         ...newMaterial,
       } as Material);
       setNewMaterial({
+        category: "",
         name: "",
         supplier: "",
         cost: "",
@@ -113,7 +115,7 @@ export default function Step2TargetSetting({
               <Target className="h-5 w-5" /> Define ESG Targets
             </h4>
             <div className="p-4 border rounded-lg space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Category</Label>
                   <Select>
@@ -138,11 +140,6 @@ export default function Step2TargetSetting({
                   <Input placeholder="e.g., < 500 kgCO2e/m²" />
                 </div>
               </div>
-              <div className="flex justify-end">
-                <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Target
-                </Button>
-              </div>
             </div>
           </div>
 
@@ -153,14 +150,37 @@ export default function Step2TargetSetting({
             <div className="p-4 border rounded-lg space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Material Name</Label>
-                  <Input
-                    placeholder="e.g., Cross-Laminated Timber"
-                    value={newMaterial.name || ""}
-                    onChange={(e) =>
-                      setNewMaterial({ ...newMaterial, name: e.target.value })
+                  <Label>Material Category</Label>
+                  <Select
+                    value={newMaterial.category || ""}
+                    onValueChange={(value) =>
+                      handleSelectChange("category", value)
                     }
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Material" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Concrete">Concrete</SelectItem>
+                      <SelectItem value="Masonry">Masonry</SelectItem>
+                      <SelectItem value="Structural Steel">
+                        Structural Steel
+                      </SelectItem>
+                      <SelectItem value="Carpentry">Carpentry</SelectItem>
+                      <SelectItem value="Roofing & Waterproofing">
+                        Roofing & Waterproofing
+                      </SelectItem>
+                      <SelectItem value="Doors & Windows">
+                        Doors & Windows
+                      </SelectItem>
+                      <SelectItem value="Interior Finishes">
+                        Interior Finishes
+                      </SelectItem>
+                      <SelectItem value="Plumbing">Plumbing</SelectItem>
+                      <SelectItem value="Electrical">Electrical</SelectItem>
+                      <SelectItem value="Landscaping">Landscaping</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Planned Supplier</Label>
@@ -175,6 +195,20 @@ export default function Step2TargetSetting({
                     }
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Material Name</Label>
+                <Input
+                  placeholder="e.g., Cross-Laminated Timber"
+                  value={newMaterial.name || ""}
+                  onChange={(e) =>
+                    setNewMaterial({ ...newMaterial, name: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Warehouse of the supplier</Label>
+                <Input placeholder="e.g., '456 Logistics Rd, Industrial Park'" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -199,7 +233,7 @@ export default function Step2TargetSetting({
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
-                        className="w-full justify-between bg-white/80 dark:bg-gray-900/80"
+                        className="w-full justify-between bg-white/80 dark:bg-gray-900/80 border-gray-300 dark:border-gray-700"
                       >
                         {newMaterial.unit
                           ? units.find(
@@ -278,7 +312,7 @@ export default function Step2TargetSetting({
                       handleSelectChange("status", value)
                     }
                   >
-                    <SelectTrigger className="bg-white/80 dark:bg-gray-900/80">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
