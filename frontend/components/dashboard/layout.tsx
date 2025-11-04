@@ -6,15 +6,21 @@ import TopNav from "./top-nav";
 
 interface LayoutProps {
   children: ReactNode;
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({
+  children,
+  isSidebarOpen,
+  toggleSidebar,
+}: LayoutProps) {
   return (
     <div className={`flex h-screen`}>
-      <Sidebar />
+      <Sidebar isSidebarOpen={isSidebarOpen} />
       <div className="w-full flex flex-1 flex-col">
         <header className="h-16 border-b border-gray-200 dark:border-[#1F1F23]">
-          <TopNav />
+          <TopNav toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
         </header>
         <main className="flex-1 overflow-auto p-6 bg-white dark:bg-[#0F0F12]">
           {children}
