@@ -8,21 +8,17 @@ import {
   Shield,
   Settings,
   HelpCircle,
-  Menu,
   Home,
 } from "lucide-react";
 
 import Link from "next/link";
-import { useState } from "react";
 import { Logo } from "@/components/ui/logo";
 
-export default function Sidebar() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+interface SidebarProps {
+  isSidebarOpen: boolean;
+}
 
-  function handleNavigation() {
-    setIsMobileMenuOpen(false);
-  }
-
+export default function Sidebar({ isSidebarOpen }: SidebarProps) {
   function NavItem({
     href,
     icon: Icon,
@@ -35,102 +31,98 @@ export default function Sidebar() {
     return (
       <Link
         href={href}
-        onClick={handleNavigation}
         className="flex items-center px-3 py-2 text-sm rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
       >
         <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
-        {children}
+        <span
+          className={`transition-opacity duration-200 ${
+            isSidebarOpen ? "opacity-100" : "opacity-0"
+          }`}
+          aria-hidden={!isSidebarOpen}
+        >
+          {children}
+        </span>
       </Link>
     );
   }
 
   return (
-    <>
-      {/* Mobile trigger */}
-      <button
-        type="button"
-        className="lg:hidden fixed top-4 left-4 z-[70] p-2 rounded-lg bg-background/80 backdrop-blur-sm shadow-md border border-border/50"
-        onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-      >
-        <Menu className="h-5 w-5 text-muted-foreground" />
-      </button>
+    <nav
+      className={`relative z-10 bg-background/80 backdrop-blur-xl border-r border-border/50 transition-all duration-300 ease-in-out ${
+        isSidebarOpen ? "w-64" : "w-20"
+      }`}
+    >
+      <div className="flex h-full flex-col">
+        {/* Logo */}
+        <Link
+          href="/"
+          className="flex h-16 items-center justify-center border-b border-border px-6"
+        >
+          <Logo
+            className={`transition-all duration-300 ${
+              isSidebarOpen ? "h-6" : "h-8"
+            }`}
+          />
+        </Link>
 
-      {/* Sidebar */}
-      <nav
-        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-background/80 backdrop-blur-xl transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64 border-r border-border/50 ${
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <Link
-            href="/"
-            className="flex h-16 items-center gap-2 border-b border-border px-6"
-          >
-            <Logo className="h-2" />
-          </Link>
-
-          {/* Navigation groups */}
-          <div className="flex-grow overflow-y-auto p-4">
-            <div className="space-y-6">
-              {/* Overview */}
-              <div>
-                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Overview
-                </p>
-                <div className="space-y-1">
-                  <NavItem href="/dashboard" icon={Home}>
-                    Dashboard
-                  </NavItem>
-                  <NavItem href="/dashboard/projects" icon={Folder}>
-                    Projects
-                  </NavItem>
-                  <NavItem href="/dashboard/reports" icon={BarChart2}>
-                    Reports
-                  </NavItem>
-                </div>
-              </div>
-
-              {/* Team */}
-              <div>
-                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Team
-                </p>
-                <div className="space-y-1">
-                  <NavItem href="/dashboard/members" icon={Users2}>
-                    Members
-                  </NavItem>
-                  <NavItem href="/dashboard/permissions" icon={Shield}>
-                    Permissions
-                  </NavItem>
-                </div>
+        {/* Navigation groups */}
+        <div className="flex-grow overflow-y-auto p-4">
+          <div className="space-y-6">
+            {/* Overview */}
+            <div>
+              <p
+                className={`px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-opacity duration-200 ${
+                  isSidebarOpen ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                Overview
+              </p>
+              <div className="space-y-1">
+                <NavItem href="/dashboard" icon={Home}>
+                  Dashboard
+                </NavItem>
+                <NavItem href="/dashboard/projects" icon={Folder}>
+                  Projects
+                </NavItem>
+                <NavItem href="/dashboard/reports" icon={BarChart2}>
+                  Reports
+                </NavItem>
               </div>
             </div>
-          </div>
 
-          {/* Footer */}
-          <div className="border-t border-border px-4 py-4">
-            <div className="space-y-1">
-              <NavItem href="/dashboard/settings" icon={Settings}>
-                Settings
-              </NavItem>
-              <NavItem href="#" icon={HelpCircle}>
-                Help
-              </NavItem>
+            {/* Team */}
+            <div>
+              <p
+                className={`px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-opacity duration-200 ${
+                  isSidebarOpen ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                Team
+              </p>
+              <div className="space-y-1">
+                <NavItem href="/dashboard/members" icon={Users2}>
+                  Members
+                </NavItem>
+                <NavItem href="/dashboard/permissions" icon={Shield}>
+                  Permissions
+                </NavItem>
+              </div>
             </div>
           </div>
         </div>
-      </nav>
 
-      {/* Mobile overlay */}
-      {isMobileMenuOpen && (
-        <div
-          role="button"
-          aria-label="Close sidebar"
-          className="fixed inset-0 z-[65] bg-[color:var(--blackish)]/50 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-    </>
+        {/* Footer */}
+        <div className="border-t border-border px-4 py-4">
+          <div className="space-y-1">
+            <NavItem href="/dashboard/settings" icon={Settings}>
+              Settings
+            </NavItem>
+            <NavItem href="#" icon={HelpCircle}>
+              Help
+            </NavItem>
+          </div>
+        </div>
+      </div>
+    </nav>
   );
 }

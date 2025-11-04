@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -31,11 +31,10 @@ import {
   Building2,
   TrendingUp,
   TrendingDown,
-  Award,
-  CheckCircle,
   Users,
   Globe,
   Leaf,
+  ChevronDown,
 } from "lucide-react";
 import { Background } from "@/components/ui/background";
 
@@ -232,30 +231,17 @@ const esgDetailedBreakdown = {
   },
 };
 
-const complianceMetrics = [
-  { name: "ISO 14001", status: "Compliant", score: 95, deadline: "2024-12-31" },
-  {
-    name: "GRI Standards",
-    status: "In Progress",
-    score: 78,
-    deadline: "2024-11-15",
-  },
-  { name: "TCFD", status: "Compliant", score: 89, deadline: "2024-10-30" },
-  {
-    name: "SBTi Targets",
-    status: "Pending",
-    score: 65,
-    deadline: "2025-01-15",
-  },
-];
-
-const supplierEngagement = [
-  { category: "Tier 1 Suppliers", assessed: 85, total: 100, percentage: 85 },
-  { category: "Critical Suppliers", assessed: 47, total: 52, percentage: 90 },
-  { category: "Regional Suppliers", assessed: 156, total: 180, percentage: 87 },
-];
+const supplierData = {
+  total: 285,
+  complete: 247,
+  incomplete: 38,
+};
 
 export default function Dashboard() {
+  const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
+  const [isEsgPerformanceOpen, setIsEsgPerformanceOpen] = useState(true);
+  const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] =
+    useState(true);
   const totalEmissions = emissionsScopeData.reduce(
     (sum, scope) => sum + scope.value,
     0
@@ -376,141 +362,172 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Emissions Breakdown */}
             <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-              <CardHeader>
-                <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                  Scope 1, 2 & 3 Emissions
-                </CardTitle>
-                <CardDescription>
-                  Total: {(totalEmissions / 1000).toFixed(1)}k tCO₂e
-                </CardDescription>
+              <CardHeader
+                className="flex flex-row items-center justify-between cursor-pointer"
+                onClick={() =>
+                  setIsEmissionsBreakdownOpen(!isEmissionsBreakdownOpen)
+                }
+              >
+                <div>
+                  <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                    Scope 1, 2 & 3 Emissions
+                  </CardTitle>
+                  <CardDescription>
+                    Total: {(totalEmissions / 1000).toFixed(1)}k tCO₂e
+                  </CardDescription>
+                </div>
+                <ChevronDown
+                  className={`h-5 w-5 text-emerald-700 dark:text-emerald-300 transform transition-transform ${
+                    isEmissionsBreakdownOpen ? "rotate-180" : ""
+                  }`}
+                />
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={emissionsScopeData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`${value} tCO₂e`, ""]} />
-                    <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="mt-4 space-y-2">
-                  {emissionsScopeData.map((scope, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50"
-                    >
-                      <span className="font-medium">{scope.name}</span>
-                      <div className="text-right">
-                        <div className="font-bold">
-                          {scope.value.toLocaleString()} tCO₂e
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {scope.percentage}%
+              {isEmissionsBreakdownOpen && (
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={emissionsScopeData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${value} tCO₂e`, ""]} />
+                      <Bar
+                        dataKey="value"
+                        fill="#10b981"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 space-y-2">
+                    {emissionsScopeData.map((scope, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                      >
+                        <span className="font-medium">{scope.name}</span>
+                        <div className="text-right">
+                          <div className="font-bold">
+                            {scope.value.toLocaleString()} tCO₂e
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {scope.percentage}%
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
+                    ))}
+                  </div>
+                </CardContent>
+              )}
             </Card>
 
             {/* ESG Score Overview */}
             <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-              <CardHeader>
-                <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                  ESG Performance by Project
-                </CardTitle>
-                <CardDescription>
-                  Environmental, Social & Governance scores across all projects
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {projectEsgBreakdown.map((project, index) => (
-                    <div
-                      key={index}
-                      className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/30 dark:bg-gray-800/30"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="font-semibold">{project.project}</h4>
-                          <Badge
-                            variant="outline"
-                            className={`mt-1 text-xs ${
-                              project.status === "Completed"
-                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                                : project.status === "On Track"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                                : "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-                            }`}
-                          >
-                            {project.status}
-                          </Badge>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-emerald-600">
-                            {project.overall}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Overall Score
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <TreePine className="h-3 w-3 text-emerald-600" />
-                            <span className="text-sm">Environmental</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Progress
-                              value={project.environmental}
-                              className="h-1.5 w-16"
-                            />
-                            <span className="text-sm font-medium w-8">
-                              {project.environmental}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-3 w-3 text-blue-600" />
-                            <span className="text-sm">Social</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Progress
-                              value={project.social}
-                              className="h-1.5 w-16"
-                            />
-                            <span className="text-sm font-medium w-8">
-                              {project.social}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-3 w-3 text-purple-600" />
-                            <span className="text-sm">Governance</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Progress
-                              value={project.governance}
-                              className="h-1.5 w-16"
-                            />
-                            <span className="text-sm font-medium w-8">
-                              {project.governance}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <CardHeader
+                className="flex flex-row items-center justify-between cursor-pointer"
+                onClick={() => setIsEsgPerformanceOpen(!isEsgPerformanceOpen)}
+              >
+                <div>
+                  <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                    ESG Performance by Project
+                  </CardTitle>
+                  <CardDescription>
+                    Environmental, Social & Governance scores across all
+                    projects
+                  </CardDescription>
                 </div>
-              </CardContent>
+                <ChevronDown
+                  className={`h-5 w-5 text-emerald-700 dark:text-emerald-300 transform transition-transform ${
+                    isEsgPerformanceOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </CardHeader>
+              {isEsgPerformanceOpen && (
+                <CardContent>
+                  <div className="space-y-4">
+                    {projectEsgBreakdown.map((project, index) => (
+                      <div
+                        key={index}
+                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/30 dark:bg-gray-800/30"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold">{project.project}</h4>
+                            <Badge
+                              variant="outline"
+                              className={`mt-1 text-xs ${
+                                project.status === "Completed"
+                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                                  : project.status === "On Track"
+                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                              }`}
+                            >
+                              {project.status}
+                            </Badge>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-emerald-600">
+                              {project.overall}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Overall Score
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <TreePine className="h-3 w-3 text-emerald-600" />
+                              <span className="text-sm">Environmental</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress
+                                value={project.environmental}
+                                className="h-1.5 w-16"
+                              />
+                              <span className="text-sm font-medium w-8">
+                                {project.environmental}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Users className="h-3 w-3 text-blue-600" />
+                              <span className="text-sm">Social</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress
+                                value={project.social}
+                                className="h-1.5 w-16"
+                              />
+                              <span className="text-sm font-medium w-8">
+                                {project.social}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Globe className="h-3 w-3 text-purple-600" />
+                              <span className="text-sm">Governance</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress
+                                value={project.governance}
+                                className="h-1.5 w-16"
+                              />
+                              <span className="text-sm font-medium w-8">
+                                {project.governance}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              )}
             </Card>
           </div>
 
@@ -966,138 +983,111 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {/* Project Breakdown */}
             <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                  <Building2 className="h-5 w-5" />
-                  Project Emissions Breakdown
-                </CardTitle>
-                <CardDescription>
-                  Carbon footprint across all active projects
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {projectBreakdownData.map((project, index) => (
-                    <div
-                      key={index}
-                      className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/30 dark:bg-gray-800/30"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="font-semibold">{project.project}</h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge
-                              variant="outline"
-                              className={
-                                project.status === "Completed"
-                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                                  : project.status === "On Track"
-                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                                  : project.status === "Delayed"
-                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400 border-gray-200 dark:border-gray-800"
-                              }
-                            >
-                              {project.status}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {project.phase}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-emerald-600">
-                            {project.total.toLocaleString()} tCO₂e
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {project.progress}% Complete
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 mb-2">
-                        <div className="text-center">
-                          <div className="text-sm font-medium text-emerald-600">
-                            {project.scope1}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Scope 1
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm font-medium text-blue-600">
-                            {project.scope2}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Scope 2
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm font-medium text-purple-600">
-                            {project.scope3}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Scope 3
-                          </div>
-                        </div>
-                      </div>
-
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
-                  ))}
+              <CardHeader
+                className="flex flex-row items-center justify-between cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  setIsProjectEmissionsOpen(!isProjectEmissionsOpen)
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    setIsProjectEmissionsOpen(!isProjectEmissionsOpen);
+                  }
+                }}
+              >
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                    <Building2 className="h-5 w-5" />
+                    Project Emissions Breakdown
+                  </CardTitle>
+                  <CardDescription>
+                    Carbon footprint across all active projects
+                  </CardDescription>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Compliance & Standards */}
-            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                  <Award className="h-5 w-5" />
-                  Compliance & Standards
-                </CardTitle>
-                <CardDescription>
-                  Regulatory and framework adherence
-                </CardDescription>
+                <ChevronDown
+                  className={`h-5 w-5 text-emerald-700 dark:text-emerald-300 transform transition-transform ${
+                    isProjectEmissionsOpen ? "rotate-180" : ""
+                  }`}
+                />
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {complianceMetrics.map((metric, index) => (
-                    <div
-                      key={index}
-                      className="p-3 rounded-lg border border-gray-200 dark:border-gray-700"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{metric.name}</span>
-                        <Badge
-                          variant={
-                            metric.status === "Compliant"
-                              ? "default"
-                              : "outline"
-                          }
-                          className={
-                            metric.status === "Compliant"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : metric.status === "In Progress"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-amber-100 text-amber-800"
-                          }
-                        >
-                          {metric.status}
-                        </Badge>
+              {isProjectEmissionsOpen && (
+                <CardContent>
+                  <div className="space-y-4">
+                    {projectBreakdownData.map((project, index) => (
+                      <div
+                        key={index}
+                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/30 dark:bg-gray-800/30"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold">{project.project}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  project.status === "Completed"
+                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                                    : project.status === "On Track"
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                                    : project.status === "Delayed"
+                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                                    : "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400 border-gray-200 dark:border-gray-800"
+                                }
+                              >
+                                {project.status}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {project.phase}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-emerald-600">
+                              {project.total.toLocaleString()} tCO₂e
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {project.progress}% Complete
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 mb-2">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-emerald-600">
+                              {project.scope1}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Scope 1
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-blue-600">
+                              {project.scope2}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Scope 2
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-purple-600">
+                              {project.scope3}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Scope 3
+                            </div>
+                          </div>
+                        </div>
+
+                        <Progress value={project.progress} className="h-2" />
                       </div>
-                      <Progress value={metric.score} className="h-2 mb-2" />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Score: {metric.score}%</span>
-                        <span>Due: {metric.deadline}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
+                    ))}
+                  </div>
+                </CardContent>
+              )}
             </Card>
           </div>
 
@@ -1112,30 +1102,54 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {supplierEngagement.map((category, index) => (
-                  <div key={index} className="text-center">
-                    <div className="mb-4">
-                      <div className="text-3xl font-bold text-emerald-600">
-                        {category.percentage}%
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {category.assessed} of {category.total} suppliers
-                      </div>
-                    </div>
-                    <div className="mb-2">
-                      <Progress value={category.percentage} className="h-3" />
-                    </div>
-                    <div className="font-medium">{category.category}</div>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="font-medium">Total Number of Suppliers</h4>
+                    <span className="text-sm font-bold text-muted-foreground">
+                      {supplierData.total} suppliers total
+                    </span>
                   </div>
-                ))}
-              </div>
-              <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                <div className="flex items-center justify-center gap-2 text-emerald-700 dark:text-emerald-300">
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="font-semibold">
-                    87% of suppliers completed ESG assessments
-                  </span>
+                  <Progress value={100} className="h-2" />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="font-medium">
+                      Suppliers with Complete Details
+                    </h4>
+                    <span className="text-sm font-bold text-emerald-600">
+                      {Math.round(
+                        (supplierData.complete / supplierData.total) * 100
+                      )}
+                      % – {supplierData.complete} of {supplierData.total}{" "}
+                      suppliers complete
+                    </span>
+                  </div>
+                  <Progress
+                    value={(supplierData.complete / supplierData.total) * 100}
+                    className="h-2"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="font-medium">
+                      Suppliers with Missing/Incomplete Details
+                    </h4>
+                    <span className="text-sm font-bold text-amber-600">
+                      {Math.round(
+                        (supplierData.incomplete / supplierData.total) * 100
+                      )}
+                      % – {supplierData.incomplete} of {supplierData.total}{" "}
+                      suppliers incomplete
+                    </span>
+                  </div>
+                  <Progress
+                    value={(supplierData.incomplete / supplierData.total) * 100}
+                    className="h-2"
+                    indicatorClassName="bg-amber-500"
+                  />
                 </div>
               </div>
             </CardContent>

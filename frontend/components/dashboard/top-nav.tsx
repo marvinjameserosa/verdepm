@@ -7,7 +7,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
-import { Bell, ChevronRight } from "lucide-react";
+import {
+  Bell,
+  ChevronRight,
+  PanelLeftClose,
+  PanelRightClose,
+} from "lucide-react";
 import Profile01 from "./profile-01";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
@@ -19,7 +24,12 @@ interface BreadcrumbItem {
   href?: string;
 }
 
-export default function TopNav() {
+interface TopNavProps {
+  toggleSidebar: () => void;
+  isSidebarOpen: boolean;
+}
+
+export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   const pathname = usePathname();
   const breadcrumbs: BreadcrumbItem[] = [];
   const pathParts = pathname.split("/").filter((part) => part);
@@ -74,24 +84,40 @@ export default function TopNav() {
 
   return (
     <nav className="px-3 sm:px-6 flex items-center justify-between bg-background h-full">
-      <div className="font-medium text-sm hidden lg:flex items-center space-x-1 truncate max-w-[300px]">
-        {breadcrumbs.map((crumb, index) => (
-          <React.Fragment key={index}>
-            {index > 0 && (
-              <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />
-            )}
-            {crumb.href ? (
-              <Link
-                href={crumb.href}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                {crumb.label}
-              </Link>
-            ) : (
-              <span className="text-foreground font-medium">{crumb.label}</span>
-            )}
-          </React.Fragment>
-        ))}
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          className="p-1.5 sm:p-2 hover:bg-muted rounded-full transition-colors"
+          onClick={toggleSidebar}
+          aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+        >
+          {isSidebarOpen ? (
+            <PanelLeftClose className="h-5 w-5 text-muted-foreground" />
+          ) : (
+            <PanelRightClose className="h-5 w-5 text-muted-foreground" />
+          )}
+        </button>
+        <div className="font-medium text-sm hidden lg:flex items-center space-x-1 truncate max-w-[300px]">
+          {breadcrumbs.map((crumb, index) => (
+            <React.Fragment key={index}>
+              {index > 0 && (
+                <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />
+              )}
+              {crumb.href ? (
+                <Link
+                  href={crumb.href}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span className="text-foreground font-medium">
+                  {crumb.label}
+                </span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4 ml-auto">
