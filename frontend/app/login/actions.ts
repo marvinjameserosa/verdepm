@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
-import { loginSchema } from "@/lib/schemas/user";
+import { loginSchema } from "@/types/auth";
 
 export async function Login(formData: FormData) {
   const email = formData.get("email") as string;
