@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle, Mail, Lock } from "lucide-react";
 import { Login } from "@/app/login/actions";
-import { loginSchema } from "@/lib/schemas/user";
+import { loginSchema } from "@/types/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
