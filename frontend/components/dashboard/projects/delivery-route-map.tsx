@@ -15,7 +15,7 @@ import "leaflet/dist/leaflet.css";
 
 type LatLngTuple = [number, number];
 
-type DeliveryRouteMapProps = {
+export type DeliveryRouteMapProps = {
   center: LatLngExpression;
   start?: LatLngTuple | null;
   end?: LatLngTuple | null;
