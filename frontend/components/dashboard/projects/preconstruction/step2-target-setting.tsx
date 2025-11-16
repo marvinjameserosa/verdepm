@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,19 +40,52 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { Material, units } from "./types";
+import { Material, MaterialStatus, type EsgTarget, units } from "./types";
+
+type TargetForm = {
+  category: "Environmental" | "Social" | "Governance" | "";
+  goal: string;
+  metric: string;
+};
+
+type MaterialDraft = {
+  category: string;
+  name: string;
+  supplier: string;
+  cost: string;
+  unit: string;
+  notes: string;
+  credentials?: string;
+  status: MaterialStatus;
+  warehouse?: string;
+};
 
 type Props = {
   onNext: () => void;
   onBack: () => void;
-  addMaterial: (material: Material) => void;
+  onSaveTarget: (target: TargetForm) => Promise<void>;
+  onAddMaterial: (material: MaterialDraft, specSheet?: File | null) => Promise<void>;
+  targets: EsgTarget[];
+  materials: Material[];
+  isSavingTarget: boolean;
+  isSavingMaterial: boolean;
 };
 
 export default function Step2TargetSetting({
   onNext,
   onBack,
-  addMaterial,
+  onSaveTarget,
+  onAddMaterial,
+  targets,
+  materials,
+  isSavingTarget,
+  isSavingMaterial,
 }: Props) {
+  const [targetForm, setTargetForm] = useState<TargetForm>({
+    category: "",
+    goal: "",
+    metric: "",
+  });
   const [newMaterial, setNewMaterial] = useState<Partial<Material>>({
     category: "",
     name: "",
@@ -62,35 +95,86 @@ export default function Step2TargetSetting({
     notes: "",
     status: "Identified",
   });
+  const [warehouse, setWarehouse] = useState("");
   const [open, setOpen] = React.useState(false);
+  const [specSheet, setSpecSheet] = useState<File | null>(null);
+
+  const resetMaterialForm = () => {
+    setNewMaterial({
+      category: "",
+      name: "",
+      supplier: "",
+      cost: "",
+      unit: "",
+      notes: "",
+      credentials: "",
+      status: "Identified",
+    });
+    setWarehouse("");
+    setSpecSheet(null);
+  };
+
+  const handleTargetSave = async () => {
+    if (!targetForm.category || !targetForm.goal || !targetForm.metric) {
+      console.warn("Target details are incomplete.");
+      return;
+    }
+    try {
+      await onSaveTarget(targetForm);
+      setTargetForm({ category: "", goal: "", metric: "" });
+    } catch (error) {
+      console.error("Failed to save target", error);
+    }
+  };
 
   const handleSelectChange = (name: string, value: string) => {
     setNewMaterial((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddMaterial = () => {
+  const materialIsValid = useMemo(() => {
+    return (
+      !!newMaterial.category &&
+      !!newMaterial.name &&
+      !!newMaterial.supplier &&
+      !!newMaterial.cost &&
+      !!newMaterial.unit &&
+      !!newMaterial.status
+    );
+  }, [
+    newMaterial.category,
+    newMaterial.name,
+    newMaterial.supplier,
+    newMaterial.cost,
+    newMaterial.unit,
+    newMaterial.status,
+  ]);
+
+  const handleAddMaterial = async () => {
     if (
-      newMaterial.name &&
-      newMaterial.supplier &&
-      newMaterial.cost &&
-      newMaterial.unit &&
-      newMaterial.status
+      !materialIsValid
     ) {
-      addMaterial({
-        id: Date.now(),
-        ...newMaterial,
-      } as Material);
-      setNewMaterial({
-        category: "",
-        name: "",
-        supplier: "",
-        cost: "",
-        unit: "",
-        notes: "",
-        status: "Identified",
-      });
-    } else {
-      console.log("Please fill all required fields");
+      console.warn("Please fill all required fields");
+      return;
+    }
+
+    try {
+      await onAddMaterial(
+        {
+          category: newMaterial.category!,
+          name: newMaterial.name!,
+          supplier: newMaterial.supplier!,
+          cost: newMaterial.cost!,
+          unit: newMaterial.unit!,
+          notes: newMaterial.notes ?? "",
+          credentials: newMaterial.credentials,
+          status: newMaterial.status!,
+          warehouse,
+        },
+        specSheet
+      );
+      resetMaterialForm();
+    } catch (error) {
+      console.error("Failed to add material", error);
     }
   };
 
@@ -118,7 +202,12 @@ export default function Step2TargetSetting({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select>
+                  <Select
+                    value={targetForm.category}
+                    onValueChange={(value: TargetForm["category"]) =>
+                      setTargetForm((prev) => ({ ...prev, category: value }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
@@ -133,13 +222,62 @@ export default function Step2TargetSetting({
                 </div>
                 <div className="space-y-2">
                   <Label>Goal</Label>
-                  <Input placeholder="e.g., Reduce Embodied Carbon" />
+                  <Input
+                    placeholder="e.g., Reduce Embodied Carbon"
+                    value={targetForm.goal}
+                    onChange={(e) =>
+                      setTargetForm((prev) => ({ ...prev, goal: e.target.value }))
+                    }
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Metric / KPI</Label>
-                  <Input placeholder="e.g., < 500 kgCO2e/m²" />
+                  <Input
+                    placeholder="e.g., < 500 kgCO2e/m²"
+                    value={targetForm.metric}
+                    onChange={(e) =>
+                      setTargetForm((prev) => ({ ...prev, metric: e.target.value }))
+                    }
+                  />
                 </div>
               </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={handleTargetSave}
+                  disabled={
+                    isSavingTarget ||
+                    !targetForm.category ||
+                    !targetForm.goal.trim() ||
+                    !targetForm.metric.trim()
+                  }
+                >
+                  {isSavingTarget ? "Saving..." : "Save Target"}
+                </Button>
+              </div>
+              {targets.length > 0 && (
+                <div className="space-y-2 pt-4 border-t">
+                  <h5 className="text-sm font-medium text-muted-foreground">
+                    Saved Targets
+                  </h5>
+                  <ul className="space-y-2">
+                    {targets.map((target) => (
+                      <li
+                        key={target.id}
+                        className="flex flex-col rounded-md border border-emerald-100 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/60 p-3"
+                      >
+                        <span className="text-xs uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                          {target.category}
+                        </span>
+                        <span className="text-sm font-semibold">{target.goal}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Metric: {target.metric}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 
@@ -208,7 +346,11 @@ export default function Step2TargetSetting({
               </div>
               <div className="space-y-2">
                 <Label>Warehouse of the supplier</Label>
-                <Input placeholder="e.g., '456 Logistics Rd, Industrial Park'" />
+                <Input
+                  placeholder="e.g., '456 Logistics Rd, Industrial Park'"
+                  value={warehouse}
+                  onChange={(event) => setWarehouse(event.target.value)}
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -301,7 +443,19 @@ export default function Step2TargetSetting({
                   <Label className="flex items-center">
                     <Upload className="mr-2 h-4 w-4" /> Upload Spec Sheet/EPD
                   </Label>
-                  <Input type="file" />
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      setSpecSheet(file ?? null);
+                    }}
+                  />
+                  {specSheet && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      Selected: {specSheet.name}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Vetting Status</Label>
@@ -324,10 +478,45 @@ export default function Step2TargetSetting({
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button onClick={handleAddMaterial}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add to Sourcing Plan
+                <Button
+                  type="button"
+                  onClick={handleAddMaterial}
+                  disabled={isSavingMaterial || !materialIsValid}
+                >
+                  {isSavingMaterial ? (
+                    "Saving..."
+                  ) : (
+                    <span className="flex items-center">
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add to Sourcing Plan
+                    </span>
+                  )}
                 </Button>
               </div>
+              {materials.length > 0 && (
+                <div className="pt-6 border-t space-y-3">
+                  <h5 className="text-sm font-medium text-muted-foreground">
+                    Materials Added
+                  </h5>
+                  <div className="grid gap-3">
+                    {materials.map((material) => (
+                      <div
+                        key={material.id}
+                        className="border border-emerald-100 dark:border-emerald-900/40 rounded-md p-3 text-sm"
+                      >
+                        <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          {material.name}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {material.supplier} • {material.unit}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Status: {material.status}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex justify-between">
