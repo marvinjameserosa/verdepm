@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const { email, password, phone, firstname, lastname, role } =
+  const { email, password, firstname, lastname, phone, role } =
     await request.json();
 
   // Ensure environment variables are available
@@ -23,26 +23,51 @@ export async function POST(request: Request) {
     },
   });
 
-  // Use the admin client to invite a new user
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
-    email: email,
-    password: password,
+  // Step 1: Create the user in auth.users
+  const { data: authData, error: authError } =
+    await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: password,
+      phone: phone,
+      email_confirm: true,
+      user_metadata: {
+        display_name: `${firstname} ${lastname}`,
+      },
+    });
+
+  if (authError) {
+    console.error("Supabase auth error:", authError);
+    return NextResponse.json({ error: authError.message }, { status: 400 });
+  }
+
+  if (!authData.user) {
+    return NextResponse.json(
+      { error: "User could not be created." },
+      { status: 500 }
+    );
+  }
+
+  // Step 2: Create the corresponding row in public.users
+  const { error: profileError } = await supabaseAdmin.from("users").insert({
+    user_id: authData.user.id,
+    first_name: firstname,
+    last_name: lastname,
     phone: phone,
-    email_confirm: true,
-    user_metadata: {
-      first_name: firstname,
-      last_name: lastname,
-      role: role,
-    },
+    email: email,
+    role: role,
+    created_at: new Date().toISOString(),
+    modified_at: new Date().toISOString(),
   });
 
-  if (error) {
-    console.error("Supabase admin error:", error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (profileError) {
+    console.error("Error creating user profile:", profileError);
+    // If profile creation fails, delete the auth user to roll back
+    await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
   return NextResponse.json({
     message: "User created successfully.",
-    user: data.user,
+    user: authData.user,
   });
 }
