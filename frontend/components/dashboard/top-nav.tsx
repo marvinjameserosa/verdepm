@@ -83,7 +83,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   }
 
   return (
-    <nav className="px-3 sm:px-6 flex items-center justify-between bg-background h-full">
+    <nav className="px-3 sm:px-6 flex items-center justify-between bg-background dark:bg-gray-900 h-full">
       <div className="flex items-center gap-4">
         <button
           type="button"
