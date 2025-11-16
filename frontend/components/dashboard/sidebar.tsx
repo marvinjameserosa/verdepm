@@ -48,7 +48,7 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
 
   return (
     <nav
-      className={`relative z-10 bg-background/80 backdrop-blur-xl border-r border-border/50 transition-all duration-300 ease-in-out ${
+      className={`relative z-10 bg-sidebar/80 dark:bg-gray-800/80 backdrop-blur-xl border-r border-border/50 transition-all duration-300 ease-in-out ${
         isSidebarOpen ? "w-64" : "w-20"
       }`}
     >
