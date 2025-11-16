@@ -6,8 +6,10 @@ export interface Project {
   status: "On Track" | "Delayed" | "Completed";
 }
 
+export type MaterialStatus = "Identified" | "Vetted" | "Denied";
+
 export type Material = {
-  id: number;
+  id: string;
   category: string;
   name: string;
   supplier: string;
@@ -15,7 +17,9 @@ export type Material = {
   unit?: string;
   notes: string;
   credentials?: string;
-  status: "Identified" | "Vetted" | "Denied";
+  warehouse?: string;
+  specSheetPath?: string;
+  status: MaterialStatus;
 };
 
 export const units = [
@@ -30,7 +34,7 @@ export const units = [
 
 export const initialMaterials: Material[] = [
   {
-    id: 1,
+    id: "1",
     category: "Concrete",
     name: "Low-Carbon Concrete Mix",
     supplier: "EcoMix Industries",
@@ -41,7 +45,7 @@ export const initialMaterials: Material[] = [
     status: "Vetted",
   },
   {
-    id: 2,
+    id: "2",
     category: "Structural Steel",
     name: "Recycled Steel Sections",
     supplier: "Circular Metals Co.",
@@ -52,7 +56,7 @@ export const initialMaterials: Material[] = [
     status: "Identified",
   },
   {
-    id: 3,
+    id: "3",
     category: "Interior Finishes",
     name: "Bamboo Acoustic Panels",
     supplier: "GreenAcoustics",
@@ -63,3 +67,10 @@ export const initialMaterials: Material[] = [
     status: "Vetted",
   },
 ];
+
+export type EsgTarget = {
+  id: string;
+  category: "Environmental" | "Social" | "Governance";
+  goal: string;
+  metric: string;
+};
