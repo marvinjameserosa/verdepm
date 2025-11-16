@@ -1150,7 +1150,7 @@ export default function Dashboard() {
                   <Progress
                     value={(supplierData.incomplete / supplierData.total) * 100}
                     className="h-2"
-                    indicatorClassName="bg-amber-500"
+                    indicatorClassName="bg-white"
                   />
                 </div>
               </div>
