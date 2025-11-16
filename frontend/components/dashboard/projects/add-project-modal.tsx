@@ -1,3 +1,11 @@
+"use client";
+
+import {
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +27,176 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Building2 } from "lucide-react";
+import { supabase } from "@/utils/supabase/client";
+import {
+  type Project,
+  type ProjectPriority,
+  type ProjectStatus,
+} from "@/types/project";
+import { mapProjectFromSupabase } from "./project-helpers";
 
-export function AddProjectModal() {
+type FormState = {
+  name: string;
+  description: string;
+  status: ProjectStatus;
+  priority: ProjectPriority;
+  projectManager: string;
+  startDate: string;
+  endDate: string;
+  clientName: string;
+  category: string;
+  budget: string;
+  location: string;
+};
+
+const defaultFormState: FormState = {
+  name: "",
+  description: "",
+  status: "planning",
+  priority: "medium",
+  projectManager: "",
+  startDate: "",
+  endDate: "",
+  clientName: "",
+  category: "",
+  budget: "",
+  location: "",
+};
+
+type AddProjectModalProps = {
+  onProjectCreated?: (project: Project) => void;
+};
+
+const statusOptions: Array<{ value: ProjectStatus; label: string }> = [
+  { value: "planning", label: "Planning" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "on-hold", label: "On Hold" },
+  { value: "completed", label: "Completed" },
+];
+
+const priorityOptions: Array<{ value: ProjectPriority; label: string }> = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+];
+
+const categoryOptions = [
+  { value: "commercial", label: "Commercial" },
+  { value: "residential", label: "Residential" },
+  { value: "infrastructure", label: "Infrastructure" },
+  { value: "renovation", label: "Renovation" },
+];
+
+const slugify = (input: string) =>
+  input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
+  const [open, setOpen] = useState(false);
+  const [formState, setFormState] = useState<FormState>(defaultFormState);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const isSubmitDisabled = useMemo(() => {
+    return (
+      isSubmitting ||
+      !formState.name.trim() ||
+      !formState.status ||
+      !formState.priority
+    );
+  }, [formState.name, formState.priority, formState.status, isSubmitting]);
+
+  const handleInputChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { id, value } = event.target;
+    setFormState((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const resetForm = () => {
+    setFormState(defaultFormState);
+    setErrorMessage(null);
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitDisabled) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const slug = slugify(formState.name);
+    if (!slug) {
+      setErrorMessage("Project name must contain at least one alphanumeric character.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const budgetValue = formState.budget ? Number(formState.budget) : null;
+    if (budgetValue !== null && Number.isNaN(budgetValue)) {
+      setErrorMessage("Budget must be a number.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert([
+          {
+            name: formState.name.trim(),
+            slug,
+            description: formState.description.trim() || null,
+            status: formState.status,
+            priority: formState.priority,
+            project_manager: formState.projectManager.trim() || null,
+            start_date: formState.startDate || null,
+            end_date: formState.endDate || null,
+            client_name: formState.clientName.trim() || null,
+            category: formState.category || null,
+            budget: budgetValue,
+            location: formState.location.trim() || null,
+          },
+        ])
+        .select(
+          "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
+        )
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const createdProject = mapProjectFromSupabase(data);
+      onProjectCreated?.(createdProject);
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      console.error("Failed to create project", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to create project. Please try again.";
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      resetForm();
+    }
+  };
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="h-10 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl">
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -31,204 +205,248 @@ export function AddProjectModal() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border border-white/20 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="text-center sm:text-left">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50">
-              <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <DialogHeader className="text-center sm:text-left">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50">
+                <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
+                Create New Project
+              </DialogTitle>
             </div>
-            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
-              Create New Project
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-muted-foreground">
-            Start a new construction project with essential details and tracking
-            capabilities.
-          </DialogDescription>
-        </DialogHeader>
+            <DialogDescription className="text-muted-foreground">
+              Start a new construction project with essential details and tracking
+              capabilities.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-5 py-4 overflow-y-auto pr-4">
-          <div className="space-y-2">
-            <Label
-              htmlFor="name"
-              className="text-sm font-medium text-foreground"
-            >
-              Project Name *
-            </Label>
-            <Input
-              id="name"
-              placeholder="Enter project name..."
-              className="rounded-xl"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="description"
-              className="text-sm font-medium text-foreground"
-            >
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              placeholder="Brief description of the project..."
-              className="rounded-xl min-h-[80px]"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="status"
-                className="text-sm font-medium text-foreground"
-              >
-                Initial Status
-              </Label>
-              <Select defaultValue="planning">
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="on-hold">On Hold</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-5 py-4 overflow-y-auto pr-4">
+            {errorMessage && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {errorMessage}
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label
-                htmlFor="priority"
-                className="text-sm font-medium text-foreground"
-              >
-                Priority
-              </Label>
-              <Select defaultValue="medium">
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="project-manager"
-              className="text-sm font-medium text-foreground"
-            >
-              Project Manager / Owner
-            </Label>
-            <Input
-              id="project-manager"
-              placeholder="Enter project manager's name..."
-              className="rounded-xl"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="start-date"
-                className="text-sm font-medium text-foreground"
-              >
-                Start Date
-              </Label>
-              <Input id="start-date" type="date" className="rounded-xl" />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="end-date"
-                className="text-sm font-medium text-foreground"
-              >
-                Target End Date
-              </Label>
-              <Input id="end-date" type="date" className="rounded-xl" />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="client"
-              className="text-sm font-medium text-foreground"
-            >
-              Client / Customer
-            </Label>
-            <Input
-              id="client"
-              placeholder="Enter client's name..."
-              className="rounded-xl"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="project-type"
-                className="text-sm font-medium text-foreground"
-              >
-                Project Type / Category
-              </Label>
-              <Select>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="infrastructure">Infrastructure</SelectItem>
-                  <SelectItem value="renovation">Renovation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="budget"
-                className="text-sm font-medium text-foreground"
-              >
-                Total Budget
+              <Label htmlFor="name" className="text-sm font-medium text-foreground">
+                Project Name *
               </Label>
               <Input
-                id="budget"
-                type="number"
-                placeholder="e.g., 500000"
+                id="name"
+                value={formState.name}
+                onChange={handleInputChange}
+                placeholder="Enter project name..."
+                className="rounded-xl"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="description"
+                className="text-sm font-medium text-foreground"
+              >
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                value={formState.description}
+                onChange={handleInputChange}
+                placeholder="Brief description of the project..."
+                className="rounded-xl min-h-[80px]"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-sm font-medium text-foreground">
+                  Initial Status
+                </Label>
+                <Select
+                  value={formState.status}
+                  onValueChange={(value: ProjectStatus) =>
+                    setFormState((prev) => ({ ...prev, status: value }))
+                  }
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="priority"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Priority
+                </Label>
+                <Select
+                  value={formState.priority}
+                  onValueChange={(value: ProjectPriority) =>
+                    setFormState((prev) => ({ ...prev, priority: value }))
+                  }
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    {priorityOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="projectManager"
+                className="text-sm font-medium text-foreground"
+              >
+                Project Manager / Owner
+              </Label>
+              <Input
+                id="projectManager"
+                value={formState.projectManager}
+                onChange={handleInputChange}
+                placeholder="Enter project manager's name..."
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="startDate"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Start Date
+                </Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formState.startDate}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="endDate"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Target End Date
+                </Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={formState.endDate}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="clientName" className="text-sm font-medium text-foreground">
+                Client / Customer
+              </Label>
+              <Input
+                id="clientName"
+                value={formState.clientName}
+                onChange={handleInputChange}
+                placeholder="Enter client's name..."
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="category"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Project Type / Category
+                </Label>
+                <Select
+                  value={formState.category || undefined}
+                  onValueChange={(value: string) =>
+                    setFormState((prev) => ({ ...prev, category: value }))
+                  }
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    {categoryOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="budget" className="text-sm font-medium text-foreground">
+                  Total Budget
+                </Label>
+                <Input
+                  id="budget"
+                  type="number"
+                  inputMode="decimal"
+                  value={formState.budget}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 500000"
+                  className="rounded-xl"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location" className="text-sm font-medium text-foreground">
+                Location / Address
+              </Label>
+              <Input
+                id="location"
+                value={formState.location}
+                onChange={handleInputChange}
+                placeholder="Enter project address..."
                 className="rounded-xl"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="location"
-              className="text-sm font-medium text-foreground"
-            >
-              Location / Address
-            </Label>
-            <Input
-              id="location"
-              placeholder="Enter project address..."
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
               className="rounded-xl"
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="flex flex-col sm:flex-row gap-3">
-          <DialogTrigger asChild>
-            <Button variant="outline" className="rounded-xl">
+              onClick={() => handleOpenChange(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-          </DialogTrigger>
-          <Button
-            type="submit"
-            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl"
-          >
-            Create Project
-          </Button>
-        </DialogFooter>
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl"
+              disabled={isSubmitDisabled}
+            >
+              {isSubmitting ? "Creating..." : "Create Project"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
