@@ -10,9 +10,9 @@ export function useInviteMember() {
   const inviteMember = async (
     email: string,
     password: string,
-    phone: string,
     firstname: string,
     lastname: string,
+    phone: string,
     role: string
   ) => {
     setLoading(true);
@@ -28,9 +28,9 @@ export function useInviteMember() {
         body: JSON.stringify({
           email,
           password,
-          phone,
           firstname,
           lastname,
+          phone,
           role,
         }),
       });
