@@ -1,7 +1,11 @@
 import ProjectPhases from "@/components/dashboard/projects/project-phases";
 import { Background } from "@/components/ui/background";
-import { projects } from "@/lib/data";
 import { notFound } from "next/navigation";
+import { createClient } from "@/utils/supabase/server";
+import { mapProjectFromSupabase } from "@/components/dashboard/projects/project-helpers";
+import type { Project } from "@/types/project";
+
+export const dynamic = "force-dynamic";
 
 interface ProjectPageProps {
   params: {
@@ -11,7 +15,26 @@ interface ProjectPageProps {
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { slug } = params;
-  const project = projects.find((p) => p.slug === slug);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select(
+      "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
+    )
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load project", error);
+    notFound();
+  }
+
+  if (!data) {
+    notFound();
+  }
+
+  const project: Project = mapProjectFromSupabase(data);
 
   if (!project) {
     notFound();
@@ -33,7 +56,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 </p>
               </div>
             </div>
-            <ProjectPhases />
+            <ProjectPhases project={project} />
           </main>
         </div>
       </div>

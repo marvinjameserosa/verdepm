@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import {
   Card,
   CardContent,
@@ -36,18 +36,22 @@ import {
   ShieldAlert,
   Target,
   Send,
-  PackageCheck, // New Icon
-  PlusCircle, // New Icon
+  PackageCheck,
+  PlusCircle,
 } from "lucide-react";
+import { supabase } from "@/utils/supabase/client";
+import type { Project } from "@/types/project";
 
 interface MaterialLogEntry {
-  id: number;
+  id: string;
   materialName: string;
   supplier: string;
   quantity: string;
   unit: string;
   cost: string;
   fuel: string;
+  receiptFile?: File | null;
+  receiptPath?: string | null;
 }
 
 // --- Mock Data from Pre-Construction Phase (Passed as props or fetched) ---
@@ -144,7 +148,11 @@ function MetricCard({
 }
 
 // --- Main Construction Phase Component ---
-export default function ConstructionPhase() {
+type ConstructionPhaseProps = {
+  project: Project;
+};
+
+export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [dailyMetrics, setDailyMetrics] = useState<Record<string, string>>({
     fuel: "",
     electricity: "",
@@ -159,6 +167,16 @@ export default function ConstructionPhase() {
   const [newMaterialEntry, setNewMaterialEntry] = useState<
     Partial<MaterialLogEntry>
   >({});
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const resetMessages = () => {
+    setStatusMessage(null);
+    setErrorMessage(null);
+  };
 
   const handleInputChange = (metric: string, value: string) => {
     setDailyMetrics((prev) => ({ ...prev, [metric]: value }));
@@ -171,25 +189,203 @@ export default function ConstructionPhase() {
     setNewMaterialEntry((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleReceiptChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setNewMaterialEntry((prev) => ({ ...prev, receiptFile: file }));
+  };
+
   const addMaterialToLog = () => {
-    if (!newMaterialEntry.materialName || !newMaterialEntry.quantity) {
-      alert("Please select a material and enter a quantity.");
+    if (!newMaterialEntry.materialName) {
+      setErrorMessage("Select a material from the plan before adding.");
+      return;
+    }
+    if (!newMaterialEntry.quantity) {
+      setErrorMessage("Enter the delivered quantity before adding.");
+      return;
+    }
+    if (!newMaterialEntry.unit) {
+      setErrorMessage("Provide the unit for the delivered quantity.");
+      return;
+    }
+    if (!newMaterialEntry.supplier || newMaterialEntry.supplier.trim().length === 0) {
+      setErrorMessage("Enter the actual supplier for this delivery.");
       return;
     }
     setLoggedMaterials([
       ...loggedMaterials,
-      { ...newMaterialEntry, id: Date.now() } as MaterialLogEntry,
+      {
+        ...newMaterialEntry,
+        id: crypto.randomUUID(),
+      } as MaterialLogEntry,
     ]);
     setNewMaterialEntry({}); // Reset form
+    setErrorMessage(null);
   };
 
-  const handleSubmit = () => {
-    const dailyReport = {
-      metrics: dailyMetrics,
-      materials: loggedMaterials,
-    };
-    console.log("Submitting Daily Report:", dailyReport);
-    alert("Daily report submitted successfully!");
+  const handleSubmit = async () => {
+    resetMessages();
+
+    if (
+      !dailyMetrics.fuel &&
+      !dailyMetrics.electricity &&
+      !dailyMetrics.water &&
+      !dailyMetrics.equipment &&
+      !dailyMetrics.waste &&
+      !dailyMetrics.safety
+    ) {
+      setErrorMessage("Enter at least one daily metric before submitting.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const parseNumber = (value: string) => {
+        if (!value) {
+          return null;
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+        const parsed = Number(trimmed);
+        if (Number.isNaN(parsed)) {
+          throw new Error("One of the numeric fields contains invalid data.");
+        }
+        return parsed;
+      };
+
+      const parseOptionalNumber = (value?: string) => {
+        if (!value) {
+          return null;
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+        const parsed = Number(trimmed);
+        if (Number.isNaN(parsed)) {
+          throw new Error("Material entries contain an invalid number.");
+        }
+        return parsed;
+      };
+
+      const safetyValue = dailyMetrics.safety
+        ? Number(dailyMetrics.safety)
+        : 0;
+      if (Number.isNaN(safetyValue)) {
+        throw new Error("Safety incidents must be a number.");
+      }
+
+      const { data: dailyLog, error: dailyError } = await supabase
+        .from("construction_daily_log")
+        .insert([
+          {
+            project_id: project.id,
+            log_date: today,
+            fuel_consumption_liters: parseNumber(dailyMetrics.fuel),
+            electricity_usage_kwh: parseNumber(dailyMetrics.electricity),
+            water_consumption_cubic_m: parseNumber(dailyMetrics.water),
+            equipment_usage_hours: parseNumber(dailyMetrics.equipment),
+            todays_waste_generated_kg: parseNumber(dailyMetrics.waste),
+            safety_incidents: safetyValue,
+          },
+        ])
+        .select("id")
+        .single();
+
+      if (dailyError) {
+        if ("code" in dailyError && dailyError.code === "23505") {
+          throw new Error("A daily report for today already exists.");
+        }
+        throw dailyError;
+      }
+
+      let dailyLogId = dailyLog?.id as string | undefined;
+
+      if (!dailyLogId) {
+        const { data: fallback, error: fetchError } = await supabase
+          .from("construction_daily_log")
+          .select("id")
+          .eq("project_id", project.id)
+          .eq("log_date", today)
+          .maybeSingle();
+
+        if (fetchError) {
+          throw fetchError;
+        }
+        if (!fallback) {
+          throw new Error("Daily report saved but could not retrieve identifier.");
+        }
+        dailyLogId = fallback.id;
+      }
+
+      const bucket = supabase.storage.from("construction-docs");
+
+      if (loggedMaterials.length > 0) {
+        const materialPayload = await Promise.all(
+          loggedMaterials.map(async (entry) => {
+            let receiptPath: string | null = null;
+
+            if (entry.receiptFile) {
+              const extension = entry.receiptFile.name.split(".").pop() || "pdf";
+              const storagePath = `project/${project.id}/daily/${dailyLog.id}/receipts/${crypto.randomUUID()}.${extension}`;
+              const { error: uploadError } = await bucket.upload(
+                storagePath,
+                entry.receiptFile,
+                {
+                  contentType: entry.receiptFile.type || "application/pdf",
+                  upsert: true,
+                }
+              );
+
+              if (uploadError) {
+                throw uploadError;
+              }
+
+              receiptPath = storagePath;
+            }
+
+            return {
+              project_id: project.id,
+                daily_log_id: dailyLogId,
+              material_plan: entry.materialName,
+              actual_supplier: entry.supplier,
+              quantity_and_unit: `${entry.quantity ?? ""} ${entry.unit ?? ""}`.trim(),
+              total_cost: parseOptionalNumber(entry.cost),
+              delivery_fuel_used_liters: parseOptionalNumber(entry.fuel),
+              receipt_path: receiptPath,
+            };
+          })
+        );
+
+        const { error: materialError } = await supabase
+          .from("construction_material_log")
+          .insert(materialPayload);
+
+        if (materialError) {
+          throw materialError;
+        }
+      }
+
+      setStatusMessage("Daily report saved successfully.");
+      setDailyMetrics({
+        fuel: "",
+        electricity: "",
+        water: "",
+        equipment: "",
+        waste: "",
+        safety: "",
+      });
+      setLoggedMaterials([]);
+    } catch (error) {
+      console.error("Failed to submit daily report", error);
+      const message =
+        error instanceof Error ? error.message : "Unable to submit report.";
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const metricCards = [
@@ -256,6 +452,17 @@ export default function ConstructionPhase() {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {errorMessage ? (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      ) : null}
+      {statusMessage ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          {statusMessage}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {metricCards.map((metric) => (
@@ -361,7 +568,7 @@ export default function ConstructionPhase() {
               </div>
               <div className="space-y-2">
                 <Label>Upload Receipt</Label>
-                <Input type="file" />
+                <Input type="file" onChange={handleReceiptChange} />
               </div>
             </div>
             <Button onClick={addMaterialToLog} className="w-full md:w-auto">
@@ -413,8 +620,9 @@ export default function ConstructionPhase() {
 
       <Card>
         <CardContent className="pt-6">
-          <Button onClick={handleSubmit} className="w-full">
-            <Send className="mr-2 h-4 w-4" /> Submit Full Daily Report
+          <Button onClick={handleSubmit} className="w-full" disabled={isSubmitting}>
+            <Send className="mr-2 h-4 w-4" />
+            {isSubmitting ? "Submitting..." : "Submit Full Daily Report"}
           </Button>
         </CardContent>
       </Card>

@@ -10,6 +10,7 @@ import {
   type MaterialStatus,
 } from "./preconstruction/types";
 import { supabase } from "@/utils/supabase/client";
+import type { Project } from "@/types/project";
 
 type Step1InitialValues = NonNullable<
   Parameters<typeof Step1ProjectSetup>[0]["initialValues"]
@@ -26,10 +27,11 @@ const DEFAULT_STEP1_VALUES: Step1InitialValues = {
   documentPaths: {},
 };
 
-const getDefaultStep1Values = (): Step1InitialValues => ({
-  projectName: DEFAULT_STEP1_VALUES.projectName,
-  projectAddress: DEFAULT_STEP1_VALUES.projectAddress,
-  projectDescription: DEFAULT_STEP1_VALUES.projectDescription,
+const getDefaultStep1Values = (project?: Project): Step1InitialValues => ({
+  projectName: project?.name ?? DEFAULT_STEP1_VALUES.projectName,
+  projectAddress: project?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
+  projectDescription:
+    project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
   documentPaths: {},
 });
 
@@ -80,12 +82,16 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   );
 };
 
-export function PreConstructionPhase() {
+type PreConstructionPhaseProps = {
+  project?: Project;
+};
+
+export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
   const [step, setStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
   const [projectSetupId, setProjectSetupId] = useState<string | null>(null);
-  const [step1Values, setStep1Values] = useState<Step1InitialValues>(
-    getDefaultStep1Values()
+  const [step1Values, setStep1Values] = useState<Step1InitialValues>(() =>
+    getDefaultStep1Values(project)
   );
   const [targets, setTargets] = useState<EsgTarget[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -111,13 +117,29 @@ export function PreConstructionPhase() {
       } = await supabase.auth.getUser();
 
       if (userError) {
-        throw userError;
+        const isSessionMissing =
+          userError.message?.toLowerCase().includes("auth session missing") ||
+          userError.name === "AuthSessionMissingError" ||
+          userError.status === 401;
+
+        if (!isSessionMissing) {
+          throw userError;
+        }
+
+        setUserId(null);
+        setProjectSetupId(null);
+        setStep1Values(getDefaultStep1Values(project));
+        setDocumentPaths({});
+        setMaterials([]);
+        setTargets([]);
+        return;
       }
 
       if (!user) {
         setUserId(null);
         setProjectSetupId(null);
-        setStep1Values(getDefaultStep1Values());
+        setStep1Values(getDefaultStep1Values(project));
+        setDocumentPaths({});
         setMaterials([]);
         setTargets([]);
         return;
@@ -142,7 +164,7 @@ export function PreConstructionPhase() {
 
       if (!setupData) {
         setProjectSetupId(null);
-        setStep1Values(getDefaultStep1Values());
+        setStep1Values(getDefaultStep1Values(project));
         setDocumentPaths({});
         setMaterials([]);
         setTargets([]);
@@ -165,10 +187,17 @@ export function PreConstructionPhase() {
 
       setStep1Values({
         projectName:
-          setupData.project_name ?? DEFAULT_STEP1_VALUES.projectName,
+          setupData.project_name ??
+          project?.name ??
+          DEFAULT_STEP1_VALUES.projectName,
         projectAddress:
-          setupData.project_address ?? DEFAULT_STEP1_VALUES.projectAddress,
-        projectDescription: setupData.project_description ?? "",
+          setupData.project_address ??
+          project?.location ??
+          DEFAULT_STEP1_VALUES.projectAddress,
+        projectDescription:
+          setupData.project_description ??
+          project?.description ??
+          DEFAULT_STEP1_VALUES.projectDescription,
         documentPaths: nextDocPaths,
       });
 
@@ -231,11 +260,32 @@ export function PreConstructionPhase() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [project]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!projectSetupId && !isLoading) {
+      setStep1Values((prev) => ({
+        projectName:
+          prev.projectName && prev.projectName !== DEFAULT_STEP1_VALUES.projectName
+            ? prev.projectName
+            : project?.name ?? DEFAULT_STEP1_VALUES.projectName,
+        projectAddress:
+          prev.projectAddress &&
+          prev.projectAddress !== DEFAULT_STEP1_VALUES.projectAddress
+            ? prev.projectAddress
+            : project?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
+        projectDescription:
+          prev.projectDescription && prev.projectDescription.length > 0
+            ? prev.projectDescription
+            : project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
+        documentPaths: prev.documentPaths,
+      }));
+    }
+  }, [isLoading, project, projectSetupId]);
 
   type Step1FormValues = {
     projectName: string;
