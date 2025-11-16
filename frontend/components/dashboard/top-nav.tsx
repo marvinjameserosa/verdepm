@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +16,8 @@ import {
 import Profile01 from "./profile-01";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
-import { projects } from "@/lib/data";
 import { usePathname } from "next/navigation";
+import { supabase } from "@/utils/supabase/client";
 
 interface BreadcrumbItem {
   label: string;
@@ -31,25 +31,65 @@ interface TopNavProps {
 
 export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   const pathname = usePathname();
+  const [projectName, setProjectName] = useState<string | null>(null);
   const breadcrumbs: BreadcrumbItem[] = [];
   const pathParts = pathname.split("/").filter((part) => part);
+  const mainCategory = pathParts[1];
+  const slug = pathParts[2];
+
+  useEffect(() => {
+    if (mainCategory !== "projects" || !slug) {
+      setProjectName(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchProjectName = async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        console.error("Failed to load project breadcrumb", error);
+        setProjectName(null);
+        return;
+      }
+
+      setProjectName(data?.name ?? null);
+    };
+
+    fetchProjectName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mainCategory, slug]);
+
+  const formatFromSlug = (value: string) =>
+    value
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
 
   if (pathParts.length === 1 && pathParts[0] === "dashboard") {
     breadcrumbs.push({ label: "Overview" });
     breadcrumbs.push({ label: "Dashboard", href: "/dashboard" });
   } else if (pathParts.length > 1) {
-    const mainCategory = pathParts[1];
-    const slug = pathParts[2];
-
     switch (mainCategory) {
       case "projects":
         breadcrumbs.push({ label: "Overview" });
         breadcrumbs.push({ label: "Projects", href: "/dashboard/projects" });
         if (slug) {
-          const project = projects.find((p) => p.slug === slug);
-          if (project) {
-            breadcrumbs.push({ label: project.name });
-          }
+          breadcrumbs.push({
+            label: projectName ?? formatFromSlug(slug),
+          });
         }
         break;
       case "reports":
@@ -89,7 +129,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
           type="button"
           className="p-1.5 sm:p-2 hover:bg-muted rounded-full transition-colors"
           onClick={toggleSidebar}
-          aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {isSidebarOpen ? (
             <PanelLeftClose className="h-5 w-5 text-muted-foreground" />

@@ -4,8 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PreConstructionPhase from "./pre-construction-phase";
 import ConstructionPhase from "./construction-phase";
 import PostConstructionPhase from "./post-construction-phase";
+import type { Project } from "@/types/project";
 
-export default function ProjectPhases() {
+type ProjectPhasesProps = {
+  project: Project;
+};
+
+export default function ProjectPhases({ project }: ProjectPhasesProps) {
   return (
     <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl border border-white/20 shadow-2xl p-6">
       <Tabs defaultValue="pre-construction" className="w-full">
@@ -30,10 +35,10 @@ export default function ProjectPhases() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pre-construction" className="mt-6">
-          <PreConstructionPhase />
+          <PreConstructionPhase project={project} />
         </TabsContent>
         <TabsContent value="construction" className="mt-6">
-          <ConstructionPhase />
+          <ConstructionPhase project={project} />
         </TabsContent>
         <TabsContent value="post-construction" className="mt-6">
           <PostConstructionPhase />
