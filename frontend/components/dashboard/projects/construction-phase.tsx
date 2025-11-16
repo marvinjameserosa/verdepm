@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import dynamic from "next/dynamic";
 import {
   Card,
   CardContent,
@@ -38,6 +39,9 @@ import {
   Send,
   PackageCheck,
   PlusCircle,
+  Route,
+  Truck,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/utils/supabase/client";
 import type { Project } from "@/types/project";
@@ -53,6 +57,56 @@ interface MaterialLogEntry {
   receiptFile?: File | null;
   receiptPath?: string | null;
 }
+
+type LatLngTuple = [number, number];
+
+const DeliveryRouteMap = dynamic(() => import("./delivery-route-map"), {
+  ssr: false,
+});
+
+const DEFAULT_MAP_CENTER: LatLngTuple = [14.5995, 120.9842];
+const DEFAULT_ANIMATION_SAMPLE_SIZE = 160;
+
+const sampleRoutePoints = (points: LatLngTuple[], maxPoints = DEFAULT_ANIMATION_SAMPLE_SIZE) => {
+  if (points.length <= maxPoints) {
+    return points;
+  }
+
+  const sampled: LatLngTuple[] = [];
+  const step = Math.ceil(points.length / maxPoints);
+
+  for (let index = 0; index < points.length; index += step) {
+    sampled.push(points[index]);
+  }
+
+  const lastPoint = points[points.length - 1];
+  const lastSampled = sampled[sampled.length - 1];
+  if (!lastSampled || lastSampled[0] !== lastPoint[0] || lastSampled[1] !== lastPoint[1]) {
+    sampled.push(lastPoint);
+  }
+
+  return sampled;
+};
+
+const formatDuration = (minutes: number | null) => {
+  if (!minutes || !Number.isFinite(minutes) || minutes <= 0) {
+    return "--";
+  }
+
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+
+  return `${remainingMinutes}m`;
+};
 
 // --- Mock Data from Pre-Construction Phase (Passed as props or fetched) ---
 const preConstructionData = {
@@ -170,12 +224,184 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [routeStartQuery, setRouteStartQuery] = useState("");
+  const [routeEndQuery, setRouteEndQuery] = useState("");
+  const [routeFuelLiters, setRouteFuelLiters] = useState("");
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [routeDurationMinutes, setRouteDurationMinutes] = useState<number | null>(null);
+  const [startLabel, setStartLabel] = useState<string | null>(null);
+  const [endLabel, setEndLabel] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState<LatLngTuple>(DEFAULT_MAP_CENTER);
+  const [startCoordinate, setStartCoordinate] = useState<LatLngTuple | null>(null);
+  const [endCoordinate, setEndCoordinate] = useState<LatLngTuple | null>(null);
+  const [truckPosition, setTruckPosition] = useState<LatLngTuple | null>(null);
+  const [routePoints, setRoutePoints] = useState<LatLngTuple[]>([]);
+  const [animationPoints, setAnimationPoints] = useState<LatLngTuple[]>([]);
+  const [isAnimatingRoute, setIsAnimatingRoute] = useState(false);
+  const [isFetchingRoute, setIsFetchingRoute] = useState(false);
+
+  const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  useEffect(() => {
+    const normalizedFuel = (dailyMetrics.fuel ?? "").trim();
+    if (normalizedFuel && normalizedFuel !== routeFuelLiters) {
+      setRouteFuelLiters(normalizedFuel);
+    }
+  }, [dailyMetrics.fuel, routeFuelLiters]);
+
+  const clearAnimationTimer = () => {
+    if (animationTimerRef.current) {
+      clearInterval(animationTimerRef.current);
+      animationTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (startCoordinate) {
+      setMapCenter(startCoordinate);
+    }
+  }, [startCoordinate]);
+
+  useEffect(() => {
+    if (!isAnimatingRoute || animationPoints.length === 0) {
+      return;
+    }
+
+    clearAnimationTimer();
+    let stepIndex = 0;
+    setTruckPosition(animationPoints[0]);
+
+    animationTimerRef.current = setInterval(() => {
+      stepIndex += 1;
+      const nextIndex = Math.min(stepIndex, animationPoints.length - 1);
+      setTruckPosition(animationPoints[nextIndex]);
+
+      if (nextIndex >= animationPoints.length - 1) {
+        clearAnimationTimer();
+        setIsAnimatingRoute(false);
+      }
+    }, 350);
+
+    return () => {
+      clearAnimationTimer();
+    };
+  }, [isAnimatingRoute, animationPoints]);
+
+  useEffect(() => () => clearAnimationTimer(), []);
+
+  const mapDisplayCenter = truckPosition ?? startCoordinate ?? endCoordinate ?? mapCenter;
 
   const resetMessages = () => {
     setStatusMessage(null);
     setErrorMessage(null);
+  };
+
+  const handleAnimateRoute = async () => {
+    resetMessages();
+
+    if (!routeStartQuery.trim() || !routeEndQuery.trim()) {
+      setErrorMessage("Enter both origin and destination before calculating the route.");
+      return;
+    }
+
+    clearAnimationTimer();
+    setIsAnimatingRoute(false);
+    setTruckPosition(null);
+    setRoutePoints([]);
+    setAnimationPoints([]);
+    setRouteDistanceKm(null);
+    setRouteDurationMinutes(null);
+    setStartCoordinate(null);
+    setEndCoordinate(null);
+    setStartLabel(null);
+    setEndLabel(null);
+    setMapCenter(DEFAULT_MAP_CENTER);
+
+    setIsFetchingRoute(true);
+
+    try {
+      const response = await fetch("/api/logistics/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startQuery: routeStartQuery.trim(),
+          endQuery: routeEndQuery.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        const message = payload?.message ?? "Unable to compute route for the provided locations.";
+        throw new Error(message);
+      }
+
+      const payload = (await response.json()) as {
+        start: { lat: number; lng: number; label: string };
+        end: { lat: number; lng: number; label: string };
+        distanceKm: number;
+        durationMinutes: number;
+        polyline: LatLngTuple[];
+      };
+
+      if (!payload.polyline || payload.polyline.length === 0) {
+        throw new Error("The routing service did not return a valid path.");
+      }
+
+      const sampledPoints = sampleRoutePoints(payload.polyline);
+
+      if (sampledPoints.length === 0) {
+        throw new Error("The computed route did not contain enough points to animate.");
+      }
+
+      setStartCoordinate([payload.start.lat, payload.start.lng]);
+      setEndCoordinate([payload.end.lat, payload.end.lng]);
+      setStartLabel(payload.start.label);
+      setEndLabel(payload.end.label);
+      setRoutePoints(payload.polyline);
+      setAnimationPoints(sampledPoints);
+      setTruckPosition(sampledPoints[0] ?? null);
+      setRouteDistanceKm(payload.distanceKm);
+      setRouteDurationMinutes(payload.durationMinutes);
+      setMapCenter([payload.start.lat, payload.start.lng]);
+      setIsAnimatingRoute(true);
+
+      if (!routeFuelLiters) {
+        const suggestedFuel = payload.distanceKm * 0.35; // approximate diesel usage per km
+        setRouteFuelLiters(suggestedFuel.toFixed(1));
+      }
+    } catch (error) {
+      console.error("Failed to animate route", error);
+      const message = error instanceof Error ? error.message : "Unable to animate route.";
+      setErrorMessage(message);
+    } finally {
+      setIsFetchingRoute(false);
+    }
+  };
+
+  const handleApplyRouteFuel = () => {
+    resetMessages();
+    if (!routeFuelLiters) {
+      setErrorMessage("Enter the truck's fuel consumption before applying it to the log.");
+      return;
+    }
+    const parsedFuel = Number(routeFuelLiters);
+    if (Number.isNaN(parsedFuel) || parsedFuel < 0) {
+      setErrorMessage("Fuel consumption must be a valid non-negative number.");
+      return;
+    }
+
+    setDailyMetrics((prev) => {
+      const existingFuel = Number(prev.fuel || 0);
+      const normalizedExisting = Number.isNaN(existingFuel) ? 0 : existingFuel;
+      const totalFuel = normalizedExisting + parsedFuel;
+      return {
+        ...prev,
+        fuel: totalFuel > 0 ? totalFuel.toString() : "",
+      };
+    });
+    setStatusMessage("Route fuel has been added to today's fuel consumption total.");
   };
 
   const handleInputChange = (metric: string, value: string) => {
@@ -474,6 +700,123 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           />
         ))}
       </div>
+
+      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+            <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+              <Route className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            Delivery Route Simulator
+          </CardTitle>
+          <CardDescription>
+            Visualize a material delivery, capture distance travelled, and feed the truck&apos;s fuel usage into today&apos;s log.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="route-start">From</Label>
+              <Input
+                id="route-start"
+                value={routeStartQuery}
+                onChange={(event) => setRouteStartQuery(event.target.value)}
+                placeholder="e.g. 123 Port Rd, Manila or 14.5995, 120.9842"
+                autoComplete="street-address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="route-end">To</Label>
+              <Input
+                id="route-end"
+                value={routeEndQuery}
+                onChange={(event) => setRouteEndQuery(event.target.value)}
+                placeholder="e.g. 456 Logistics Hub, Taguig or 14.6760, 121.0437"
+                autoComplete="street-address"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {startLabel && endLabel
+              ? `Resolved route: ${startLabel} -> ${endLabel}`
+              : "Type full street addresses or decimal coordinates (lat,lng) for both locations."}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="route-fuel">Fuel Consumption (liters)</Label>
+              <Input
+                id="route-fuel"
+                value={routeFuelLiters}
+                placeholder="Enter or accept suggestion"
+                inputMode="decimal"
+                disabled
+              />
+              <p className="text-xs text-muted-foreground">
+                A suggested value is provided after calculating the route using an average 0.35 L/km factor.
+              </p>
+            </div>
+            <div className="flex flex-col justify-between gap-2">
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">Distance Travelled</p>
+                  <p className="text-2xl font-semibold text-emerald-600">
+                    {routeDistanceKm !== null ? `${routeDistanceKm.toFixed(2)} km` : "--"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Estimated Drive Time</p>
+                  <p className="text-lg font-medium text-muted-foreground">
+                    {formatDuration(routeDurationMinutes)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={handleAnimateRoute} disabled={isFetchingRoute}>
+                  {isFetchingRoute ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Finding Route...
+                    </>
+                  ) : (
+                    <>
+                      <Truck className="mr-2 h-4 w-4" />
+                      {isAnimatingRoute ? "Animating..." : "Plan & Animate"}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleApplyRouteFuel}
+                  disabled={!routeFuelLiters}
+                >
+                  <Fuel className="mr-2 h-4 w-4" />
+                  Apply Fuel to Daily Log
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl overflow-hidden border border-white/30 dark:border-gray-700/30">
+            {typeof window !== "undefined" ? (
+              <DeliveryRouteMap
+                center={mapDisplayCenter}
+                start={startCoordinate}
+                end={endCoordinate}
+                startLabel={startLabel}
+                endLabel={endLabel}
+                truckPosition={truckPosition}
+                polyline={routePoints}
+              />
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Enter street addresses or decimal coordinates to snap the truck along real driving roads. Use the animation to capture
+            the delivery distance and associated fuel usage for today&apos;s report.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* --- NEW MATERIAL SOURCING LOG --- */}
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
