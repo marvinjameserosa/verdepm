@@ -12,7 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -28,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Fuel,
   Zap,
@@ -39,12 +39,12 @@ import {
   Send,
   PackageCheck,
   PlusCircle,
-  Route,
   Truck,
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/utils/supabase/client";
 import type { Project } from "@/types/project";
+import type { DeliveryRouteMapProps } from "@/components/dashboard/projects/delivery-route-map";
 
 interface MaterialLogEntry {
   id: string;
@@ -60,9 +60,13 @@ interface MaterialLogEntry {
 
 type LatLngTuple = [number, number];
 
-const DeliveryRouteMap = dynamic(() => import("./delivery-route-map"), {
-  ssr: false,
-});
+const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
+  () =>
+    import("@/components/dashboard/projects/delivery-route-map").then(
+      (module) => module.default
+    ),
+  { ssr: false }
+);
 
 const DEFAULT_MAP_CENTER: LatLngTuple = [14.5995, 120.9842];
 const DEFAULT_ANIMATION_SAMPLE_SIZE = 160;
@@ -141,7 +145,7 @@ interface MetricCardProps {
   relatedTarget: { goal: string; metric: string };
   value: string;
   onChange: (value: string) => void;
-  dailyGoal: number;
+  labelPrefix?: string;
 }
 
 function MetricCard({
@@ -151,12 +155,8 @@ function MetricCard({
   relatedTarget,
   value,
   onChange,
-  dailyGoal,
+  labelPrefix = "Today's",
 }: MetricCardProps) {
-  const numericValue = parseFloat(value) || 0;
-  const progress = Math.min((numericValue / dailyGoal) * 100, 100);
-  const isOverTarget = numericValue > dailyGoal && dailyGoal > 0;
-
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -175,25 +175,13 @@ function MetricCard({
           </span>
         </div>
         <div className="space-y-2">
-          <Label htmlFor={title}>{`Today's ${title} (${unit})`}</Label>
+          <Label htmlFor={title}>{`${labelPrefix} ${title} (${unit})`}</Label>
           <Input
             id={title}
             type="number"
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(event) => onChange(event.target.value)}
             placeholder={`Enter value in ${unit}`}
-          />
-        </div>
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Daily Progress</span>
-            <span>
-              {numericValue} / {dailyGoal} {unit}
-            </span>
-          </div>
-          <Progress
-            value={progress}
-            className={isOverTarget ? "progress-red" : ""}
           />
         </div>
       </CardContent>
@@ -239,6 +227,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [animationPoints, setAnimationPoints] = useState<LatLngTuple[]>([]);
   const [isAnimatingRoute, setIsAnimatingRoute] = useState(false);
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
+  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">("daily");
 
   const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -574,7 +563,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
             return {
               project_id: project.id,
-                daily_log_id: dailyLogId,
+              daily_log_id: dailyLogId,
               material_plan: entry.materialName,
               actual_supplier: entry.supplier,
               quantity_and_unit: `${entry.quantity ?? ""} ${entry.unit ?? ""}`.trim(),
@@ -614,68 +603,78 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     }
   };
 
-  const metricCards = [
-    {
-      id: "fuel",
-      icon: <Fuel className="h-4 w-4 text-muted-foreground" />,
-      title: "Fuel Consumption",
-      unit: "liters",
-      relatedTarget: preConstructionData.targets.emissions,
-      dailyGoal: 500,
-    },
-    {
-      id: "electricity",
-      icon: <Zap className="h-4 w-4 text-muted-foreground" />,
-      title: "Electricity Usage",
-      unit: "kWh",
-      relatedTarget: preConstructionData.targets.emissions,
-      dailyGoal: 2000,
-    },
-    {
-      id: "water",
-      icon: <Droplets className="h-4 w-4 text-muted-foreground" />,
-      title: "Water Consumption",
-      unit: "m³",
-      relatedTarget: preConstructionData.targets.water,
-      dailyGoal: 10,
-    },
-    {
-      id: "equipment",
-      icon: <Construction className="h-4 w-4 text-muted-foreground" />,
-      title: "Equipment Usage",
-      unit: "hours",
-      relatedTarget: preConstructionData.targets.emissions,
-      dailyGoal: 100,
-    },
-    {
-      id: "waste",
-      icon: <Trash2 className="h-4 w-4 text-muted-foreground" />,
-      title: "Waste Generated",
-      unit: "kg",
-      relatedTarget: preConstructionData.targets.waste,
-      dailyGoal: 250,
-    },
-    {
-      id: "safety",
-      icon: <ShieldAlert className="h-4 w-4 text-muted-foreground" />,
-      title: "Safety Incidents",
-      unit: "incidents",
-      relatedTarget: preConstructionData.targets.safety,
-      dailyGoal: 0,
-    },
-  ];
+  const metricGroups = {
+    daily: [
+      {
+        id: "fuel",
+        icon: <Fuel className="h-4 w-4 text-muted-foreground" />,
+        title: "Fuel Consumption",
+        unit: "liters",
+        relatedTarget: preConstructionData.targets.emissions,
+      },
+      {
+        id: "equipment",
+        icon: <Construction className="h-4 w-4 text-muted-foreground" />,
+        title: "Equipment Usage",
+        unit: "hours",
+        relatedTarget: preConstructionData.targets.emissions,
+      },
+      {
+        id: "safety",
+        icon: <ShieldAlert className="h-4 w-4 text-muted-foreground" />,
+        title: "Safety Incidents",
+        unit: "incidents",
+        relatedTarget: preConstructionData.targets.safety,
+      },
+    ],
+    monthly: [
+      {
+        id: "electricity",
+        icon: <Zap className="h-4 w-4 text-muted-foreground" />,
+        title: "Electricity Usage",
+        unit: "kWh",
+        relatedTarget: preConstructionData.targets.emissions,
+      },
+      {
+        id: "water",
+        icon: <Droplets className="h-4 w-4 text-muted-foreground" />,
+        title: "Water Consumption",
+        unit: "m³",
+        relatedTarget: preConstructionData.targets.water,
+      },
+      {
+        id: "waste",
+        icon: <Trash2 className="h-4 w-4 text-muted-foreground" />,
+        title: "Waste Generated",
+        unit: "kg",
+        relatedTarget: preConstructionData.targets.waste,
+      },
+    ],
+  } as const;
+
+  const monitoringTitle =
+    metricsPeriod === "daily"
+      ? "Construction Phase: Daily ESG Monitoring"
+      : "Construction Phase: Monthly ESG Monitoring";
+
+  const monitoringDescription =
+    metricsPeriod === "daily"
+      ? "Log daily metrics and material deliveries to track performance against pre-construction targets."
+      : "Review monthly resource usage and material deliveries to stay aligned with pre-construction targets.";
+
+  const routeMetricsGridClass =
+    metricsPeriod === "monthly"
+      ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+      : "grid grid-cols-1 gap-4";
 
   return (
     <div className="space-y-6">
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardHeader>
           <CardTitle className="text-emerald-700 dark:text-emerald-300">
-            Construction Phase: Daily ESG Monitoring
+            {monitoringTitle}
           </CardTitle>
-          <CardDescription>
-            Log daily metrics and material deliveries to track performance
-            against pre-construction targets.
-          </CardDescription>
+          <CardDescription>{monitoringDescription}</CardDescription>
         </CardHeader>
       </Card>
 
@@ -690,24 +689,47 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {metricCards.map((metric) => (
-          <MetricCard
-            key={metric.id}
-            {...metric}
-            value={dailyMetrics[metric.id]}
-            onChange={(value) => handleInputChange(metric.id, value)}
-          />
-        ))}
-      </div>
+      <Tabs
+        value={metricsPeriod}
+        onValueChange={(value) => setMetricsPeriod(value as "daily" | "monthly")}
+        className="space-y-4"
+      >
+        <TabsList>
+          <TabsTrigger value="daily">Daily Inputs</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly Inputs</TabsTrigger>
+        </TabsList>
+        <TabsContent value="daily">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {metricGroups.daily.map((metric) => (
+              <MetricCard
+                key={metric.id}
+                {...metric}
+                value={dailyMetrics[metric.id]}
+                onChange={(value) => handleInputChange(metric.id, value)}
+                labelPrefix="Today's"
+              />
+            ))}
+          </div>
+        </TabsContent>
+        <TabsContent value="monthly">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {metricGroups.monthly.map((metric) => (
+              <MetricCard
+                key={metric.id}
+                {...metric}
+                value={dailyMetrics[metric.id]}
+                onChange={(value) => handleInputChange(metric.id, value)}
+                labelPrefix="This Month's"
+              />
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-            <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-              <Route className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            Delivery Route Simulator
+          <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+            Delivery Route
           </CardTitle>
           <CardDescription>
             Visualize a material delivery, capture distance travelled, and feed the truck&apos;s fuel usage into today&apos;s log.
@@ -742,20 +764,22 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               : "Type full street addresses or decimal coordinates (lat,lng) for both locations."}
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="route-fuel">Fuel Consumption (liters)</Label>
-              <Input
-                id="route-fuel"
-                value={routeFuelLiters}
-                placeholder="Enter or accept suggestion"
-                inputMode="decimal"
-                disabled
-              />
-              <p className="text-xs text-muted-foreground">
-                A suggested value is provided after calculating the route using an average 0.35 L/km factor.
-              </p>
-            </div>
+          <div className={routeMetricsGridClass}>
+            {metricsPeriod === "monthly" ? (
+              <div className="space-y-2">
+                <Label htmlFor="route-fuel">Fuel Consumption (liters)</Label>
+                <Input
+                  id="route-fuel"
+                  value={routeFuelLiters}
+                  placeholder="Enter or accept suggestion"
+                  inputMode="decimal"
+                  disabled
+                />
+                <p className="text-xs text-muted-foreground">
+                  A suggested value is provided after calculating the route using an average 0.35 L/km factor.
+                </p>
+              </div>
+            ) : null}
             <div className="flex flex-col justify-between gap-2">
               <div className="space-y-2">
                 <div>
