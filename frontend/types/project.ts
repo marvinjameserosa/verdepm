@@ -1,9 +1,24 @@
+export type ProjectStatus = "planning" | "in-progress" | "on-hold" | "completed";
+
+export type ProjectPriority = "low" | "medium" | "high";
+
 export interface Project {
   id: string;
+  ownerId?: string | null;
   name: string;
   slug: string;
-  description: string;
-  status: "On Track" | "Delayed" | "Completed";
+  description?: string | null;
+  status: ProjectStatus;
+  priority: ProjectPriority;
+  category?: string | null;
+  projectManager?: string | null;
+  clientName?: string | null;
+  location?: string | null;
+  budget?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type MaterialStatus = "Identified" | "Vetted" | "Denied";
