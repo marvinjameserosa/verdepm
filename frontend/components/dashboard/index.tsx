@@ -361,7 +361,8 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             {/* Emissions Breakdown */}
-            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+            <div className="col-span-1 lg:col-span-2">
+              <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader
                 className="flex flex-row items-center justify-between cursor-pointer"
                 onClick={() =>
@@ -418,9 +419,10 @@ export default function Dashboard() {
                 </CardContent>
               )}
             </Card>
+          </div>
 
             {/* ESG Score Overview */}
-            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+            {/* <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader
                 className="flex flex-row items-center justify-between cursor-pointer"
                 onClick={() => setIsEsgPerformanceOpen(!isEsgPerformanceOpen)}
@@ -528,13 +530,13 @@ export default function Dashboard() {
                   </div>
                 </CardContent>
               )}
-            </Card>
+            </Card> */}
           </div>
 
           {/* ESG Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/*<div className="grid grid-cols-1 md:grid-cols-3 gap-6"> */}
             {/* Environmental Card */}
-            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+            {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -581,10 +583,10 @@ export default function Dashboard() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Social Card */}
-            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+            {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -631,10 +633,10 @@ export default function Dashboard() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Governance Card */}
-            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+            {/* <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -682,7 +684,7 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </div> */}
 
           {/* ESG Detailed Breakdown Tabs */}
           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
@@ -697,7 +699,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="environmental" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50">
+                {/* <TabsList className="grid w-full grid-cols-3 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50">
                   <TabsTrigger
                     value="environmental"
                     className="data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700"
@@ -716,7 +718,7 @@ export default function Dashboard() {
                   >
                     Governance
                   </TabsTrigger>
-                </TabsList>
+                </TabsList> */}
 
                 <TabsContent value="environmental" className="space-y-4 mt-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
