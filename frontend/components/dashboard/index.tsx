@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/utils/supabase/client";
+import { mapProjectFromSupabase } from "@/components/dashboard/projects/project-helpers";
+import type { Project } from "@/types/project";
 import {
   Card,
   CardContent,
@@ -36,7 +39,18 @@ import {
 } from "lucide-react";
 import { Background } from "@/components/ui/background";
 
-// Sample data for ESG dashboard
+
+function getDummyEsgScores(project: Project) {
+
+  const hash = project.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return {
+    environmental: 75 + (hash % 20),
+    social: 70 + (hash % 25),
+    governance: 80 + (hash % 15),
+    overall: Math.round((75 + (hash % 20) + 70 + (hash % 25) + 80 + (hash % 15)) / 3 * 10) / 10,
+    status: project.status === 'completed' ? 'Completed' : (project.status === 'in-progress' ? 'On Track' : 'Delayed'),
+  };
+}
 const emissionsScopeData = [
   { name: "Scope 1", value: 15240, percentage: 33.5 },
   { name: "Scope 2", value: 12180, percentage: 26.8 },
@@ -115,118 +129,65 @@ const projectBreakdownData = [
   },
 ];
 
-const projectEsgBreakdown = [
-  {
-    project: "Verde Tower",
-    environmental: 89,
-    social: 85,
-    governance: 92,
-    overall: 88.7,
-    status: "On Track",
-  },
-  {
-    project: "Azure Shopping Mall",
-    environmental: 82,
-    social: 78,
-    governance: 88,
-    overall: 82.7,
-    status: "Delayed",
-  },
-  {
-    project: "Crimson Bridge",
-    environmental: 94,
-    social: 89,
-    governance: 96,
-    overall: 93.0,
-    status: "Completed",
-  },
-  {
-    project: "Solaris Industrial Park",
-    environmental: 91,
-    social: 87,
-    governance: 89,
-    overall: 89.0,
-    status: "On Track",
-  },
-  {
-    project: "Aqua-front Residences",
-    environmental: 86,
-    social: 83,
-    governance: 91,
-    overall: 86.7,
-    status: "On Track",
-  },
-  {
-    project: "Ember Hotel",
-    environmental: 78,
-    social: 74,
-    governance: 85,
-    overall: 79.0,
-    status: "Delayed",
-  },
-];
 
-const esgDetailedBreakdown = {
-  environmental: {
-    totalScore: 87,
-    metrics: [
-      {
-        name: "Carbon Footprint Reduction",
-        score: 89,
-        target: 95,
-        trend: "up",
-      },
-      { name: "Energy Efficiency", score: 85, target: 90, trend: "up" },
-      { name: "Waste Management", score: 91, target: 85, trend: "up" },
-      { name: "Water Conservation", score: 83, target: 88, trend: "stable" },
-      { name: "Sustainable Materials", score: 88, target: 90, trend: "up" },
-    ],
-    projects: projectEsgBreakdown.map((p) => ({
-      name: p.project,
-      score: p.environmental,
-      status: p.status,
-    })),
-  },
-  social: {
-    totalScore: 82,
-    metrics: [
-      { name: "Worker Safety", score: 95, target: 98, trend: "up" },
-      { name: "Community Engagement", score: 78, target: 85, trend: "up" },
-      { name: "Local Employment", score: 82, target: 80, trend: "up" },
-      {
-        name: "Training & Development",
-        score: 85,
-        target: 90,
-        trend: "stable",
-      },
-      { name: "Diversity & Inclusion", score: 74, target: 85, trend: "up" },
-    ],
-    projects: projectEsgBreakdown.map((p) => ({
-      name: p.project,
-      score: p.social,
-      status: p.status,
-    })),
-  },
-  governance: {
-    totalScore: 91,
-    metrics: [
-      { name: "Ethics & Compliance", score: 96, target: 95, trend: "up" },
-      { name: "Risk Management", score: 89, target: 92, trend: "up" },
-      { name: "Transparency & Reporting", score: 93, target: 90, trend: "up" },
-      {
-        name: "Stakeholder Engagement",
-        score: 88,
-        target: 90,
-        trend: "stable",
-      },
-      { name: "Board Oversight", score: 91, target: 95, trend: "up" },
-    ],
-    projects: projectEsgBreakdown.map((p) => ({
-      name: p.project,
-      score: p.governance,
-      status: p.status,
-    })),
-  },
+// Dynamically generate ESG breakdown for fetched projects
+const getProjectEsgBreakdown = (projects: Project[]) =>
+  projects.map((project) => ({
+    project: project.name,
+    ...getDummyEsgScores(project),
+  }));
+
+
+// Dynamically generate ESG detailed breakdown for fetched projects
+const getEsgDetailedBreakdown = (projects: Project[]) => {
+  const projectEsgBreakdown = getProjectEsgBreakdown(projects);
+  return {
+    environmental: {
+      totalScore: 87, 
+      metrics: [
+        { name: "Carbon Footprint Reduction", score: 89, target: 95, trend: "up" },
+        { name: "Energy Efficiency", score: 85, target: 90, trend: "up" },
+        { name: "Waste Management", score: 91, target: 85, trend: "up" },
+        { name: "Water Conservation", score: 83, target: 88, trend: "stable" },
+        { name: "Sustainable Materials", score: 88, target: 90, trend: "up" },
+      ],
+      projects: projectEsgBreakdown.map((p) => ({
+        name: p.project,
+        score: p.environmental,
+        status: p.status,
+      })),
+    },
+    social: {
+      totalScore: 82,
+      metrics: [
+        { name: "Worker Safety", score: 95, target: 98, trend: "up" },
+        { name: "Community Engagement", score: 78, target: 85, trend: "up" },
+        { name: "Local Employment", score: 82, target: 80, trend: "up" },
+        { name: "Training & Development", score: 85, target: 90, trend: "stable" },
+        { name: "Diversity & Inclusion", score: 74, target: 85, trend: "up" },
+      ],
+      projects: projectEsgBreakdown.map((p) => ({
+        name: p.project,
+        score: p.social,
+        status: p.status,
+      })),
+    },
+    governance: {
+      totalScore: 91,
+      metrics: [
+        { name: "Ethics & Compliance", score: 96, target: 95, trend: "up" },
+        { name: "Risk Management", score: 89, target: 92, trend: "up" },
+        { name: "Transparency & Reporting", score: 93, target: 90, trend: "up" },
+        { name: "Stakeholder Engagement", score: 88, target: 90, trend: "stable" },
+        { name: "Board Oversight", score: 91, target: 95, trend: "up" },
+      ],
+      projects: projectEsgBreakdown.map((p) => ({
+        name: p.project,
+        score: p.governance,
+        status: p.status,
+      })),
+    },
+  };
 };
 
 const supplierData = {
@@ -235,14 +196,36 @@ const supplierData = {
   incomplete: 38,
 };
 
+
 export default function Dashboard() {
   const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
-  const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] =
-    useState(true);
+  const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const totalEmissions = emissionsScopeData.reduce(
     (sum, scope) => sum + scope.value,
     0
   );
+
+  // Fetch projects from Supabase
+  useEffect(() => {
+    async function fetchProjects() {
+      setLoadingProjects(true);
+      const { data, error } = await supabase
+        .from("projects")
+        .select(
+          "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
+        );
+      if (!error && data) {
+        setProjects(data.map(mapProjectFromSupabase));
+      }
+      setLoadingProjects(false);
+    }
+    fetchProjects();
+  }, []);
+
+  const projectEsgBreakdown = getProjectEsgBreakdown(projects);
+  const esgDetailedBreakdown = getEsgDetailedBreakdown(projects);
 
   return (
     <Background variant="subtle" className="min-h-screen">
