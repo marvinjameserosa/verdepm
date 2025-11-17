@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { z } from "zod";
 import { CheckCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

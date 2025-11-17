@@ -5,7 +5,7 @@ import { useState } from "react";
 export function useInviteMember() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<any | null>(null);
+  const [data, setData] = useState<unknown | null>(null);
 
   const inviteMember = async (
     email: string,
@@ -43,8 +43,12 @@ export function useInviteMember() {
 
       setData(result);
       return result;
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to create user.");
+      }
     } finally {
       setLoading(false);
     }
