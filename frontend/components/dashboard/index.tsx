@@ -343,7 +343,7 @@ export default function Dashboard() {
   };
 
   const formatWasteKilograms = (value: number) => {
-    if (value >= 1_000_000) {
+    if (value >= 1_000_000) { 
       return `${(value / 1_000_000).toFixed(1)}M`;
     }
     if (value >= 1_000) {
@@ -351,6 +351,26 @@ export default function Dashboard() {
     }
     return value.toFixed(0);
   };
+
+  // --- Project selection state for Project Rankings ---
+  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
+
+  const projectKeyMetrics: Record<string, { metrics: { name: string; score: number; target: number; trend: string }[] }> = {};
+  esgDetailedBreakdown.environmental.projects.forEach((proj, idx) => {
+    
+    projectKeyMetrics[proj.name] = {
+      metrics: esgDetailedBreakdown.environmental.metrics.map((m, i) => ({
+        ...m,
+        score: m.score - idx * 2 + i, // simple variation for demo
+        trend: i % 2 === 0 ? "up" : "stable",
+      })),
+    };
+  });
+
+  // Get metrics for selected project, or default
+  const selectedMetrics = selectedProjectName && projectKeyMetrics[selectedProjectName]
+    ? projectKeyMetrics[selectedProjectName].metrics
+    : esgDetailedBreakdown.environmental.metrics;
 
   return (
     <Background variant="subtle" className="min-h-screen">
@@ -391,10 +411,10 @@ export default function Dashboard() {
                 </div>
                 <p className="text-xs text-muted-foreground">tCO₂e this year</p>
                 <div className="flex items-center mt-2">
-                  <TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
+                  {/*<TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
                   <span className="text-xs text-emerald-600">
                     -12.3% vs last year
-                  </span>
+                  </span> */}
                 </div>
               </CardContent>
             </Card>
@@ -415,10 +435,10 @@ export default function Dashboard() {
                 </div>
                 <p className="text-xs text-muted-foreground">kWh consumed</p>
                 <div className="flex items-center mt-2">
-                  <TrendingUp className="h-3 w-3 text-red-500 mr-1" />
+                  {/*<TrendingUp className="h-3 w-3 text-red-500 mr-1" />
                   <span className="text-xs text-red-600">
                     +3.2% vs last month
-                  </span>
+                  </span>*/}
                 </div>
               </CardContent>
             </Card>
@@ -439,10 +459,10 @@ export default function Dashboard() {
                 </div>
                 <p className="text-xs text-muted-foreground">m³ this month</p>
                 <div className="flex items-center mt-2">
-                  <TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
+                  {/*<TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
                   <span className="text-xs text-emerald-600">
                     -8.1% efficiency gain
-                  </span>
+                  </span> */}
                 </div>
               </CardContent>
             </Card>
@@ -463,8 +483,8 @@ export default function Dashboard() {
                 </div>
                 <p className="text-xs text-muted-foreground">kg this month</p>
                 <div className="flex items-center mt-2">
-                  <TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
-                  <span className="text-xs text-emerald-600">78% recycled</span>
+                  {/*<TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
+                  <span className="text-xs text-emerald-600">78% recycled</span>*/}
                 </div>
               </CardContent>
             </Card>
@@ -838,39 +858,45 @@ export default function Dashboard() {
                         Key Metrics
                       </h4>
                       <div className="space-y-3">
-                        {esgDetailedBreakdown.environmental.metrics.map(
-                          (metric, index) => (
-                            <div
-                              key={index}
-                              className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
-                            >
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="font-medium text-sm">
-                                  {metric.name}
+                        {selectedMetrics.map((metric, index) => (
+                          <div
+                            key={index}
+                            className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-medium text-sm">
+                                {metric.name}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                {metric.trend === "up" ? (
+                                  <TrendingUp className="h-3 w-3 text-emerald-600" />
+                                ) : (
+                                  <TrendingDown className="h-3 w-3 text-gray-500" />
+                                )}
+                                <span className="text-sm font-bold">
+                                  {metric.score}
                                 </span>
-                                <div className="flex items-center gap-2">
-                                  {metric.trend === "up" ? (
-                                    <TrendingUp className="h-3 w-3 text-emerald-600" />
-                                  ) : (
-                                    <TrendingDown className="h-3 w-3 text-gray-500" />
-                                  )}
-                                  <span className="text-sm font-bold">
-                                    {metric.score}
-                                  </span>
-                                </div>
-                              </div>
-                              <Progress
-                                value={metric.score}
-                                className="h-1.5 mb-1"
-                              />
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>Current: {metric.score}</span>
-                                <span>Target: {metric.target}</span>
                               </div>
                             </div>
-                          )
-                        )}
+                            <Progress
+                              value={metric.score}
+                              className="h-1.5 mb-1"
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Current: {metric.score}</span>
+                              <span>Target: {metric.target}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
+                      {selectedProjectName && (
+                        <button
+                          className="mt-4 px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                          onClick={() => setSelectedProjectName(null)}
+                        >
+                          Reset to All Projects
+                        </button>
+                      )}
                     </div>
                     <div>
                       <h4 className="font-semibold mb-3 text-emerald-700 dark:text-emerald-300">
@@ -878,9 +904,12 @@ export default function Dashboard() {
                       </h4>
                       <ResponsiveContainer width="100%" height={300}>
                         <BarChart
-                          data={esgDetailedBreakdown.environmental.projects.sort(
-                            (a, b) => b.score - a.score
-                          )}
+                          data={[...esgDetailedBreakdown.environmental.projects].sort((a, b) => b.score - a.score)}
+                          onClick={(state) => {
+                            if (state && state.activeLabel) {
+                              setSelectedProjectName(state.activeLabel);
+                            }
+                          }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis
@@ -896,9 +925,19 @@ export default function Dashboard() {
                             dataKey="score"
                             fill="#10b981"
                             radius={[4, 4, 0, 0]}
+                            cursor="pointer"
+                            onClick={(_, idx) => {
+                              const sorted = [...esgDetailedBreakdown.environmental.projects].sort((a, b) => b.score - a.score);
+                              setSelectedProjectName(sorted[idx].name);
+                            }}
                           />
                         </BarChart>
                       </ResponsiveContainer>
+                      {selectedProjectName && (
+                        <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                          Showing metrics for: <span className="font-semibold">{selectedProjectName}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </TabsContent>
@@ -1168,74 +1207,83 @@ export default function Dashboard() {
               {isProjectEmissionsOpen && (
                 <CardContent>
                   <div className="space-y-4">
-                    {projectBreakdownData.map((project, index) => (
-                      <div
-                        key={index}
-                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/30 dark:bg-gray-800/30"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h4 className="font-semibold">{project.project}</h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge
-                                variant="outline"
-                                className={
-                                  project.status === "Completed"
-                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                                    : project.status === "On Track"
-                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                                    : project.status === "Delayed"
-                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-                                    : "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400 border-gray-200 dark:border-gray-800"
-                                }
-                              >
-                                {project.status}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {project.phase}
-                              </span>
+                    {projects.map((project, index) => {
+                      const esg = getDummyEsgScores(project);
+                      // Placeholder: Replace with real emissions data per project if available
+                      // For now, use dummy breakdown logic
+                      const scope1 = Math.round(1000 + (index * 100));
+                      const scope2 = Math.round(800 + (index * 80));
+                      const scope3 = Math.round(1200 + (index * 120));
+                      const total = scope1 + scope2 + scope3;
+                      const progress = esg.status === 'Completed' ? 100 : esg.status === 'On Track' ? 75 : 40;
+                      return (
+                        <div
+                          key={project.id}
+                          className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/30 dark:bg-gray-800/30"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h4 className="font-semibold">{project.name}</h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    esg.status === "Completed"
+                                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                                      : esg.status === "On Track"
+                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                                      : esg.status === "Delayed"
+                                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                                      : "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400 border-gray-200 dark:border-gray-800"
+                                  }
+                                >
+                                  {esg.status}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-emerald-600">
+                                {total.toLocaleString()} tCO₂e
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {progress}% Complete
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-emerald-600">
-                              {project.total.toLocaleString()} tCO₂e
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {project.progress}% Complete
-                            </div>
-                          </div>
-                        </div>
 
-                        <div className="grid grid-cols-3 gap-2 mb-2">
-                          <div className="text-center">
-                            <div className="text-sm font-medium text-emerald-600">
-                              {project.scope1}
+                          <div className="grid grid-cols-3 gap-2 mb-2">
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-emerald-600">
+                                {scope1}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Scope 1
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              Scope 1
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-blue-600">
+                                {scope2}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Scope 2
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-purple-600">
+                                {scope3}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Scope 3
+                              </div>
                             </div>
                           </div>
-                          <div className="text-center">
-                            <div className="text-sm font-medium text-blue-600">
-                              {project.scope2}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Scope 2
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm font-medium text-purple-600">
-                              {project.scope3}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Scope 3
-                            </div>
-                          </div>
-                        </div>
 
-                        <Progress value={project.progress} className="h-2" />
-                      </div>
-                    ))}
+                          <Progress value={progress} className="h-2" />
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               )}
