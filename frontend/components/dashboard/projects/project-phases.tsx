@@ -41,7 +41,7 @@ export default function ProjectPhases({ project }: ProjectPhasesProps) {
           <ConstructionPhase project={project} />
         </TabsContent>
         <TabsContent value="post-construction" className="mt-6">
-          <PostConstructionPhase />
+          <PostConstructionPhase project={project} />
         </TabsContent>
       </Tabs>
     </div>

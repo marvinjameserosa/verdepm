@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent} from "@/components/ui/tabs";
 import {
   BarChart,
   Bar,
@@ -31,8 +31,6 @@ import {
   Building2,
   TrendingUp,
   TrendingDown,
-  Users,
-  Globe,
   Leaf,
   ChevronDown,
 } from "lucide-react";
@@ -239,7 +237,6 @@ const supplierData = {
 
 export default function Dashboard() {
   const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
-  const [isEsgPerformanceOpen, setIsEsgPerformanceOpen] = useState(true);
   const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] =
     useState(true);
   const totalEmissions = emissionsScopeData.reduce(

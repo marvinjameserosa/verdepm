@@ -22,6 +22,10 @@ export function InviteMemberForm() {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("");
   const { inviteMember, loading, error, data } = useInviteMember();
+  const successMessage =
+    data && typeof data === "object" && "message" in data
+      ? (data as { message?: string }).message ?? null
+      : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +114,7 @@ export function InviteMemberForm() {
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? "Creating User..." : "Create User"}
       </Button>
-      {data && <p className="text-sm text-green-600">{data.message}</p>}
+      {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
   );
