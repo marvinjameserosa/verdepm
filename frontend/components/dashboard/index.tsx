@@ -58,12 +58,31 @@ type EmissionsScopeDatum = {
 };
 
 type ConstructionDailyLogRecord = {
+  project_id: string | null;
   fuel_consumption_liters: number | null;
   equipment_usage_hours: number | null;
   electricity_usage_kwh: number | null;
   water_consumption_cubic_m: number | null;
   todays_waste_generated_kg: number | null;
 };
+
+type AggregatedMetricTotals = {
+  entries: number;
+  fuelConsumptionLiters: number;
+  equipmentUsageHours: number;
+  electricityUsageKwh: number;
+  waterConsumptionCubicM: number;
+  wasteGeneratedKg: number;
+};
+
+const createMetricTotals = (): AggregatedMetricTotals => ({
+  entries: 0,
+  fuelConsumptionLiters: 0,
+  equipmentUsageHours: 0,
+  electricityUsageKwh: 0,
+  waterConsumptionCubicM: 0,
+  wasteGeneratedKg: 0,
+});
 
 const DEFAULT_SCOPE_DATA: EmissionsScopeDatum[] = [
   { name: "Scope 1", value: 0, percentage: 0 },
@@ -85,70 +104,6 @@ const monthlyEmissionsData = [
   { month: "Nov", scope1: 1210, scope2: 1000, scope3: 1430, total: 3640 },
   { month: "Dec", scope1: 1260, scope2: 1070, scope3: 1490, total: 3820 },
 ];
-
-const projectBreakdownData = [
-  {
-    project: "Verde Tower",
-    scope1: 2840,
-    scope2: 2150,
-    scope3: 3200,
-    total: 8190,
-    phase: "Construction",
-    progress: 78,
-    status: "On Track",
-  },
-  {
-    project: "Azure Shopping Mall",
-    scope1: 1950,
-    scope2: 1680,
-    scope3: 2450,
-    total: 6080,
-    phase: "Pre-Construction",
-    progress: 45,
-    status: "Delayed",
-  },
-  {
-    project: "Crimson Bridge",
-    scope1: 3200,
-    scope2: 2890,
-    scope3: 4100,
-    total: 10190,
-    phase: "Post-Construction",
-    progress: 100,
-    status: "Completed",
-  },
-  {
-    project: "Solaris Industrial Park",
-    scope1: 1580,
-    scope2: 1320,
-    scope3: 1980,
-    total: 4880,
-    phase: "Construction",
-    progress: 62,
-    status: "On Track",
-  },
-  {
-    project: "Aqua-front Residences",
-    scope1: 2850,
-    scope2: 2240,
-    scope3: 3180,
-    total: 8270,
-    phase: "Construction",
-    progress: 89,
-    status: "On Track",
-  },
-  {
-    project: "Ember Hotel",
-    scope1: 2820,
-    scope2: 1900,
-    scope3: 3159,
-    total: 7879,
-    phase: "Pre-Construction",
-    progress: 23,
-    status: "Delayed",
-  },
-];
-
 
 // Dynamically generate ESG breakdown for fetched projects
 const getProjectEsgBreakdown = (projects: Project[]) =>
@@ -221,7 +176,6 @@ export default function Dashboard() {
   const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
   const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(false);
   const [emissionsView, setEmissionsView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'>('monthly');
   const [customDateRange, setCustomDateRange] = useState<{ start: string; end: string } | null>(null);
   const [emissionsScopeData, setEmissionsScopeData] = useState<EmissionsScopeDatum[]>(DEFAULT_SCOPE_DATA);
@@ -232,6 +186,8 @@ export default function Dashboard() {
   const [totalElectricityUsage, setTotalElectricityUsage] = useState(0);
   const [totalWaterConsumption, setTotalWaterConsumption] = useState(0);
   const [totalWasteGeneratedKg, setTotalWasteGeneratedKg] = useState(0);
+  const [metricTotalsByProject, setMetricTotalsByProject] = useState<Record<string, AggregatedMetricTotals>>({});
+  const [overallMetricTotals, setOverallMetricTotals] = useState<AggregatedMetricTotals>(() => createMetricTotals());
 
 
   // Fetch projects from Supabase
@@ -256,7 +212,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("construction_daily_log")
         .select(
-          "fuel_consumption_liters, equipment_usage_hours, electricity_usage_kwh, water_consumption_cubic_m, todays_waste_generated_kg"
+          "project_id, fuel_consumption_liters, equipment_usage_hours, electricity_usage_kwh, water_consumption_cubic_m, todays_waste_generated_kg"
         );
 
       if (!isMounted) {
@@ -268,6 +224,8 @@ export default function Dashboard() {
         setTotalElectricityUsage(0);
         setTotalWaterConsumption(0);
         setTotalWasteGeneratedKg(0);
+        setMetricTotalsByProject({});
+        setOverallMetricTotals(createMetricTotals());
         return;
       }
 
@@ -277,12 +235,14 @@ export default function Dashboard() {
 
       let scope1 = 0;
       let scope2 = 0;
-      let scope3 = 0;
       let aggregatedWater = 0;
       let aggregatedWasteKg = 0;
+      const totalsByProject: Record<string, AggregatedMetricTotals> = {};
+      const overallTotals = createMetricTotals();
 
       const PH_GRID_EMISSION_FACTOR = 0.76; 
       const WATER_EMISSION_FACTOR = 0.264; // kg CO2e per m3
+      // Aggregate per-project metrics to drive the ESG detailed key metrics view.
       for (const log of logs) {
         const fuel = toNumber(log.fuel_consumption_liters);
         const equipment = toNumber(log.equipment_usage_hours);
@@ -295,6 +255,25 @@ export default function Dashboard() {
         
         aggregatedWater += water;
         aggregatedWasteKg += wasteKg;
+
+        overallTotals.entries += 1;
+        overallTotals.fuelConsumptionLiters += fuel;
+        overallTotals.equipmentUsageHours += equipment;
+        overallTotals.electricityUsageKwh += electricity;
+        overallTotals.waterConsumptionCubicM += water;
+        overallTotals.wasteGeneratedKg += wasteKg;
+
+        const projectId = typeof log.project_id === "string" ? log.project_id : null;
+        if (projectId) {
+          const projectTotals = totalsByProject[projectId] ?? createMetricTotals();
+          projectTotals.entries += 1;
+          projectTotals.fuelConsumptionLiters += fuel;
+          projectTotals.equipmentUsageHours += equipment;
+          projectTotals.electricityUsageKwh += electricity;
+          projectTotals.waterConsumptionCubicM += water;
+          projectTotals.wasteGeneratedKg += wasteKg;
+          totalsByProject[projectId] = projectTotals;
+        }
       }
 
 
@@ -313,6 +292,8 @@ export default function Dashboard() {
       setTotalElectricityUsage(scope2);
       setTotalWaterConsumption(aggregatedWater);
       setTotalWasteGeneratedKg(aggregatedWasteKg);
+      setMetricTotalsByProject(totalsByProject);
+      setOverallMetricTotals(overallTotals);
     };
 
     fetchEmissions();
@@ -354,23 +335,116 @@ export default function Dashboard() {
 
   // --- Project selection state for Project Rankings ---
   const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
+  const projectLookupByName = useMemo(() => {
+    const lookup = new Map<string, Project>();
+    projects.forEach((project) => {
+      lookup.set(project.name, project);
+    });
+    return lookup;
+  }, [projects]);
 
-  const projectKeyMetrics: Record<string, { metrics: { name: string; score: number; target: number; trend: string }[] }> = {};
-  esgDetailedBreakdown.environmental.projects.forEach((proj, idx) => {
-    
-    projectKeyMetrics[proj.name] = {
-      metrics: esgDetailedBreakdown.environmental.metrics.map((m, i) => ({
-        ...m,
-        score: m.score - idx * 2 + i, // simple variation for demo
-        trend: i % 2 === 0 ? "up" : "stable",
-      })),
-    };
-  });
+  const selectedProject = selectedProjectName
+    ? projectLookupByName.get(selectedProjectName) ?? null
+    : null;
 
-  // Get metrics for selected project, or default
-  const selectedMetrics = selectedProjectName && projectKeyMetrics[selectedProjectName]
-    ? projectKeyMetrics[selectedProjectName].metrics
-    : esgDetailedBreakdown.environmental.metrics;
+  const emptyTotals = useMemo(() => createMetricTotals(), []);
+  const selectedProjectTotals = selectedProject
+    ? metricTotalsByProject[selectedProject.id]
+    : undefined;
+
+  const metricsTotalsForDisplay = selectedProjectName
+    ? selectedProject
+      ? selectedProjectTotals ?? emptyTotals
+      : emptyTotals
+    : overallMetricTotals;
+
+  const hasSelectedProjectMetrics = Boolean(
+    selectedProjectTotals && selectedProjectTotals.entries > 0
+  );
+
+  const metricsEntryCount = metricsTotalsForDisplay.entries;
+
+  const metricNumberFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 0,
+      }),
+    []
+  );
+
+  const keyMetrics = useMemo(
+    () => [
+      {
+        key: "fuel-consumption",
+        label: "Fuel Consumption",
+        value: metricNumberFormatter.format(
+          metricsTotalsForDisplay.fuelConsumptionLiters
+        ),
+        unit: "L",
+      },
+      {
+        key: "equipment-usage",
+        label: "Equipment Usage",
+        value: metricNumberFormatter.format(
+          metricsTotalsForDisplay.equipmentUsageHours
+        ),
+        unit: "hrs",
+      },
+      {
+        key: "electricity-usage",
+        label: "Electricity Usage",
+        value: metricNumberFormatter.format(
+          metricsTotalsForDisplay.electricityUsageKwh
+        ),
+        unit: "kWh",
+      },
+      {
+        key: "waste-generated",
+        label: "Waste Generated",
+        value: metricNumberFormatter.format(
+          metricsTotalsForDisplay.wasteGeneratedKg
+        ),
+        unit: "kg",
+      },
+      {
+        key: "water-supply",
+        label: "Water Supply Formula",
+        value: metricNumberFormatter.format(
+          metricsTotalsForDisplay.waterConsumptionCubicM
+        ),
+        unit: "m^3",
+      },
+    ],
+    [metricNumberFormatter, metricsTotalsForDisplay]
+  );
+
+  const selectionStatusMessage = useMemo(() => {
+    if (!selectedProjectName) {
+      return metricsEntryCount > 0
+        ? `Aggregated across ${metricsEntryCount} daily log${
+            metricsEntryCount === 1 ? "" : "s"
+          }.`
+        : "No daily log data available yet.";
+    }
+
+    if (!selectedProject) {
+      return `Project "${selectedProjectName}" is not available in Supabase records.`;
+    }
+
+    if (!hasSelectedProjectMetrics) {
+      return `No daily logs recorded yet for ${selectedProjectName}.`;
+    }
+
+    return `Aggregated from ${metricsEntryCount} daily log${
+      metricsEntryCount === 1 ? "" : "s"
+    } for ${selectedProjectName}.`;
+  }, [
+    selectedProjectName,
+    selectedProject,
+    hasSelectedProjectMetrics,
+    metricsEntryCount,
+  ]);
 
   return (
     <Background variant="subtle" className="min-h-screen">
@@ -858,37 +932,28 @@ export default function Dashboard() {
                         Key Metrics
                       </h4>
                       <div className="space-y-3">
-                        {selectedMetrics.map((metric, index) => (
+                        {keyMetrics.map((metric) => (
                           <div
-                            key={index}
+                            key={metric.key}
                             className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
                           >
-                            <div className="flex justify-between items-center mb-2">
+                            <div className="flex justify-between items-center">
                               <span className="font-medium text-sm">
-                                {metric.name}
+                                {metric.label}
                               </span>
-                              <div className="flex items-center gap-2">
-                                {metric.trend === "up" ? (
-                                  <TrendingUp className="h-3 w-3 text-emerald-600" />
-                                ) : (
-                                  <TrendingDown className="h-3 w-3 text-gray-500" />
-                                )}
-                                <span className="text-sm font-bold">
-                                  {metric.score}
+                              <span className="text-sm font-bold text-emerald-700 dark:text-emerald-200">
+                                {metric.value}
+                                <span className="ml-1 text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+                                  {metric.unit}
                                 </span>
-                              </div>
-                            </div>
-                            <Progress
-                              value={metric.score}
-                              className="h-1.5 mb-1"
-                            />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>Current: {metric.score}</span>
-                              <span>Target: {metric.target}</span>
+                              </span>
                             </div>
                           </div>
                         ))}
                       </div>
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        {selectionStatusMessage}
+                      </p>
                       {selectedProjectName && (
                         <button
                           className="mt-4 px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
@@ -935,7 +1000,21 @@ export default function Dashboard() {
                       </ResponsiveContainer>
                       {selectedProjectName && (
                         <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                          Showing metrics for: <span className="font-semibold">{selectedProjectName}</span>
+                          {selectedProject ? (
+                            hasSelectedProjectMetrics ? (
+                              <span>
+                                Showing metrics for: <span className="font-semibold">{selectedProjectName}</span>
+                              </span>
+                            ) : (
+                              <span>
+                                No daily logs recorded yet for <span className="font-semibold">{selectedProjectName}</span>.
+                              </span>
+                            )
+                          ) : (
+                            <span>
+                              Project <span className="font-semibold">{selectedProjectName}</span> is not available in Supabase records.
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
