@@ -11,7 +11,7 @@ export async function Login(formData: FormData) {
   const result = loginSchema.safeParse({ email, password });
 
   if (!result.success) {
-    redirect("/login?message=Invalid email or password");
+    return redirect("/login?message=Invalid email or password");
   }
 
   const supabase = await createClient();
@@ -22,9 +22,9 @@ export async function Login(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/login?message=${encodeURIComponent(error.message)}`);
+    return redirect(`/login?message=${encodeURIComponent(error.message)}`);
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  return redirect("/dashboard");
 }
