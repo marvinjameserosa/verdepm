@@ -24,21 +24,49 @@ export const projectPriorityLabels: Record<ProjectPriority, string> = {
   high: "High",
 };
 
-export const mapProjectFromSupabase = (record: any): Project => ({
-  id: record.id,
-  ownerId: record.owner_id ?? null,
-  name: record.name,
-  slug: record.slug,
-  description: record.description,
-  status: record.status,
-  priority: record.priority,
-  category: record.category,
-  projectManager: record.project_manager,
-  clientName: record.client_name,
-  location: record.location,
-  budget: record.budget,
-  startDate: record.start_date,
-  endDate: record.end_date,
-  createdAt: record.created_at ?? new Date().toISOString(),
-  updatedAt: record.updated_at ?? record.created_at ?? new Date().toISOString(),
-});
+export const mapProjectFromSupabase = (record: unknown): Project => {
+  if (!record || typeof record !== "object") {
+    throw new TypeError("Expected project record to be an object");
+  }
+
+  const {
+    id,
+    owner_id: ownerId,
+    name,
+    slug,
+    description,
+    status,
+    priority,
+    category,
+    project_manager: projectManager,
+    client_name: clientName,
+    location,
+    budget,
+    start_date: startDate,
+    end_date: endDate,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  } = record as Record<string, unknown>;
+
+  return {
+    id: id as string,
+    ownerId: (ownerId as string | null | undefined) ?? null,
+    name: name as string,
+    slug: slug as string,
+    description: (description as string | null | undefined) ?? null,
+    status: status as ProjectStatus,
+    priority: priority as ProjectPriority,
+    category: category as string,
+    projectManager: (projectManager as string | null | undefined) ?? null,
+    clientName: (clientName as string | null | undefined) ?? null,
+    location: (location as string | null | undefined) ?? null,
+    budget: (budget as number | null | undefined) ?? null,
+    startDate: (startDate as string | null | undefined) ?? null,
+    endDate: (endDate as string | null | undefined) ?? null,
+    createdAt: (createdAt as string | null | undefined) ?? new Date().toISOString(),
+    updatedAt:
+      (updatedAt as string | null | undefined) ??
+      (createdAt as string | null | undefined) ??
+      new Date().toISOString(),
+  };
+};

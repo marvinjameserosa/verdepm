@@ -13,13 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -47,13 +40,9 @@ import {
   Calendar,
   Search,
   MoreHorizontal,
-  CheckCircle,
-  Clock,
-  AlertCircle,
   Building,
   Globe,
 } from "lucide-react";
-import { Background } from "@/components/ui/background";
 import { InviteMemberForm } from "./InviteMemberForm";
 
 // Subscription tiers with limits
@@ -139,10 +128,10 @@ const membersData = [
 ];
 
 const MembersTab = () => {
-  const [currentTier, setCurrentTier] = useState(
+  const [currentTier] = useState(
     subscriptionTiers.professional
   );
-  const [members, setMembers] = useState(membersData);
+  const [members] = useState(membersData);
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredMembers = members.filter((member) =>
