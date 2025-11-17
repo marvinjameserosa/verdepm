@@ -3,7 +3,7 @@
 import type React from "react";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, AlertCircle, Mail, Lock } from "lucide-react";
+import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Login } from "@/app/login/actions";
 import { loginSchema } from "@/types/auth";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get("message");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string[];
     password?: string[];
@@ -99,16 +100,24 @@ export function LoginForm() {
           <Input
             id="password"
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
             required
             disabled={isLoading}
-            className={`pl-11 h-11 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${
+            className={`pl-11 pr-11 h-11 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${
               errors.password
                 ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                 : ""
             }`}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            disabled={isLoading}
+          >
+            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
         </div>
         {errors.password && (
           <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
