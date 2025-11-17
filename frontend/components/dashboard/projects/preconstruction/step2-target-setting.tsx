@@ -179,9 +179,9 @@ export default function Step2TargetSetting({
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen">
-      <Card className="w-full max-w-4xl backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-        <CardHeader>
+    <section className="w-full">
+      <Card className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-md">
+        <CardHeader className="gap-4 border-b border-gray-100 dark:border-gray-800">
           <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
             <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
               <GanttChartSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -189,16 +189,16 @@ export default function Step2TargetSetting({
             Step 2: Target Setting & Material Sourcing
           </CardTitle>
           <CardDescription>
-            Set ESG targets and identify potential sustainable materials and
+            Capture measurable ESG ambitions, then log supporting materials and
             suppliers.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h4 className="font-semibold mb-2 flex items-center gap-2">
+        <CardContent className="space-y-8 p-6 lg:p-8">
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 p-5 space-y-5 h-full shadow-sm">
+            <h4 className="font-semibold flex items-center gap-2">
               <Target className="h-5 w-5" /> Define ESG Targets
             </h4>
-            <div className="p-4 border rounded-lg space-y-4">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Category</Label>
@@ -255,18 +255,23 @@ export default function Step2TargetSetting({
                   {isSavingTarget ? "Saving..." : "Save Target"}
                 </Button>
               </div>
-              {targets.length > 0 && (
-                <div className="space-y-2 pt-4 border-t">
-                  <h5 className="text-sm font-medium text-muted-foreground">
-                    Saved Targets
-                  </h5>
+              <div className="space-y-2 pt-4 border-t border-dashed border-gray-200 dark:border-gray-800">
+                <h5 className="text-sm font-medium text-muted-foreground">
+                  Saved Targets
+                </h5>
+                {targets.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Once saved, your ESG goals will appear here for quick
+                    reference.
+                  </p>
+                ) : (
                   <ul className="space-y-2">
                     {targets.map((target) => (
                       <li
                         key={target.id}
-                        className="flex flex-col rounded-md border border-emerald-100 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/60 p-3"
+                        className="flex flex-col rounded-lg border border-gray-200 dark:border-gray-800 p-3 bg-white/80 dark:bg-gray-900/60"
                       >
-                        <span className="text-xs uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                        <span className="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
                           {target.category}
                         </span>
                         <span className="text-sm font-semibold">{target.goal}</span>
@@ -276,16 +281,16 @@ export default function Step2TargetSetting({
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
-          <div>
-            <h4 className="font-semibold mb-2 flex items-center gap-2">
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-950/40 space-y-5 h-full shadow-sm">
+            <h4 className="font-semibold flex items-center gap-2">
               <Layers className="h-5 w-5" /> Material Sourcing & Due Diligence
             </h4>
-            <div className="p-4 border rounded-lg space-y-4">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Material Category</Label>
@@ -492,41 +497,53 @@ export default function Step2TargetSetting({
                   )}
                 </Button>
               </div>
-              {materials.length > 0 && (
-                <div className="pt-6 border-t space-y-3">
-                  <h5 className="text-sm font-medium text-muted-foreground">
-                    Materials Added
-                  </h5>
+              <div className="pt-6 border-t border-dashed border-gray-200 dark:border-gray-800 space-y-3">
+                <h5 className="text-sm font-medium text-muted-foreground">
+                  Materials Added
+                </h5>
+                {materials.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Log at least one sourced item to complete this stage.
+                  </p>
+                ) : (
                   <div className="grid gap-3">
                     {materials.map((material) => (
                       <div
                         key={material.id}
-                        className="border border-emerald-100 dark:border-emerald-900/40 rounded-md p-3 text-sm"
+                        className="border border-gray-200 dark:border-gray-800 rounded-lg p-3 text-sm bg-white/80 dark:bg-gray-900/60"
                       >
-                        <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+                        <div className="font-semibold text-emerald-700 dark:text-emerald-200">
                           {material.name}
                         </div>
                         <div className="text-muted-foreground">
                           {material.supplier} • {material.unit}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Status: {material.status}
+                        <div className="text-xs text-muted-foreground flex flex-wrap gap-2">
+                          <span>Status: {material.status}</span>
+                          {material.credentials && (
+                            <span>• {material.credentials}</span>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={onBack}>
-              Previous
-            </Button>
-            <Button onClick={onNext}>Next</Button>
+          <div className="flex flex-col gap-3 border-t border-gray-100 dark:border-gray-800 pt-6 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Save at least one target and one material before moving forward.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onBack}>
+                Previous
+              </Button>
+              <Button onClick={onNext}>Next</Button>
+            </div>
           </div>
         </CardContent>
       </Card>
-    </div>
+    </section>
   );
 }
