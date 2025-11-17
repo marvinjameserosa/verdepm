@@ -11,49 +11,57 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <Background className="flex min-h-screen">
-      {/* Login Form Container */}
-      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 xl:px-12 w-full max-w-md sm:max-w-lg mx-auto">
-        <div className="w-full max-w-md mx-auto">
-          {/* Logo */}
-          <div className="mb-8 lg:mb-12">
-            <Logo />
+    <Background className="flex min-h-screen items-center justify-center">
+      {/* Main Container - Responsive Grid Layout */}{" "}
+      <div className="w-full min-h-screen flex items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md space-y-8">
+          {/* Logo Section */}
+          <div className="text-center">
+            <div className="flex justify-center mb-6">
+              <Logo className="scale-110 sm:scale-125" />
+            </div>
           </div>
 
-          {/* Modern Card Container */}
-          <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl sm:rounded-3xl border border-white/20 shadow-2xl shadow-emerald-500/10 p-6 sm:p-8">
-            {/* Header */}
-            <div className="mb-6 sm:mb-8 text-center">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent mb-2">
+          {/* Login Card */}
+          <div className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl shadow-emerald-500/5 overflow-hidden">
+            {/* Card Header */}
+            <div className="px-6 pt-6 pb-4 sm:px-8 sm:pt-8 sm:pb-6 text-center border-b border-gray-200/50 dark:border-gray-700/50">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
                 Welcome Back
-              </h2>
-              <p className="text-muted-foreground text-sm sm:text-base">
+              </h1>
+              <p className="mt-2 text-sm sm:text-base text-muted-foreground">
                 Sign in to your VerdePM account
               </p>
             </div>
 
-            {/* Login Form */}
-            <div className="space-y-4 sm:space-y-6">
-              <Suspense fallback={<div>Loading...</div>}>
+            {/* Card Content */}
+            <div className="p-6 sm:p-8 lg:p-10">
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                  </div>
+                }
+              >
                 <LoginForm />
               </Suspense>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="mt-6 sm:mt-8 text-center px-4 sm:px-0">
-            <p className="text-xs text-muted-foreground leading-relaxed">
+          {/* Terms and Privacy */}
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground leading-relaxed px-4">
               By signing in, you agree to our{" "}
               <Link
                 href="/terms"
-                className="hover:text-emerald-600 transition-colors"
+                className="font-medium text-emerald-600 hover:text-emerald-500 transition-colors underline underline-offset-2"
               >
                 Terms of Service
               </Link>{" "}
               and{" "}
               <Link
                 href="/privacy"
-                className="hover:text-emerald-600 transition-colors"
+                className="font-medium text-emerald-600 hover:text-emerald-500 transition-colors underline underline-offset-2"
               >
                 Privacy Policy
               </Link>
