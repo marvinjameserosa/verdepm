@@ -224,13 +224,15 @@ export default function Dashboard() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [emissionsView, setEmissionsView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'>('monthly');
   const [customDateRange, setCustomDateRange] = useState<{ start: string; end: string } | null>(null);
-  const totalEmissions = emissionsScopeData.reduce(
-    (sum, scope) => sum + scope.value,
-    0
+  const [emissionsScopeData, setEmissionsScopeData] = useState<EmissionsScopeDatum[]>(DEFAULT_SCOPE_DATA);
+  const totalEmissions = React.useMemo(
+    () => emissionsScopeData.reduce((sum, scope) => sum + scope.value, 0),
+    [emissionsScopeData]
   );
   const [totalElectricityUsage, setTotalElectricityUsage] = useState(0);
   const [totalWaterConsumption, setTotalWaterConsumption] = useState(0);
   const [totalWasteGeneratedKg, setTotalWasteGeneratedKg] = useState(0);
+
 
   // Fetch projects from Supabase
   useEffect(() => {
@@ -279,6 +281,8 @@ export default function Dashboard() {
       let aggregatedWater = 0;
       let aggregatedWasteKg = 0;
 
+      const PH_GRID_EMISSION_FACTOR = 0.76; 
+      const WATER_EMISSION_FACTOR = 0.264; // kg CO2e per m3
       for (const log of logs) {
         const fuel = toNumber(log.fuel_consumption_liters);
         const equipment = toNumber(log.equipment_usage_hours);
@@ -288,20 +292,23 @@ export default function Dashboard() {
 
         scope1 += fuel + equipment;
         scope2 += electricity;
-        scope3 += wasteKg + water;
-
+        
         aggregatedWater += water;
         aggregatedWasteKg += wasteKg;
       }
 
-      const total = scope1 + scope2 + scope3;
+
+      const scope2_tco2e = scope2 * PH_GRID_EMISSION_FACTOR / 1000; 
+      const scope3_water_tco2e = aggregatedWater * WATER_EMISSION_FACTOR / 1000; 
+      const scope3_total_tco2e = scope3_water_tco2e + aggregatedWasteKg / 1000; 
+      const total = scope1 + scope2_tco2e + scope3_total_tco2e;
       const percentage = (value: number) =>
         total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0;
 
       setEmissionsScopeData([
         { name: "Scope 1", value: scope1, percentage: percentage(scope1) },
-        { name: "Scope 2", value: scope2, percentage: percentage(scope2) },
-        { name: "Scope 3", value: scope3, percentage: percentage(scope3) },
+        { name: "Scope 2", value: scope2_tco2e, percentage: percentage(scope2_tco2e) },
+        { name: "Scope 3", value: scope3_total_tco2e, percentage: percentage(scope3_total_tco2e) },
       ]);
       setTotalElectricityUsage(scope2);
       setTotalWaterConsumption(aggregatedWater);
@@ -315,10 +322,6 @@ export default function Dashboard() {
     };
   }, []);
 
-  const totalEmissions = useMemo(
-    () => emissionsScopeData.reduce((sum, scope) => sum + scope.value, 0),
-    [emissionsScopeData]
-  );
 
   const esgDetailedBreakdown = getEsgDetailedBreakdown(projects);
 
