@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/utils/supabase/client";
 import { mapProjectFromSupabase } from "@/components/dashboard/projects/project-helpers";
 import type { Project } from "@/types/project";
@@ -51,10 +51,24 @@ function getDummyEsgScores(project: Project) {
     status: project.status === 'completed' ? 'Completed' : (project.status === 'in-progress' ? 'On Track' : 'Delayed'),
   };
 }
-const emissionsScopeData = [
-  { name: "Scope 1", value: 15240, percentage: 33.5 },
-  { name: "Scope 2", value: 12180, percentage: 26.8 },
-  { name: "Scope 3", value: 18069, percentage: 39.7 },
+type EmissionsScopeDatum = {
+  name: string;
+  value: number;
+  percentage: number;
+};
+
+type ConstructionDailyLogRecord = {
+  fuel_consumption_liters: number | null;
+  equipment_usage_hours: number | null;
+  electricity_usage_kwh: number | null;
+  water_consumption_cubic_m: number | null;
+  todays_waste_generated_kg: number | null;
+};
+
+const DEFAULT_SCOPE_DATA: EmissionsScopeDatum[] = [
+  { name: "Scope 1", value: 0, percentage: 0 },
+  { name: "Scope 2", value: 0, percentage: 0 },
+  { name: "Scope 3", value: 0, percentage: 0 },
 ];
 
 const monthlyEmissionsData = [
@@ -201,16 +215,16 @@ export default function Dashboard() {
   const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
   const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const totalEmissions = emissionsScopeData.reduce(
-    (sum, scope) => sum + scope.value,
-    0
+  const [emissionsScopeData, setEmissionsScopeData] = useState<EmissionsScopeDatum[]>(
+    DEFAULT_SCOPE_DATA
   );
+  const [totalElectricityUsage, setTotalElectricityUsage] = useState(0);
+  const [totalWaterConsumption, setTotalWaterConsumption] = useState(0);
+  const [totalWasteGeneratedKg, setTotalWasteGeneratedKg] = useState(0);
 
   // Fetch projects from Supabase
   useEffect(() => {
     async function fetchProjects() {
-      setLoadingProjects(true);
       const { data, error } = await supabase
         .from("projects")
         .select(
@@ -219,13 +233,111 @@ export default function Dashboard() {
       if (!error && data) {
         setProjects(data.map(mapProjectFromSupabase));
       }
-      setLoadingProjects(false);
     }
     fetchProjects();
   }, []);
 
-  const projectEsgBreakdown = getProjectEsgBreakdown(projects);
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchEmissions = async () => {
+      const { data, error } = await supabase
+        .from("construction_daily_log")
+        .select(
+          "fuel_consumption_liters, equipment_usage_hours, electricity_usage_kwh, water_consumption_cubic_m, todays_waste_generated_kg"
+        );
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error || !data) {
+        setEmissionsScopeData(DEFAULT_SCOPE_DATA);
+        setTotalElectricityUsage(0);
+        setTotalWaterConsumption(0);
+        setTotalWasteGeneratedKg(0);
+        return;
+      }
+
+      const logs = data as ConstructionDailyLogRecord[];
+      const toNumber = (value: number | null) =>
+        typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+      let scope1 = 0;
+      let scope2 = 0;
+      let scope3 = 0;
+      let aggregatedWater = 0;
+      let aggregatedWasteKg = 0;
+
+      for (const log of logs) {
+        const fuel = toNumber(log.fuel_consumption_liters);
+        const equipment = toNumber(log.equipment_usage_hours);
+        const electricity = toNumber(log.electricity_usage_kwh);
+        const water = toNumber(log.water_consumption_cubic_m);
+        const wasteKg = toNumber(log.todays_waste_generated_kg);
+
+        scope1 += fuel + equipment;
+        scope2 += electricity;
+        scope3 += wasteKg + water;
+
+        aggregatedWater += water;
+        aggregatedWasteKg += wasteKg;
+      }
+
+      const total = scope1 + scope2 + scope3;
+      const percentage = (value: number) =>
+        total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0;
+
+      setEmissionsScopeData([
+        { name: "Scope 1", value: scope1, percentage: percentage(scope1) },
+        { name: "Scope 2", value: scope2, percentage: percentage(scope2) },
+        { name: "Scope 3", value: scope3, percentage: percentage(scope3) },
+      ]);
+      setTotalElectricityUsage(scope2);
+      setTotalWaterConsumption(aggregatedWater);
+      setTotalWasteGeneratedKg(aggregatedWasteKg);
+    };
+
+    fetchEmissions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalEmissions = useMemo(
+    () => emissionsScopeData.reduce((sum, scope) => sum + scope.value, 0),
+    [emissionsScopeData]
+  );
+
   const esgDetailedBreakdown = getEsgDetailedBreakdown(projects);
+
+  const formatEnergyUsage = (value: number) => {
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    if (value >= 1_000) {
+      return `${(value / 1_000).toFixed(1)}k`;
+    }
+    return value.toFixed(0);
+  };
+
+  const formatWaterVolume = (value: number) => {
+    if (value >= 1_000) {
+      return `${(value / 1_000).toFixed(1)}k`;
+    }
+    return value.toFixed(0);
+  };
+
+  const formatWasteKilograms = (value: number) => {
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    if (value >= 1_000) {
+      return `${(value / 1_000).toFixed(1)}k`;
+    }
+    return value.toFixed(0);
+  };
 
   return (
     <Background variant="subtle" className="min-h-screen">
@@ -285,7 +397,9 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-700">2.4M</div>
+                <div className="text-2xl font-bold text-blue-700">
+                  {formatEnergyUsage(totalElectricityUsage)}
+                </div>
                 <p className="text-xs text-muted-foreground">kWh consumed</p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="h-3 w-3 text-red-500 mr-1" />
@@ -307,7 +421,9 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-cyan-700">856</div>
+                <div className="text-2xl font-bold text-cyan-700">
+                  {formatWaterVolume(totalWaterConsumption)}
+                </div>
                 <p className="text-xs text-muted-foreground">m³ this month</p>
                 <div className="flex items-center mt-2">
                   <TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
@@ -329,8 +445,10 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-amber-700">245</div>
-                <p className="text-xs text-muted-foreground">tons this month</p>
+                <div className="text-2xl font-bold text-amber-700">
+                  {formatWasteKilograms(totalWasteGeneratedKg)}
+                </div>
+                <p className="text-xs text-muted-foreground">kg this month</p>
                 <div className="flex items-center mt-2">
                   <TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
                   <span className="text-xs text-emerald-600">78% recycled</span>
