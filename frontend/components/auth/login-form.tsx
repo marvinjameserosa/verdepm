@@ -36,12 +36,7 @@ export function LoginForm() {
       return;
     }
 
-    try {
-      await Login(formData);
-    } catch {
-    } finally {
-      setIsLoading(false);
-    }
+    await Login(formData);
   }
 
   return (
