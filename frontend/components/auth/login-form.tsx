@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get("message");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string[];
     password?: string[];
@@ -141,7 +143,7 @@ export function LoginForm() {
             id="remember"
             disabled={isLoading}
             className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 h-4 w-4 sm:h-5 sm:w-5"
-          />
+          />{" "}
           <label
             htmlFor="remember"
             className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none"
@@ -149,12 +151,13 @@ export function LoginForm() {
             Remember me
           </label>
         </div>
-        <Link
-          href="/forgot-password"
-          className="text-xs sm:text-sm font-medium text-emerald-600 hover:text-emerald-500 transition-colors"
+        <button
+          type="button"
+          onClick={() => setShowForgotPassword(true)}
+          className="text-xs sm:text-sm font-medium text-emerald-600 hover:text-emerald-500 transition-colors focus:outline-none"
         >
           Forgot password?
-        </Link>
+        </button>
       </div>
 
       {/* Submit Button */}
@@ -172,6 +175,12 @@ export function LoginForm() {
           "Sign in"
         )}
       </Button>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        open={showForgotPassword}
+        onOpenChange={setShowForgotPassword}
+      />
     </form>
   );
 }
