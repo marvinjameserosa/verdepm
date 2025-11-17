@@ -1,4 +1,4 @@
-import type { Project } from "@/types";
+import type { Project } from "@/types/project";
 
 export const projects: Project[] = [
   {
@@ -7,21 +7,30 @@ export const projects: Project[] = [
     slug: "verde-tower",
     description:
       "A high-rise residential building with a focus on sustainability.",
-    status: "On Track",
+    status: "in-progress",
+    priority: "high",
+    createdAt: "2025-01-01T00:00:00Z",
+    updatedAt: "2025-01-15T00:00:00Z",
   },
   {
     id: "2",
     name: "Azure Shopping Mall",
     slug: "azure-shopping-mall",
     description: "A large commercial complex with a variety of retail stores.",
-    status: "Delayed",
+    status: "on-hold",
+    priority: "medium",
+    createdAt: "2025-01-02T00:00:00Z",
+    updatedAt: "2025-01-18T00:00:00Z",
   },
   {
     id: "3",
     name: "Crimson Bridge",
     slug: "crimson-bridge",
     description: "A new bridge to connect two major cities.",
-    status: "Completed",
+    status: "completed",
+    priority: "high",
+    createdAt: "2025-01-03T00:00:00Z",
+    updatedAt: "2025-01-20T00:00:00Z",
   },
   {
     id: "4",
@@ -29,20 +38,29 @@ export const projects: Project[] = [
     slug: "solaris-industrial-park",
     description:
       "An eco-friendly industrial park with a focus on renewable energy.",
-    status: "On Track",
+    status: "in-progress",
+    priority: "medium",
+    createdAt: "2025-01-04T00:00:00Z",
+    updatedAt: "2025-01-22T00:00:00Z",
   },
   {
     id: "5",
     name: "Aqua-front Residences",
     slug: "aqua-front-residences",
     description: "A luxury residential complex with a waterfront view.",
-    status: "On Track",
+    status: "in-progress",
+    priority: "medium",
+    createdAt: "2025-01-05T00:00:00Z",
+    updatedAt: "2025-01-24T00:00:00Z",
   },
   {
     id: "6",
     name: "Ember Hotel",
     slug: "ember-hotel",
     description: "A boutique hotel with a focus on modern design.",
-    status: "Delayed",
+    status: "on-hold",
+    priority: "low",
+    createdAt: "2025-01-06T00:00:00Z",
+    updatedAt: "2025-01-26T00:00:00Z",
   },
 ];
