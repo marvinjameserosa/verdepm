@@ -78,6 +78,12 @@ const monthlyEmissionsData = [
   { month: "Apr", scope1: 1250, scope2: 1050, scope3: 1480, total: 3780 },
   { month: "May", scope1: 1180, scope2: 990, scope3: 1420, total: 3590 },
   { month: "Jun", scope1: 1220, scope2: 1080, scope3: 1460, total: 3760 },
+  { month: "Jul", scope1: 1280, scope2: 1120, scope3: 1500, total: 3900 },
+  { month: "Aug", scope1: 1190, scope2: 970, scope3: 1400, total: 3560 },
+  { month: "Sep", scope1: 1240, scope2: 1050, scope3: 1470, total: 3760 },
+  { month: "Oct", scope1: 1290, scope2: 1090, scope3: 1530, total: 3910 },
+  { month: "Nov", scope1: 1210, scope2: 1000, scope3: 1430, total: 3640 },
+  { month: "Dec", scope1: 1260, scope2: 1070, scope3: 1490, total: 3820 },
 ];
 
 const projectBreakdownData = [
@@ -215,8 +221,12 @@ export default function Dashboard() {
   const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
   const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [emissionsScopeData, setEmissionsScopeData] = useState<EmissionsScopeDatum[]>(
-    DEFAULT_SCOPE_DATA
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [emissionsView, setEmissionsView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'>('monthly');
+  const [customDateRange, setCustomDateRange] = useState<{ start: string; end: string } | null>(null);
+  const totalEmissions = emissionsScopeData.reduce(
+    (sum, scope) => sum + scope.value,
+    0
   );
   const [totalElectricityUsage, setTotalElectricityUsage] = useState(0);
   const [totalWaterConsumption, setTotalWaterConsumption] = useState(0);
@@ -1044,14 +1054,52 @@ export default function Dashboard() {
                 Emissions Over Time
               </CardTitle>
               <CardDescription>
-                Monthly breakdown by emission scopes
+                {emissionsView.charAt(0).toUpperCase() + emissionsView.slice(1)} breakdown by emission scopes
               </CardDescription>
+              <div className="mt-4 flex gap-2 flex-wrap">
+                {['daily', 'weekly', 'monthly', 'yearly', 'custom'].map((view) => (
+                  <button
+                    key={view}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${emissionsView === view ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-emerald-700 dark:text-emerald-300'}`}
+                    onClick={() => setEmissionsView(view as typeof emissionsView)}
+                  >
+                    {view.charAt(0).toUpperCase() + view.slice(1)}
+                  </button>
+                ))}
+              </div>
+              {emissionsView === 'custom' && (
+                <div className="mt-2 flex gap-2 items-center">
+                  <label className="text-sm">From:</label>
+                  <input
+                    type="date"
+                    className="rounded border px-2 py-1"
+                    value={customDateRange?.start || ''}
+                    onChange={e => setCustomDateRange(r => ({ start: e.target.value, end: r?.end || '' }))}
+                  />
+                  <label className="text-sm">To:</label>
+                  <input
+                    type="date"
+                    className="rounded border px-2 py-1"
+                    value={customDateRange?.end || ''}
+                    onChange={e => setCustomDateRange(r => ({ start: r?.start || '', end: e.target.value }))}
+                  />
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={monthlyEmissionsData}>
+                <AreaChart data={(() => {
+                  switch (emissionsView) {
+                    case 'monthly': return monthlyEmissionsData;
+                    case 'weekly': return [];
+                    case 'daily': return [];
+                    case 'yearly': return [];
+                    case 'custom': return [];
+                    default: return [];
+                  }
+                })()}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey={emissionsView === 'monthly' ? 'month' : emissionsView === 'weekly' ? 'week' : emissionsView === 'yearly' ? 'year' : 'date'} />
                   <YAxis />
                   <Tooltip />
                   <Area
