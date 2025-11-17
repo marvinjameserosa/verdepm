@@ -1,9 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { createClient as createServerClient } from "@/utils/supabase/server";
 
 export async function POST(request: Request) {
   const { email, password, firstname, lastname, phone, role } =
     await request.json();
+
+  // Get the current authenticated user
+  const supabase = await createServerClient();
+  const { data: { user: currentUser }, error: authCheckError } = await supabase.auth.getUser();
+
+  if (authCheckError || !currentUser) {
+    return NextResponse.json(
+      { error: "Unauthorized. You must be logged in to create users." },
+      { status: 401 }
+    );
+  }
 
   // Ensure environment variables are available
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -55,6 +67,8 @@ export async function POST(request: Request) {
     phone: phone,
     email: email,
     role: role,
+    created_by: currentUser.id,
+    modified_by: currentUser.id,
     created_at: new Date().toISOString(),
     modified_at: new Date().toISOString(),
   });
