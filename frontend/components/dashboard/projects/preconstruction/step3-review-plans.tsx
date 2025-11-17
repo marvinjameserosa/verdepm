@@ -49,9 +49,9 @@ export default function Step3ReviewPlans({
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen">
-      <Card className="w-full max-w-4xl backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-        <CardHeader>
+    <section className="w-full">
+      <Card className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-md">
+        <CardHeader className="gap-4 border-b border-gray-100 dark:border-gray-800">
           <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
             <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
               <ClipboardList className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -59,14 +59,17 @@ export default function Step3ReviewPlans({
             Step 3: Review Plans
           </CardTitle>
           <CardDescription>
-            Review the defined targets and material sourcing plan before
-            proceeding.
+            Review your ESG targets and sourcing record before submitting for
+            approvals.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-8">
-          <div>
-            <h4 className="font-semibold mb-2">Project ESG Targets</h4>
-            <div className="border rounded-lg overflow-x-auto">
+        <CardContent className="space-y-8 p-6 lg:p-8">
+          <div className="space-y-3">
+            <h4 className="font-semibold">Project ESG Targets</h4>
+            <p className="text-sm text-muted-foreground">
+              Double-check that metrics are measurable and achievable.
+            </p>
+            <div className="border rounded-xl overflow-hidden bg-white dark:bg-gray-950/40 shadow-sm">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -97,9 +100,13 @@ export default function Step3ReviewPlans({
             </div>
           </div>
 
-          <div>
-            <h4 className="font-semibold mb-2">Material Sourcing Plan</h4>
-            <div className="border rounded-lg overflow-x-auto">
+          <div className="space-y-3">
+            <h4 className="font-semibold">Material Sourcing Plan</h4>
+            <p className="text-sm text-muted-foreground">
+              Validate budgets, statuses, and any missing credentials before
+              routing for signature.
+            </p>
+            <div className="border rounded-xl overflow-hidden bg-white dark:bg-gray-950/40 shadow-sm">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -159,14 +166,19 @@ export default function Step3ReviewPlans({
               </Table>
             </div>
           </div>
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={onBack}>
-              Previous
-            </Button>
-            <Button>Submit for Approval</Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Need feedback? Share this summary before you submit.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onBack}>
+                Previous
+              </Button>
+              <Button>Submit for Approval</Button>
+            </div>
           </div>
         </CardContent>
       </Card>
-    </div>
+    </section>
   );
 }

@@ -35,49 +35,83 @@ const getDefaultStep1Values = (project?: Project): Step1InitialValues => ({
   documentPaths: {},
 });
 
+const STEP_DEFINITIONS = [
+  {
+    id: 1,
+    title: "Project Setup",
+    description: "Define basics, upload compliance files.",
+  },
+  {
+    id: 2,
+    title: "Target Setting",
+    description: "Capture ESG targets & sourcing notes.",
+  },
+  {
+    id: 3,
+    title: "Review Plans",
+    description: "Validate and submit for approvals.",
+  },
+];
+
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
-  const steps = [
-    { id: 1, title: "Project Setup" },
-    { id: 2, title: "Target Setting" },
-    { id: 3, title: "Review Plans" },
-  ];
+  const totalSteps = STEP_DEFINITIONS.length;
+  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+
   return (
-    <div className="flex justify-center items-center py-8">
-      <div className="flex items-center">
-        {steps.map((step, index) => (
-          <React.Fragment key={step.id}>
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  currentStep >= step.id
-                    ? "bg-emerald-500 text-white"
-                    : "bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                }`}
-              >
-                {step.id}
-              </div>
-              <p
-                className={`mt-2 text-sm ${
-                  currentStep >= step.id
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-gray-500"
-                }`}
-              >
-                {step.title}
-              </p>
-            </div>
-            {index < steps.length - 1 && (
-              <div
-                className={`flex-auto border-t-2 mx-4 ${
-                  currentStep > step.id
-                    ? "border-emerald-500"
-                    : "border-gray-300 dark:border-gray-700"
-                }`}
-              ></div>
-            )}
-          </React.Fragment>
-        ))}
+    <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white/90 dark:bg-gray-900/70 p-4 space-y-4 shadow-sm">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          Step {currentStep} of {totalSteps}
+        </span>
+        <span>{progressPercent}% complete</span>
       </div>
+      <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-emerald-500 transition-all"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+      <ol className="space-y-3">
+        {STEP_DEFINITIONS.map((stepDef) => {
+          const isActive = currentStep === stepDef.id;
+          const isComplete = currentStep > stepDef.id;
+          return (
+            <li
+              key={stepDef.id}
+              className="flex items-start gap-3 rounded-xl p-2"
+            >
+              <div
+                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                  isComplete
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : isActive
+                    ? "border-emerald-500 text-emerald-700 dark:text-emerald-200"
+                    : "border-gray-300 text-gray-500"
+                }`}
+                aria-label={
+                  isActive ? "Current step" : `Step ${stepDef.id} indicator`
+                }
+              >
+                {isComplete ? "✓" : stepDef.id}
+              </div>
+              <div>
+                <p
+                  className={`text-sm font-medium ${
+                    isActive || isComplete
+                      ? "text-emerald-700 dark:text-emerald-200"
+                      : "text-gray-600 dark:text-gray-400"
+                  }`}
+                >
+                  {stepDef.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {stepDef.description}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 };
@@ -147,10 +181,7 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
 
       setUserId(user.id);
 
-      const {
-        data: setupData,
-        error: setupError,
-      } = await supabase
+      const { data: setupData, error: setupError } = await supabase
         .from("preconstruction_project_setup")
         .select(
           "id, project_name, project_address, project_description, sec_dti_path, mayors_permit_path, bir_registration_path"
@@ -240,7 +271,8 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
             name: material.material_name,
             supplier: material.planned_supplier,
             cost:
-              material.budgeted_cost !== null && material.budgeted_cost !== undefined
+              material.budgeted_cost !== null &&
+              material.budgeted_cost !== undefined
                 ? material.budgeted_cost.toString()
                 : "",
             unit: material.unit ?? undefined,
@@ -270,7 +302,8 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
     if (!projectSetupId && !isLoading) {
       setStep1Values((prev) => ({
         projectName:
-          prev.projectName && prev.projectName !== DEFAULT_STEP1_VALUES.projectName
+          prev.projectName &&
+          prev.projectName !== DEFAULT_STEP1_VALUES.projectName
             ? prev.projectName
             : project?.name ?? DEFAULT_STEP1_VALUES.projectName,
         projectAddress:
@@ -327,7 +360,12 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         const storage = supabase.storage.from("preconstruction-docs");
 
         const uploads = await Promise.all(
-          (Object.entries(values.files) as [DocumentKey, File | null | undefined][])
+          (
+            Object.entries(values.files) as [
+              DocumentKey,
+              File | null | undefined
+            ][]
+          )
             .filter(([, file]) => !!file)
             .map(async ([key, file]) => {
               const extension = file!.name.split(".").pop() || "pdf";
@@ -396,7 +434,9 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
       } catch (error) {
         console.error("Failed to save project setup", error);
         setErrorMessage(
-          error instanceof Error ? error.message : "Unable to save project setup."
+          error instanceof Error
+            ? error.message
+            : "Unable to save project setup."
         );
       } finally {
         setIsSavingStep1(false);
@@ -463,9 +503,7 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
   const handleAddMaterial = useCallback(
     async (material: MaterialDraftInput, specSheet?: File | null) => {
       if (!projectSetupId) {
-        setErrorMessage(
-          "Save project setup before adding sourcing materials."
-        );
+        setErrorMessage("Save project setup before adding sourcing materials.");
         return;
       }
 
@@ -497,8 +535,8 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
           const extension = specSheet.name.split(".").pop() || "pdf";
           const fileName = `spec-${crypto.randomUUID()}.${extension}`;
           const storagePath = `project/${projectSetupId}/materials/${fileName}`;
-          const { error } = await supabase
-            .storage.from("preconstruction-docs")
+          const { error } = await supabase.storage
+            .from("preconstruction-docs")
             .upload(storagePath, specSheet, {
               contentType: specSheet.type || "application/pdf",
               upsert: true,
@@ -571,12 +609,20 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
     [projectSetupId, resetErrors]
   );
 
-  const step1InitialValues = useMemo<Step1InitialValues>(() => ({
-    projectName: step1Values.projectName,
-    projectAddress: step1Values.projectAddress,
-    projectDescription: step1Values.projectDescription,
-    documentPaths,
-  }), [documentPaths, step1Values.projectAddress, step1Values.projectDescription, step1Values.projectName]);
+  const step1InitialValues = useMemo<Step1InitialValues>(
+    () => ({
+      projectName: step1Values.projectName,
+      projectAddress: step1Values.projectAddress,
+      projectDescription: step1Values.projectDescription,
+      documentPaths,
+    }),
+    [
+      documentPaths,
+      step1Values.projectAddress,
+      step1Values.projectDescription,
+      step1Values.projectName,
+    ]
+  );
 
   if (isLoading) {
     return (
@@ -586,36 +632,99 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
     );
   }
 
+  const activeStep = STEP_DEFINITIONS.find((item) => item.id === step);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {errorMessage && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {errorMessage}
         </div>
       )}
-      <StepIndicator currentStep={step} />
-      {step === 1 && (
-        <Step1ProjectSetup
-          onSubmit={handleStep1Submit}
-          initialValues={step1InitialValues}
-          isSubmitting={isSavingStep1}
-        />
-      )}
-      {step === 2 && (
-        <Step2TargetSetting
-          onNext={nextStep}
-          onBack={prevStep}
-          onSaveTarget={handleSaveTarget}
-          onAddMaterial={handleAddMaterial}
-          targets={targets}
-          materials={materials}
-          isSavingTarget={isSavingTarget}
-          isSavingMaterial={isSavingMaterial}
-        />
-      )}
-      {step === 3 && (
-        <Step3ReviewPlans onBack={prevStep} materials={materials} targets={targets} />
-      )}
+      <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 p-4 space-y-3">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
+            {activeStep
+              ? `Currently on: ${activeStep.title}`
+              : "Pre-construction workflow"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Complete each step in order. Your progress saves automatically after
+            each section.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <span>{targets.length} ESG targets saved</span>
+          <span className="hidden h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-700 sm:inline-flex" />
+          <span>{materials.length} materials tracked</span>
+        </div>
+      </div>
+
+      <div className="lg:grid lg:grid-cols-[280px_1fr] lg:items-start lg:gap-6 space-y-6 lg:space-y-0">
+        <div className="space-y-4 lg:sticky lg:top-24">
+          <StepIndicator currentStep={step} />
+          <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/70 dark:bg-emerald-900/30 p-4 text-sm space-y-2">
+            <p className="font-semibold text-emerald-800 dark:text-emerald-100">
+              Quick tip
+            </p>
+            {step === 1 && (
+              <p className="text-emerald-900/80 dark:text-emerald-100/80">
+                Keep names short and upload clearly labeled files to speed up
+                compliance checks.
+              </p>
+            )}
+            {step === 2 && (
+              <p className="text-emerald-900/80 dark:text-emerald-100/80">
+                Tie each ESG target to a measurable KPI, then match sourcing
+                notes that support it.
+              </p>
+            )}
+            {step === 3 && (
+              <p className="text-emerald-900/80 dark:text-emerald-100/80">
+                Scan for missing costs or vetting notes before submitting for
+                approval.
+              </p>
+            )}
+          </div>
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-xs text-muted-foreground space-y-2">
+            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+              Need to pause?
+            </p>
+            <p>
+              Your progress is saved locally after each step. You can return
+              later from the project overview.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-6">
+          {step === 1 && (
+            <Step1ProjectSetup
+              onSubmit={handleStep1Submit}
+              initialValues={step1InitialValues}
+              isSubmitting={isSavingStep1}
+            />
+          )}
+          {step === 2 && (
+            <Step2TargetSetting
+              onNext={nextStep}
+              onBack={prevStep}
+              onSaveTarget={handleSaveTarget}
+              onAddMaterial={handleAddMaterial}
+              targets={targets}
+              materials={materials}
+              isSavingTarget={isSavingTarget}
+              isSavingMaterial={isSavingMaterial}
+            />
+          )}
+          {step === 3 && (
+            <Step3ReviewPlans
+              onBack={prevStep}
+              materials={materials}
+              targets={targets}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

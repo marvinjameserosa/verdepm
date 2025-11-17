@@ -135,122 +135,185 @@ export default function Step1ProjectSetup({
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen">
-      <Card className="w-full max-w-4xl backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+    <section className="w-full">
+      <Card className="w-full max-w-5xl mx-auto border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-3xl shadow-lg">
         <form onSubmit={handleSubmit}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-              <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                <GanttChartSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <CardHeader className="gap-3 border-b border-gray-100/80 dark:border-gray-800/80">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40">
+                <GanttChartSquare className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-              Step 1: Project Setup & Due Diligence
-            </CardTitle>
-            <CardDescription>
-              Define project goals and complete initial compliance checks.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Card className="bg-white/60 dark:bg-gray-900/60">
-              <CardContent className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="projectName">Project Name</Label>
-                  <Input
-                    id="projectName"
-                    placeholder="e.g., 'Greenwood Tower'"
-                    className="bg-white/80 dark:bg-gray-800/80"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="projectAddress">Project Address</Label>
-                  <Input
-                    id="projectAddress"
-                    placeholder="e.g., '123 Sustainable Ave, Eco City'"
-                    className="bg-white/80 dark:bg-gray-800/80"
-                    value={projectAddress}
-                    onChange={(e) => setProjectAddress(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="projectDescription">Project Description</Label>
-                  <Textarea
-                    id="projectDescription"
-                    placeholder="Describe the project's vision and scope."
-                    className="bg-white/80 dark:bg-gray-800/80"
-                    value={projectDescription}
-                    onChange={(e) => setProjectDescription(e.target.value)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/60 dark:bg-gray-900/60">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <ClipboardList className="h-5 w-5" /> Minimum Document
-                  Requirement
+              <div>
+                <CardTitle className="text-xl text-emerald-800 dark:text-emerald-200">
+                  Step 1 · Project Setup & Due Diligence
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {fileRows.map(({ key, label, description }) => (
-                  <div
-                    key={key}
-                    className="grid grid-cols-1 sm:grid-cols-3 sm:items-center gap-3"
-                  >
-                    <div className="sm:col-span-1">
-                      <Label htmlFor={`${key}-file`} className="text-sm font-medium">
-                        {label}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">{description}</p>
+                <CardDescription className="text-sm">
+                  Capture the basics and attach compliance docs. Everything
+                  auto-saves when you continue.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-8 px-6 py-8 lg:px-10">
+            <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+              <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full">
+                <CardHeader className="pb-2 px-6">
+                  <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
+                    Project Information
+                  </CardTitle>
+                  <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Required fields
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="px-6 pb-6 space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="projectName">Project Name</Label>
+                    <Input
+                      id="projectName"
+                      placeholder="e.g., 'Greenwood Tower'"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="projectAddress">Project Address</Label>
+                    <Input
+                      id="projectAddress"
+                      placeholder="e.g., '123 Sustainable Ave, Eco City'"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                      value={projectAddress}
+                      onChange={(e) => setProjectAddress(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="projectDescription">
+                      Project Description
+                    </Label>
+                    <Textarea
+                      id="projectDescription"
+                      placeholder="Describe the project's vision and scope."
+                      className="bg-white/80 dark:bg-gray-800/80 min-h-[120px]"
+                      value={projectDescription}
+                      onChange={(e) => setProjectDescription(e.target.value)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full space-y-4">
+                <CardHeader className="pb-0 px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
+                      <ClipboardList className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
                     </div>
-                    <div className="sm:col-span-2 flex items-center justify-between gap-4">
-                      {files[key] ? (
-                        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md w-full">
-                          <FileCheck className="h-4 w-4" />
-                          <span className="truncate">{files[key]?.name}</span>
-                        </div>
-                      ) : existingFiles[key] ? (
-                        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md w-full">
-                          <FileCheck className="h-4 w-4" />
-                          <span className="truncate">
-                            {getExistingFileLabel(existingFiles[key])}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="w-full h-10" />
-                      )}
-                      <Button asChild variant="outline" className="w-auto flex-shrink-0">
-                        <label
-                          htmlFor={`${key}-file`}
-                          className="cursor-pointer flex items-center justify-center gap-2"
-                        >
-                          <Upload className="h-4 w-4" />
-                          <span>{files[key] || existingFiles[key] ? "Change" : "Upload"}</span>
-                          <input
-                            id={`${key}-file`}
-                            type="file"
-                            className="hidden"
-                            accept=".pdf"
-                            onChange={(e) => handleFileChange(e, key)}
-                          />
-                        </label>
-                      </Button>
+                    <div>
+                      <CardTitle className="text-lg">
+                        Minimum Document Requirement
+                      </CardTitle>
+                      <CardDescription className="text-sm">
+                        Upload clearly labeled PDFs so compliance reviews move
+                        faster.
+                      </CardDescription>
                     </div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="px-6 pb-6 space-y-4">
+                  {fileRows.map(({ key, label, description }) => (
+                    <div
+                      key={key}
+                      className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label
+                            htmlFor={`${key}-file`}
+                            className="text-sm font-semibold"
+                          >
+                            {label}
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            {description}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Max 5 MB
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        {files[key] ? (
+                          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md w-full">
+                            <FileCheck className="h-4 w-4" />
+                            <span className="truncate">{files[key]?.name}</span>
+                          </div>
+                        ) : existingFiles[key] ? (
+                          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md w-full">
+                            <FileCheck className="h-4 w-4" />
+                            <span className="truncate">
+                              {getExistingFileLabel(existingFiles[key])}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex h-12 items-center justify-center rounded-md border border-dashed border-gray-200 text-xs text-muted-foreground">
+                            No file uploaded yet
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            asChild
+                            variant="outline"
+                            className="flex-shrink-0"
+                          >
+                            <label
+                              htmlFor={`${key}-file`}
+                              className="cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <Upload className="h-4 w-4" />
+                              <span>
+                                {files[key] || existingFiles[key]
+                                  ? "Change file"
+                                  : "Upload file"}
+                              </span>
+                              <input
+                                id={`${key}-file`}
+                                type="file"
+                                className="hidden"
+                                accept=".pdf"
+                                onChange={(e) => handleFileChange(e, key)}
+                              />
+                            </label>
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Rename files before uploading for cleaner audit
+                            trails.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
           </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" disabled={isSubmitting}>
+          <CardFooter className="flex flex-col gap-3 border-t border-gray-100 dark:border-gray-800 p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="text-sm text-muted-foreground">
+              <p>You can revisit this step anytime—details stay saved.</p>
+              <p className="text-xs mt-1">
+                Need to brief a teammate? Share the overview link after saving.
+              </p>
+            </div>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full lg:w-auto"
+            >
               {isSubmitting ? "Saving..." : "Next"}
             </Button>
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </section>
   );
 }
