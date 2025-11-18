@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,9 +20,18 @@ import {
 } from "@/components/ui/table";
 import { ClipboardList } from "lucide-react";
 import { type EsgTarget, type Material } from "./types";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type Props = {
   onBack: () => void;
+  onSubmitApproval?: () => Promise<void> | void;
+  isSubmitting?: boolean;
   materials: Material[];
   targets: EsgTarget[];
 };
@@ -34,9 +44,15 @@ const numberFormatter = new Intl.NumberFormat(undefined, {
 
 export default function Step3ReviewPlans({
   onBack,
+  onSubmitApproval,
+  isSubmitting,
   materials,
   targets,
 }: Props) {
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
+
   const formatCost = (value: string) => {
     if (!value) {
       return "-";
@@ -174,11 +190,95 @@ export default function Step3ReviewPlans({
               <Button variant="outline" onClick={onBack}>
                 Previous
               </Button>
-              <Button>Submit for Approval</Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setApprovalError(null);
+                  setIsConfirmOpen(true);
+                }}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Submitting..." : "Submit for Approval"}
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isConfirmOpen} onOpenChange={(open) => {
+        if (!open) {
+          setApprovalError(null);
+        }
+        setIsConfirmOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Submit for approval?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              This will notify approvers that the pre-construction plan is ready
+              for review. Make sure targets, materials, and compliance documents
+              are complete.
+            </p>
+            {approvalError ? (
+              <p className="rounded-md border border-red-200 bg-red-50 p-2 text-red-700">
+                {approvalError}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsConfirmOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!onSubmitApproval) {
+                  setIsConfirmOpen(false);
+                  return;
+                }
+
+                setApprovalError(null);
+                try {
+                  await onSubmitApproval();
+                  setIsConfirmOpen(false);
+                  setIsSuccessOpen(true);
+                } catch (error) {
+                  console.error("Failed to submit for approval", error);
+                  setApprovalError(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to submit for approval."
+                  );
+                }
+              }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Confirm submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle className="text-emerald-600">
+              Pre-construction plan submitted!
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Approvers have been notified. You can continue refining details while the review is underway.
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setIsSuccessOpen(false)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
