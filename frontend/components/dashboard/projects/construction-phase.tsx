@@ -138,13 +138,20 @@ const preConstructionData = {
 };
 
 // --- Reusable Metric Card Component (No changes here) ---
+interface FuelMetricValue {
+  totalDistance: string;
+  fuelEfficiency: string;
+}
+
+type MetricCardValue = string | FuelMetricValue;
+
 interface MetricCardProps {
   icon: React.ReactNode;
   title: string;
   unit: string;
   relatedTarget: { goal: string; metric: string };
-  value: string;
-  onChange: (value: string) => void;
+  value: MetricCardValue;
+  onChange: (value: MetricCardValue) => void;
   labelPrefix?: string;
 }
 
@@ -174,16 +181,43 @@ function MetricCard({
             Tracking against goal: <strong>{relatedTarget.goal}</strong>
           </span>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={title}>{`${labelPrefix} ${title} (${unit})`}</Label>
-          <Input
-            id={title}
-            type="number"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            placeholder={`Enter value in ${unit}`}
-          />
-        </div>
+        {title === "Fuel Consumption" && typeof value === "object" && value !== null ? (
+          <div className="space-y-2">
+            <Label htmlFor="total-distance">Total Distance (km)</Label>
+            <Input
+              id="total-distance"
+              type="number"
+              value={value.totalDistance}
+              onChange={(event) => onChange({
+                ...value,
+                totalDistance: event.target.value
+              })}
+              placeholder="Enter total distance in km"
+            />
+            <Label htmlFor="fuel-efficiency">Fuel Efficiency (km/L)</Label>
+            <Input
+              id="fuel-efficiency"
+              type="number"
+              value={value.fuelEfficiency}
+              onChange={(event) => onChange({
+                ...value,
+                fuelEfficiency: event.target.value
+              })}
+              placeholder="Enter fuel efficiency in km/L"
+            />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor={title}>{`${labelPrefix} ${title} (${unit})`}</Label>
+            <Input
+              id={title}
+              type="number"
+              value={typeof value === "string" ? value : ""}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder={`Enter value in ${unit}`}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -195,8 +229,15 @@ type ConstructionPhaseProps = {
 };
 
 export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
-  const [dailyMetrics, setDailyMetrics] = useState<Record<string, string>>({
-    fuel: "",
+  const [dailyMetrics, setDailyMetrics] = useState<{
+    fuel: FuelMetricValue;
+    electricity: string;
+    water: string;
+    equipment: string;
+    waste: string;
+    safety: string;
+  }>({
+    fuel: { totalDistance: "", fuelEfficiency: "" },
     electricity: "",
     water: "",
     equipment: "",
@@ -233,12 +274,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  useEffect(() => {
-    const normalizedFuel = (dailyMetrics.fuel ?? "").trim();
-    if (normalizedFuel && normalizedFuel !== routeFuelLiters) {
-      setRouteFuelLiters(normalizedFuel);
-    }
-  }, [dailyMetrics.fuel, routeFuelLiters]);
+  // Remove effect for normalizedFuel, as fuel is now an object
 
   const clearAnimationTimer = () => {
     if (animationTimerRef.current) {
@@ -369,33 +405,11 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     }
   };
 
-  const handleApplyRouteFuel = () => {
-    resetMessages();
-    if (!routeFuelLiters) {
-      setErrorMessage("Enter the truck's fuel consumption before applying it to the log.");
-      return;
-    }
-    const parsedFuel = Number(routeFuelLiters);
-    if (Number.isNaN(parsedFuel) || parsedFuel < 0) {
-      setErrorMessage("Fuel consumption must be a valid non-negative number.");
-      return;
-    }
+  // Remove handleApplyRouteFuel, as fuel is now an object and not a number
 
-    setDailyMetrics((prev) => {
-      const existingFuel = Number(prev.fuel || 0);
-      const normalizedExisting = Number.isNaN(existingFuel) ? 0 : existingFuel;
-      const totalFuel = normalizedExisting + parsedFuel;
-      return {
-        ...prev,
-        fuel: totalFuel > 0 ? totalFuel.toString() : "",
-      };
-    });
-    setStatusMessage("Route fuel has been added to today's fuel consumption total.");
-  };
-
-  const handleInputChange = (metric: string, value: string) => {
+  const handleInputChange = (metric: string, value: MetricCardValue) => {
     setDailyMetrics((prev) => ({ ...prev, [metric]: value }));
-  };
+  }
 
   const handleMaterialEntryChange = (
     field: keyof MaterialLogEntry,
@@ -440,8 +454,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const handleSubmit = async () => {
     resetMessages();
 
+    const hasFuel = dailyMetrics.fuel.totalDistance && dailyMetrics.fuel.fuelEfficiency;
     if (
-      !dailyMetrics.fuel &&
+      !hasFuel &&
       !dailyMetrics.electricity &&
       !dailyMetrics.water &&
       !dailyMetrics.equipment &&
@@ -492,47 +507,20 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         throw new Error("Safety incidents must be a number.");
       }
 
-      const { data: dailyLog, error: dailyError } = await supabase
-        .from("construction_daily_log")
-        .insert([
-          {
-            project_id: project.id,
-            log_date: today,
-            fuel_consumption_liters: parseNumber(dailyMetrics.fuel),
-            electricity_usage_kwh: parseNumber(dailyMetrics.electricity),
-            water_consumption_cubic_m: parseNumber(dailyMetrics.water),
-            equipment_usage_hours: parseNumber(dailyMetrics.equipment),
-            todays_waste_generated_kg: parseNumber(dailyMetrics.waste),
-            safety_incidents: safetyValue,
-          },
-        ])
-        .select("id")
-        .single();
 
-      if (dailyError) {
-        if ("code" in dailyError && dailyError.code === "23505") {
-          throw new Error("A daily report for today already exists.");
+      // Save to dim_fuel_consumption if fuel values are present
+      if (hasFuel) {
+        const totalDistance = Number(dailyMetrics.fuel.totalDistance);
+        const fuelEfficiency = Number(dailyMetrics.fuel.fuelEfficiency);
+        if (!isNaN(totalDistance) && !isNaN(fuelEfficiency) && fuelEfficiency > 0) {
+          await supabase.from("dim_fuel_consumption").insert([
+            {
+              total_distance: totalDistance,
+              fuel_efficiency: fuelEfficiency,
+              // created_at will be set by default
+            },
+          ]);
         }
-        throw dailyError;
-      }
-
-      let dailyLogId = dailyLog?.id as string | undefined;
-
-      if (!dailyLogId) {
-        const { data: fallback, error: fetchError } = await supabase
-          .from("construction_daily_log")
-          .select("id")
-          .eq("project_id", project.id)
-          .eq("log_date", today)
-          .maybeSingle();
-
-        if (fetchError) {
-          throw fetchError;
-        }
-        if (!fallback) {
-          throw new Error("Daily report saved but could not retrieve identifier.");
-        }
-        dailyLogId = fallback.id;
       }
 
       const bucket = supabase.storage.from("construction-docs");
@@ -544,7 +532,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
             if (entry.receiptFile) {
               const extension = entry.receiptFile.name.split(".").pop() || "pdf";
-              const storagePath = `project/${project.id}/daily/${dailyLog.id}/receipts/${crypto.randomUUID()}.${extension}`;
+              const storagePath = `project/${project.id}/receipts/${crypto.randomUUID()}.${extension}`;
               const { error: uploadError } = await bucket.upload(
                 storagePath,
                 entry.receiptFile,
@@ -563,7 +551,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
             return {
               project_id: project.id,
-              daily_log_id: dailyLogId,
               material_plan: entry.materialName,
               actual_supplier: entry.supplier,
               quantity_and_unit: `${entry.quantity ?? ""} ${entry.unit ?? ""}`.trim(),
@@ -585,7 +572,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       setStatusMessage("Daily report saved successfully.");
       setDailyMetrics({
-        fuel: "",
+        fuel: { totalDistance: "", fuelEfficiency: "" },
         electricity: "",
         water: "",
         equipment: "",
@@ -809,15 +796,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                     </>
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleApplyRouteFuel}
-                  disabled={!routeFuelLiters}
-                >
-                  <Fuel className="mr-2 h-4 w-4" />
-                  Apply Fuel to Daily Log
-                </Button>
+                {/* Removed Apply Fuel to Daily Log button for new fuel input system */}
               </div>
             </div>
           </div>
