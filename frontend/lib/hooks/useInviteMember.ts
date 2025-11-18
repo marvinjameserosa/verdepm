@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function useInviteMember() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<unknown | null>(null);
@@ -42,6 +44,7 @@ export function useInviteMember() {
       }
 
       setData(result);
+      await router.refresh();
       return result;
     } catch (err: unknown) {
       if (err instanceof Error) {
