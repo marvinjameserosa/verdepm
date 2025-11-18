@@ -71,7 +71,10 @@ const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
 const DEFAULT_MAP_CENTER: LatLngTuple = [14.5995, 120.9842];
 const DEFAULT_ANIMATION_SAMPLE_SIZE = 160;
 
-const sampleRoutePoints = (points: LatLngTuple[], maxPoints = DEFAULT_ANIMATION_SAMPLE_SIZE) => {
+const sampleRoutePoints = (
+  points: LatLngTuple[],
+  maxPoints = DEFAULT_ANIMATION_SAMPLE_SIZE
+) => {
   if (points.length <= maxPoints) {
     return points;
   }
@@ -85,7 +88,11 @@ const sampleRoutePoints = (points: LatLngTuple[], maxPoints = DEFAULT_ANIMATION_
 
   const lastPoint = points[points.length - 1];
   const lastSampled = sampled[sampled.length - 1];
-  if (!lastSampled || lastSampled[0] !== lastPoint[0] || lastSampled[1] !== lastPoint[1]) {
+  if (
+    !lastSampled ||
+    lastSampled[0] !== lastPoint[0] ||
+    lastSampled[1] !== lastPoint[1]
+  ) {
     sampled.push(lastPoint);
   }
 
@@ -194,14 +201,22 @@ type ConstructionPhaseProps = {
   project: Project;
 };
 
+type DailyMetricKey = "fuel" | "equipment" | "safety";
+type MonthlyMetricKey = "electricity" | "water" | "waste";
+
+type DailyMetricState = Record<DailyMetricKey, string>;
+type MonthlyMetricState = Record<MonthlyMetricKey, string>;
+
 export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
-  const [dailyMetrics, setDailyMetrics] = useState<Record<string, string>>({
+  const [dailyMetrics, setDailyMetrics] = useState<DailyMetricState>({
     fuel: "",
+    equipment: "",
+    safety: "",
+  });
+  const [monthlyMetrics, setMonthlyMetrics] = useState<MonthlyMetricState>({
     electricity: "",
     water: "",
-    equipment: "",
     waste: "",
-    safety: "",
   });
   const [loggedMaterials, setLoggedMaterials] = useState<MaterialLogEntry[]>(
     []
@@ -216,18 +231,24 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [routeEndQuery, setRouteEndQuery] = useState("");
   const [routeFuelLiters, setRouteFuelLiters] = useState("");
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
-  const [routeDurationMinutes, setRouteDurationMinutes] = useState<number | null>(null);
+  const [routeDurationMinutes, setRouteDurationMinutes] = useState<
+    number | null
+  >(null);
   const [startLabel, setStartLabel] = useState<string | null>(null);
   const [endLabel, setEndLabel] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLngTuple>(DEFAULT_MAP_CENTER);
-  const [startCoordinate, setStartCoordinate] = useState<LatLngTuple | null>(null);
+  const [startCoordinate, setStartCoordinate] = useState<LatLngTuple | null>(
+    null
+  );
   const [endCoordinate, setEndCoordinate] = useState<LatLngTuple | null>(null);
   const [truckPosition, setTruckPosition] = useState<LatLngTuple | null>(null);
   const [routePoints, setRoutePoints] = useState<LatLngTuple[]>([]);
   const [animationPoints, setAnimationPoints] = useState<LatLngTuple[]>([]);
   const [isAnimatingRoute, setIsAnimatingRoute] = useState(false);
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
-  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">("daily");
+  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">(
+    "daily"
+  );
 
   const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -280,7 +301,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   useEffect(() => () => clearAnimationTimer(), []);
 
-  const mapDisplayCenter = truckPosition ?? startCoordinate ?? endCoordinate ?? mapCenter;
+  const mapDisplayCenter =
+    truckPosition ?? startCoordinate ?? endCoordinate ?? mapCenter;
 
   const resetMessages = () => {
     setStatusMessage(null);
@@ -291,7 +313,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     resetMessages();
 
     if (!routeStartQuery.trim() || !routeEndQuery.trim()) {
-      setErrorMessage("Enter both origin and destination before calculating the route.");
+      setErrorMessage(
+        "Enter both origin and destination before calculating the route."
+      );
       return;
     }
 
@@ -321,8 +345,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-        const message = payload?.message ?? "Unable to compute route for the provided locations.";
+        const payload = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        const message =
+          payload?.message ??
+          "Unable to compute route for the provided locations.";
         throw new Error(message);
       }
 
@@ -341,7 +369,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       const sampledPoints = sampleRoutePoints(payload.polyline);
 
       if (sampledPoints.length === 0) {
-        throw new Error("The computed route did not contain enough points to animate.");
+        throw new Error(
+          "The computed route did not contain enough points to animate."
+        );
       }
 
       setStartCoordinate([payload.start.lat, payload.start.lng]);
@@ -362,7 +392,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       }
     } catch (error) {
       console.error("Failed to animate route", error);
-      const message = error instanceof Error ? error.message : "Unable to animate route.";
+      const message =
+        error instanceof Error ? error.message : "Unable to animate route.";
       setErrorMessage(message);
     } finally {
       setIsFetchingRoute(false);
@@ -372,7 +403,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const handleApplyRouteFuel = () => {
     resetMessages();
     if (!routeFuelLiters) {
-      setErrorMessage("Enter the truck's fuel consumption before applying it to the log.");
+      setErrorMessage(
+        "Enter the truck's fuel consumption before applying it to the log."
+      );
       return;
     }
     const parsedFuel = Number(routeFuelLiters);
@@ -390,11 +423,20 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         fuel: totalFuel > 0 ? totalFuel.toString() : "",
       };
     });
-    setStatusMessage("Route fuel has been added to today's fuel consumption total.");
+    setStatusMessage(
+      "Route fuel has been added to today's fuel consumption total."
+    );
   };
 
-  const handleInputChange = (metric: string, value: string) => {
+  const handleDailyInputChange = (metric: DailyMetricKey, value: string) => {
     setDailyMetrics((prev) => ({ ...prev, [metric]: value }));
+  };
+
+  const handleMonthlyInputChange = (
+    metric: MonthlyMetricKey,
+    value: string
+  ) => {
+    setMonthlyMetrics((prev) => ({ ...prev, [metric]: value }));
   };
 
   const handleMaterialEntryChange = (
@@ -422,7 +464,10 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       setErrorMessage("Provide the unit for the delivered quantity.");
       return;
     }
-    if (!newMaterialEntry.supplier || newMaterialEntry.supplier.trim().length === 0) {
+    if (
+      !newMaterialEntry.supplier ||
+      newMaterialEntry.supplier.trim().length === 0
+    ) {
       setErrorMessage("Enter the actual supplier for this delivery.");
       return;
     }
@@ -440,15 +485,18 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const handleSubmit = async () => {
     resetMessages();
 
-    if (
-      !dailyMetrics.fuel &&
-      !dailyMetrics.electricity &&
-      !dailyMetrics.water &&
-      !dailyMetrics.equipment &&
-      !dailyMetrics.waste &&
-      !dailyMetrics.safety
-    ) {
-      setErrorMessage("Enter at least one daily metric before submitting.");
+    const hasDailyMetrics = Object.values(dailyMetrics).some(
+      (value) => value.trim() !== ""
+    );
+    const hasMonthlyMetrics = Object.values(monthlyMetrics).some(
+      (value) => value.trim() !== ""
+    );
+    const hasMaterialEntries = loggedMaterials.length > 0;
+
+    if (!hasDailyMetrics && !hasMonthlyMetrics && !hasMaterialEntries) {
+      setErrorMessage(
+        "Enter at least one metric or material record before submitting."
+      );
       return;
     }
 
@@ -485,66 +533,101 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         return parsed;
       };
 
-      const safetyValue = dailyMetrics.safety
-        ? Number(dailyMetrics.safety)
-        : 0;
+      const safetyValue = dailyMetrics.safety ? Number(dailyMetrics.safety) : 0;
       if (Number.isNaN(safetyValue)) {
         throw new Error("Safety incidents must be a number.");
       }
 
-      const { data: dailyLog, error: dailyError } = await supabase
-        .from("construction_daily_log")
-        .insert([
-          {
-            project_id: project.id,
-            log_date: today,
-            fuel_consumption_liters: parseNumber(dailyMetrics.fuel),
-            electricity_usage_kwh: parseNumber(dailyMetrics.electricity),
-            water_consumption_cubic_m: parseNumber(dailyMetrics.water),
-            equipment_usage_hours: parseNumber(dailyMetrics.equipment),
-            todays_waste_generated_kg: parseNumber(dailyMetrics.waste),
-            safety_incidents: safetyValue,
-          },
-        ])
-        .select("id")
-        .single();
+      let dailyLogId: string | undefined;
 
-      if (dailyError) {
-        if ("code" in dailyError && dailyError.code === "23505") {
-          throw new Error("A daily report for today already exists.");
-        }
-        throw dailyError;
-      }
-
-      let dailyLogId = dailyLog?.id as string | undefined;
-
-      if (!dailyLogId) {
-        const { data: fallback, error: fetchError } = await supabase
+      if (hasDailyMetrics || hasMaterialEntries) {
+        const { data: dailyLog, error: dailyError } = await supabase
           .from("construction_daily_log")
+          .insert([
+            {
+              project_id: project.id,
+              log_date: today,
+              fuel_consumption_liters: parseNumber(dailyMetrics.fuel),
+              equipment_usage_hours: parseNumber(dailyMetrics.equipment),
+              safety_incidents: safetyValue,
+            },
+          ])
           .select("id")
-          .eq("project_id", project.id)
-          .eq("log_date", today)
-          .maybeSingle();
+          .single();
 
-        if (fetchError) {
-          throw fetchError;
+        if (dailyError) {
+          if ("code" in dailyError && dailyError.code === "23505") {
+            throw new Error("A daily report for today already exists.");
+          }
+          throw dailyError;
         }
-        if (!fallback) {
-          throw new Error("Daily report saved but could not retrieve identifier.");
+
+        dailyLogId = dailyLog?.id as string | undefined;
+
+        if (!dailyLogId) {
+          const { data: fallback, error: fetchError } = await supabase
+            .from("construction_daily_log")
+            .select("id")
+            .eq("project_id", project.id)
+            .eq("log_date", today)
+            .maybeSingle();
+
+          if (fetchError) {
+            throw fetchError;
+          }
+          if (!fallback) {
+            throw new Error(
+              "Daily report saved but could not retrieve identifier."
+            );
+          }
+          dailyLogId = fallback.id;
         }
-        dailyLogId = fallback.id;
       }
 
-      const bucket = supabase.storage.from("construction-docs");
+      if (hasMonthlyMetrics) {
+        const monthStart = new Date(today);
+        monthStart.setDate(1);
+        const logMonth = monthStart.toISOString().slice(0, 10);
 
-      if (loggedMaterials.length > 0) {
+        const { error: monthlyError } = await supabase
+          .from("construction_monthly_log")
+          .upsert(
+            [
+              {
+                project_id: project.id,
+                log_month: logMonth,
+                electricity_usage_kwh: parseNumber(monthlyMetrics.electricity),
+                water_consumption_cubic_m: parseNumber(monthlyMetrics.water),
+                waste_generated_kg: parseNumber(monthlyMetrics.waste),
+                submitted_on: today,
+                updated_at: new Date().toISOString(),
+              },
+            ],
+            { onConflict: "project_id,log_month" }
+          );
+
+        if (monthlyError) {
+          throw monthlyError;
+        }
+      }
+
+      if (hasMaterialEntries) {
+        if (!dailyLogId) {
+          throw new Error("Material entries require a daily log reference.");
+        }
+
+        const bucket = supabase.storage.from("construction-docs");
+
         const materialPayload = await Promise.all(
           loggedMaterials.map(async (entry) => {
             let receiptPath: string | null = null;
 
             if (entry.receiptFile) {
-              const extension = entry.receiptFile.name.split(".").pop() || "pdf";
-              const storagePath = `project/${project.id}/daily/${dailyLog.id}/receipts/${crypto.randomUUID()}.${extension}`;
+              const extension =
+                entry.receiptFile.name.split(".").pop() || "pdf";
+              const storagePath = `project/${
+                project.id
+              }/daily/${dailyLogId}/receipts/${crypto.randomUUID()}.${extension}`;
               const { error: uploadError } = await bucket.upload(
                 storagePath,
                 entry.receiptFile,
@@ -566,7 +649,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               daily_log_id: dailyLogId,
               material_plan: entry.materialName,
               actual_supplier: entry.supplier,
-              quantity_and_unit: `${entry.quantity ?? ""} ${entry.unit ?? ""}`.trim(),
+              quantity_and_unit: `${entry.quantity ?? ""} ${
+                entry.unit ?? ""
+              }`.trim(),
               total_cost: parseOptionalNumber(entry.cost),
               delivery_fuel_used_liters: parseOptionalNumber(entry.fuel),
               receipt_path: receiptPath,
@@ -583,14 +668,29 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         }
       }
 
-      setStatusMessage("Daily report saved successfully.");
+      if (hasDailyMetrics || hasMaterialEntries) {
+        if (hasMonthlyMetrics) {
+          setStatusMessage(
+            "Daily report and monthly metrics saved successfully."
+          );
+        } else {
+          setStatusMessage("Daily report saved successfully.");
+        }
+      } else if (hasMonthlyMetrics) {
+        setStatusMessage("Monthly metrics saved successfully.");
+      } else {
+        setStatusMessage("Submission completed.");
+      }
+
       setDailyMetrics({
         fuel: "",
+        equipment: "",
+        safety: "",
+      });
+      setMonthlyMetrics({
         electricity: "",
         water: "",
-        equipment: "",
         waste: "",
-        safety: "",
       });
       setLoggedMaterials([]);
     } catch (error) {
@@ -691,7 +791,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       <Tabs
         value={metricsPeriod}
-        onValueChange={(value) => setMetricsPeriod(value as "daily" | "monthly")}
+        onValueChange={(value) =>
+          setMetricsPeriod(value as "daily" | "monthly")
+        }
         className="space-y-4"
       >
         <TabsList>
@@ -704,8 +806,10 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               <MetricCard
                 key={metric.id}
                 {...metric}
-                value={dailyMetrics[metric.id]}
-                onChange={(value) => handleInputChange(metric.id, value)}
+                value={dailyMetrics[metric.id as DailyMetricKey]}
+                onChange={(value) =>
+                  handleDailyInputChange(metric.id as DailyMetricKey, value)
+                }
                 labelPrefix="Today's"
               />
             ))}
@@ -717,8 +821,10 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               <MetricCard
                 key={metric.id}
                 {...metric}
-                value={dailyMetrics[metric.id]}
-                onChange={(value) => handleInputChange(metric.id, value)}
+                value={monthlyMetrics[metric.id as MonthlyMetricKey]}
+                onChange={(value) =>
+                  handleMonthlyInputChange(metric.id as MonthlyMetricKey, value)
+                }
                 labelPrefix="This Month's"
               />
             ))}
@@ -732,7 +838,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             Delivery Route
           </CardTitle>
           <CardDescription>
-            Visualize a material delivery, capture distance travelled, and feed the truck&apos;s fuel usage into today&apos;s log.
+            Visualize a material delivery, capture distance travelled, and feed
+            the truck&apos;s fuel usage into today&apos;s log.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -776,27 +883,38 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                   disabled
                 />
                 <p className="text-xs text-muted-foreground">
-                  A suggested value is provided after calculating the route using an average 0.35 L/km factor.
+                  A suggested value is provided after calculating the route
+                  using an average 0.35 L/km factor.
                 </p>
               </div>
             ) : null}
             <div className="flex flex-col justify-between gap-2">
               <div className="space-y-2">
                 <div>
-                  <p className="text-sm text-muted-foreground">Distance Travelled</p>
+                  <p className="text-sm text-muted-foreground">
+                    Distance Travelled
+                  </p>
                   <p className="text-2xl font-semibold text-emerald-600">
-                    {routeDistanceKm !== null ? `${routeDistanceKm.toFixed(2)} km` : "--"}
+                    {routeDistanceKm !== null
+                      ? `${routeDistanceKm.toFixed(2)} km`
+                      : "--"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Estimated Drive Time</p>
+                  <p className="text-sm text-muted-foreground">
+                    Estimated Drive Time
+                  </p>
                   <p className="text-lg font-medium text-muted-foreground">
                     {formatDuration(routeDurationMinutes)}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={handleAnimateRoute} disabled={isFetchingRoute}>
+                <Button
+                  type="button"
+                  onClick={handleAnimateRoute}
+                  disabled={isFetchingRoute}
+                >
                   {isFetchingRoute ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -836,8 +954,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            Enter street addresses or decimal coordinates to snap the truck along real driving roads. Use the animation to capture
-            the delivery distance and associated fuel usage for today&apos;s report.
+            Enter street addresses or decimal coordinates to snap the truck
+            along real driving roads. Use the animation to capture the delivery
+            distance and associated fuel usage for today&apos;s report.
           </p>
         </CardContent>
       </Card>
@@ -987,7 +1106,11 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       <Card>
         <CardContent className="pt-6">
-          <Button onClick={handleSubmit} className="w-full" disabled={isSubmitting}>
+          <Button
+            onClick={handleSubmit}
+            className="w-full"
+            disabled={isSubmitting}
+          >
             <Send className="mr-2 h-4 w-4" />
             {isSubmitting ? "Submitting..." : "Submit Full Daily Report"}
           </Button>
