@@ -121,11 +121,7 @@ const sampleRoutePoints = (points: LatLngTuple[], maxPoints = DEFAULT_ANIMATION_
 
   const lastPoint = points[points.length - 1];
   const lastSampled = sampled[sampled.length - 1];
-  if (
-    !lastSampled ||
-    lastSampled[0] !== lastPoint[0] ||
-    lastSampled[1] !== lastPoint[1]
-  ) {
+  if (!lastSampled || lastSampled[0] !== lastPoint[0] || lastSampled[1] !== lastPoint[1]) {
     sampled.push(lastPoint);
   }
 
@@ -735,24 +731,18 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [routeEndQuery, setRouteEndQuery] = useState("");
   const [routeFuelLiters, setRouteFuelLiters] = useState("");
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
-  const [routeDurationMinutes, setRouteDurationMinutes] = useState<
-    number | null
-  >(null);
+  const [routeDurationMinutes, setRouteDurationMinutes] = useState<number | null>(null);
   const [startLabel, setStartLabel] = useState<string | null>(null);
   const [endLabel, setEndLabel] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLngTuple>(DEFAULT_MAP_CENTER);
-  const [startCoordinate, setStartCoordinate] = useState<LatLngTuple | null>(
-    null
-  );
+  const [startCoordinate, setStartCoordinate] = useState<LatLngTuple | null>(null);
   const [endCoordinate, setEndCoordinate] = useState<LatLngTuple | null>(null);
   const [truckPosition, setTruckPosition] = useState<LatLngTuple | null>(null);
   const [routePoints, setRoutePoints] = useState<LatLngTuple[]>([]);
   const [animationPoints, setAnimationPoints] = useState<LatLngTuple[]>([]);
   const [isAnimatingRoute, setIsAnimatingRoute] = useState(false);
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
-  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">(
-    "daily"
-  );
+  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">("daily");
 
   const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -798,8 +788,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   useEffect(() => () => clearAnimationTimer(), []);
 
-  const mapDisplayCenter =
-    truckPosition ?? startCoordinate ?? endCoordinate ?? mapCenter;
+  const mapDisplayCenter = truckPosition ?? startCoordinate ?? endCoordinate ?? mapCenter;
 
   const resetMessages = () => {
     setStatusMessage(null);
@@ -946,9 +935,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     resetMessages();
 
     if (!routeStartQuery.trim() || !routeEndQuery.trim()) {
-      setErrorMessage(
-        "Enter both origin and destination before calculating the route."
-      );
+      setErrorMessage("Enter both origin and destination before calculating the route.");
       return;
     }
 
@@ -978,12 +965,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          message?: string;
-        } | null;
-        const message =
-          payload?.message ??
-          "Unable to compute route for the provided locations.";
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        const message = payload?.message ?? "Unable to compute route for the provided locations.";
         throw new Error(message);
       }
 
@@ -1002,9 +985,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       const sampledPoints = sampleRoutePoints(payload.polyline);
 
       if (sampledPoints.length === 0) {
-        throw new Error(
-          "The computed route did not contain enough points to animate."
-        );
+        throw new Error("The computed route did not contain enough points to animate.");
       }
 
       setStartCoordinate([payload.start.lat, payload.start.lng]);
@@ -1025,8 +1006,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       }
     } catch (error) {
       console.error("Failed to animate route", error);
-      const message =
-        error instanceof Error ? error.message : "Unable to animate route.";
+      const message = error instanceof Error ? error.message : "Unable to animate route.";
       setErrorMessage(message);
     } finally {
       setIsFetchingRoute(false);
@@ -1040,9 +1020,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       return;
     }
     if (!routeFuelLiters) {
-      setErrorMessage(
-        "Enter the truck's fuel consumption before applying it to the log."
-      );
+      setErrorMessage("Enter the truck's fuel consumption before applying it to the log.");
       return;
     }
     const parsedFuel = Number(routeFuelLiters);
@@ -1086,10 +1064,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     setDailyMetrics((prev) => ({ ...prev, [metric]: value }));
   };
 
-  const handleMonthlyInputChange = (
-    metric: MonthlyMetricKey,
-    value: string
-  ) => {
+  const handleMonthlyInputChange = (metric: MonthlyMetricKey, value: string) => {
     setMonthlyMetrics((prev) => ({ ...prev, [metric]: value }));
   };
 
@@ -1207,10 +1182,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       setErrorMessage("Provide the unit for the delivered quantity.");
       return;
     }
-    if (
-      !newMaterialEntry.supplier ||
-      newMaterialEntry.supplier.trim().length === 0
-    ) {
+    if (!newMaterialEntry.supplier || newMaterialEntry.supplier.trim().length === 0) {
       setErrorMessage("Enter the actual supplier for this delivery.");
       return;
     }
@@ -1228,12 +1200,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const handleSubmit = async () => {
     resetMessages();
 
-    const hasDailyMetrics = Object.values(dailyMetrics).some(
-      (value) => value.trim() !== ""
-    );
-    const hasMonthlyMetrics = Object.values(monthlyMetrics).some(
-      (value) => value.trim() !== ""
-    );
+    const hasDailyMetrics = Object.values(dailyMetrics).some((value) => value.trim() !== "");
+    const hasMonthlyMetrics = Object.values(monthlyMetrics).some((value) => value.trim() !== "");
     const hasMaterialEntries = loggedMaterials.length > 0;
     const hasWasteEntries = wasteEntries.length > 0;
     const shouldSubmitDaily =
@@ -1383,9 +1351,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             throw fetchError;
           }
           if (!fallback) {
-            throw new Error(
-              "Daily report saved but could not retrieve identifier."
-            );
+            throw new Error("Daily report saved but could not retrieve identifier.");
           }
           dailyLogId = fallback.id;
         }
@@ -1525,11 +1491,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             let receiptPath: string | null = null;
 
             if (entry.receiptFile) {
-              const extension =
-                entry.receiptFile.name.split(".").pop() || "pdf";
-              const storagePath = `project/${
-                project.id
-              }/daily/${dailyLogId}/receipts/${crypto.randomUUID()}.${extension}`;
+              const extension = entry.receiptFile.name.split(".").pop() || "pdf";
+              const storagePath = `project/${project.id}/daily/${dailyLogId}/receipts/${crypto.randomUUID()}.${extension}`;
               const { error: uploadError } = await bucket.upload(
                 storagePath,
                 entry.receiptFile,
@@ -1551,9 +1514,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               daily_log_id: dailyLogId,
               material_plan: entry.materialName,
               actual_supplier: entry.supplier,
-              quantity_and_unit: `${entry.quantity ?? ""} ${
-                entry.unit ?? ""
-              }`.trim(),
+              quantity_and_unit: `${entry.quantity ?? ""} ${entry.unit ?? ""}`.trim(),
               total_cost: parseOptionalNumber(entry.cost),
               delivery_fuel_used_liters: parseOptionalNumber(entry.fuel),
               receipt_path: receiptPath,
@@ -1698,9 +1659,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       <Tabs
         value={metricsPeriod}
-        onValueChange={(value) =>
-          setMetricsPeriod(value as "daily" | "monthly")
-        }
+        onValueChange={(value) => setMetricsPeriod(value as "daily" | "monthly")}
         className="space-y-4"
       >
         <TabsList>
@@ -1787,8 +1746,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             Delivery Route
           </CardTitle>
           <CardDescription>
-            Visualize a material delivery, capture distance travelled, and feed
-            the truck&apos;s fuel usage into today&apos;s log.
+            Visualize a material delivery, capture distance travelled, and feed the truck&apos;s fuel usage into today&apos;s log.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1832,38 +1790,27 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                   disabled
                 />
                 <p className="text-xs text-muted-foreground">
-                  A suggested value is provided after calculating the route
-                  using an average 0.35 L/km factor.
+                  A suggested value is provided after calculating the route using an average 0.35 L/km factor.
                 </p>
               </div>
             ) : null}
             <div className="flex flex-col justify-between gap-2">
               <div className="space-y-2">
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Distance Travelled
-                  </p>
+                  <p className="text-sm text-muted-foreground">Distance Travelled</p>
                   <p className="text-2xl font-semibold text-emerald-600">
-                    {routeDistanceKm !== null
-                      ? `${routeDistanceKm.toFixed(2)} km`
-                      : "--"}
+                    {routeDistanceKm !== null ? `${routeDistanceKm.toFixed(2)} km` : "--"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Estimated Drive Time
-                  </p>
+                  <p className="text-sm text-muted-foreground">Estimated Drive Time</p>
                   <p className="text-lg font-medium text-muted-foreground">
                     {formatDuration(routeDurationMinutes)}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  onClick={handleAnimateRoute}
-                  disabled={isFetchingRoute}
-                >
+                <Button type="button" onClick={handleAnimateRoute} disabled={isFetchingRoute}>
                   {isFetchingRoute ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1903,9 +1850,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            Enter street addresses or decimal coordinates to snap the truck
-            along real driving roads. Use the animation to capture the delivery
-            distance and associated fuel usage for today&apos;s report.
+            Enter street addresses or decimal coordinates to snap the truck along real driving roads. Use the animation to capture
+            the delivery distance and associated fuel usage for today&apos;s report.
           </p>
         </CardContent>
       </Card>
@@ -2055,11 +2001,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       <Card>
         <CardContent className="pt-6">
-          <Button
-            onClick={handleSubmit}
-            className="w-full"
-            disabled={isSubmitting}
-          >
+          <Button onClick={handleSubmit} className="w-full" disabled={isSubmitting}>
             <Send className="mr-2 h-4 w-4" />
             {isSubmitting ? submitButtonBusyLabel : submitButtonLabel}
           </Button>

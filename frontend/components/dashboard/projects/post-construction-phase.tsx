@@ -78,31 +78,19 @@ const MONTHLY_TARGETS = {
 };
 
 const FUEL_CO2_FACTOR = 2.68;
-const ELECTRICITY_CO2_FACTOR = 0.4;
-const PIE_COLORS = [
-  "#10b981",
-  "#3b82f6",
-  "#f59e0b",
-  "#ef4444",
-  "#6366f1",
-  "#22d3ee",
-];
+const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1", "#22d3ee"];
 
 type PostConstructionPhaseProps = {
   project: Project;
 };
 
-export default function PostConstructionPhase({
-  project,
-}: PostConstructionPhaseProps) {
+export default function PostConstructionPhase({ project }: PostConstructionPhaseProps) {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dailyLogs, setDailyLogs] = useState<ConstructionDailyLog[]>([]);
   const [monthlyLogs, setMonthlyLogs] = useState<ConstructionMonthlyLog[]>([]);
-  const [materialLogs, setMaterialLogs] = useState<ConstructionMaterialLog[]>(
-    []
-  );
+  const [materialLogs, setMaterialLogs] = useState<ConstructionMaterialLog[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -113,17 +101,13 @@ export default function PostConstructionPhase({
 
       const dailyPromise = supabase
         .from("construction_daily_log")
-        .select(
-          "id, log_date, fuel_consumption_liters, equipment_usage_hours, safety_incidents"
-        )
+        .select("id, log_date, fuel_consumption_liters, equipment_usage_tco2e, safety_incidents")
         .eq("project_id", project.id)
         .order("log_date", { ascending: true });
 
       const monthlyPromise = supabase
         .from("construction_monthly_log")
-        .select(
-          "id, log_month, electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, submitted_on"
-        )
+        .select("id, log_month, electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, submitted_on")
         .eq("project_id", project.id)
         .order("log_month", { ascending: true });
 
@@ -146,45 +130,24 @@ export default function PostConstructionPhase({
       }
 
       if (dailyResult.error) {
-        console.error(
-          "Failed to load construction daily logs",
-          dailyResult.error
-        );
-        setErrorMessage(
-          dailyResult.error.message || "Unable to load daily performance data."
-        );
+        console.error("Failed to load construction daily logs", dailyResult.error);
+        setErrorMessage(dailyResult.error.message || "Unable to load daily performance data.");
         setDailyLogs([]);
       } else {
         setDailyLogs(dailyResult.data ?? []);
       }
 
       if (monthlyResult.error) {
-        console.error(
-          "Failed to load construction monthly logs",
-          monthlyResult.error
-        );
-        setErrorMessage(
-          (prev) =>
-            prev ??
-            monthlyResult.error.message ??
-            "Unable to load monthly performance data."
-        );
+        console.error("Failed to load construction monthly logs", monthlyResult.error);
+        setErrorMessage((prev) => prev ?? monthlyResult.error.message ?? "Unable to load monthly performance data.");
         setMonthlyLogs([]);
       } else {
         setMonthlyLogs(monthlyResult.data ?? []);
       }
 
       if (materialResult.error) {
-        console.error(
-          "Failed to load construction material logs",
-          materialResult.error
-        );
-        setErrorMessage(
-          (prev) =>
-            prev ??
-            materialResult.error.message ??
-            "Unable to load material data."
-        );
+        console.error("Failed to load construction material logs", materialResult.error);
+        setErrorMessage((prev) => prev ?? materialResult.error.message ?? "Unable to load material data.");
         setMaterialLogs([]);
       } else {
         setMaterialLogs(materialResult.data ?? []);
@@ -201,14 +164,13 @@ export default function PostConstructionPhase({
   }, [project.id]);
 
   const totals = useMemo(() => {
-    const accumulator = {
-      fuel: 0,
-      electricity: 0,
-      water: 0,
-      equipment: 0,
-      waste: 0,
-      incidents: 0,
-    };
+    let fuel = 0;
+    let electricity = 0;
+    let water = 0;
+    let equipment = 0;
+    let waste = 0;
+    let safetyTrirSum = 0;
+    let safetyEntries = 0;
 
     for (const log of dailyLogs) {
       fuel += log.fuel_consumption_liters ?? 0;
@@ -251,16 +213,11 @@ export default function PostConstructionPhase({
 
   const carbonTargetTons = useMemo(() => {
     const fuelTargetKg = targetTotals.fuel * FUEL_CO2_FACTOR;
-    const electricityTargetKg =
-      targetTotals.electricity * ELECTRICITY_CO2_FACTOR;
+    const electricityTargetKg = targetTotals.electricity;
     return (fuelTargetKg + electricityTargetKg) / 1000;
   }, [targetTotals.electricity, targetTotals.fuel]);
 
-  const getPerformanceStatus = (
-    actual: number,
-    target: number,
-    lowerIsBetter = true
-  ) => {
+  const getPerformanceStatus = (actual: number, target: number, lowerIsBetter = true) => {
     if (target <= 0) {
       return actual <= 0 ? "exceeded" : "over";
     }
@@ -291,12 +248,8 @@ export default function PostConstructionPhase({
         category: "Electricity Emissions",
         actual: totals.electricity,
         target: targetTotals.electricity,
-        unit: "kWh",
-        status: getPerformanceStatus(
-          totals.electricity,
-          targetTotals.electricity,
-          true
-        ),
+        unit: "kg CO₂e",
+        status: getPerformanceStatus(totals.electricity, targetTotals.electricity, true),
       },
       {
         category: "Water Consumption",
@@ -320,19 +273,7 @@ export default function PostConstructionPhase({
         status: getPerformanceStatus(totals.incidents, 0, true),
       },
     ];
-  }, [
-    targetTotals.electricity,
-    targetTotals.fuel,
-    targetTotals.waste,
-    targetTotals.water,
-    totalDays,
-    totalMonths,
-    totals.electricity,
-    totals.fuel,
-    totals.incidents,
-    totals.waste,
-    totals.water,
-  ]);
+  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, targetTotals.water, totalDays, totalMonths, totals.electricity, totals.fuel, totals.incidents, totals.waste, totals.water]);
 
   const carbonFootprintData = useMemo(() => {
     if (totalDays === 0 && totalMonths === 0) {
@@ -341,21 +282,13 @@ export default function PostConstructionPhase({
     return [
       {
         phase: "Fuel Combustion",
-        planned: Number(
-          ((targetTotals.fuel * FUEL_CO2_FACTOR) / 1000).toFixed(2)
-        ),
+        planned: Number(((targetTotals.fuel * FUEL_CO2_FACTOR) / 1000).toFixed(2)),
         actual: Number(((totals.fuel * FUEL_CO2_FACTOR) / 1000).toFixed(2)),
       },
       {
         phase: "Electricity",
-        planned: Number(
-          ((targetTotals.electricity * ELECTRICITY_CO2_FACTOR) / 1000).toFixed(
-            2
-          )
-        ),
-        actual: Number(
-          ((totals.electricity * ELECTRICITY_CO2_FACTOR) / 1000).toFixed(2)
-        ),
+        planned: Number((targetTotals.electricity / 1000).toFixed(2)),
+        actual: Number((totals.electricity / 1000).toFixed(2)),
       },
       {
         phase: "Waste Handling",
@@ -363,35 +296,26 @@ export default function PostConstructionPhase({
         actual: Number((totals.waste / 1000).toFixed(2)),
       },
     ];
-  }, [
-    targetTotals.electricity,
-    targetTotals.fuel,
-    targetTotals.waste,
-    totalDays,
-    totalMonths,
-    totals.electricity,
-    totals.fuel,
-    totals.waste,
-  ]);
+  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, totalDays, totalMonths, totals.electricity, totals.fuel, totals.waste]);
 
   const supplierMixData = useMemo(() => {
     if (materialLogs.length === 0) {
       return [];
     }
-    const counts = materialLogs.reduce<
-      Record<string, { count: number; cost: number }>
-    >((acc, log) => {
-      const key =
-        log.actual_supplier && log.actual_supplier.trim().length > 0
+    const counts = materialLogs.reduce<Record<string, { count: number; cost: number }>>(
+      (acc, log) => {
+        const key = log.actual_supplier && log.actual_supplier.trim().length > 0
           ? log.actual_supplier
           : "Unspecified Supplier";
-      if (!acc[key]) {
-        acc[key] = { count: 0, cost: 0 };
-      }
-      acc[key].count += 1;
-      acc[key].cost += log.total_cost ?? 0;
-      return acc;
-    }, {});
+        if (!acc[key]) {
+          acc[key] = { count: 0, cost: 0 };
+        }
+        acc[key].count += 1;
+        acc[key].cost += log.total_cost ?? 0;
+        return acc;
+      },
+      {}
+    );
     return Object.entries(counts).map(([name, value]) => ({
       type: name,
       deliveries: value.count,
@@ -409,15 +333,10 @@ export default function PostConstructionPhase({
       year: "2-digit",
     });
 
-    const map = new Map<
-      string,
-      { carbon: number; waste: number; energy: number; date: Date }
-    >();
+    const map = new Map<string, { carbon: number; waste: number; energy: number; date: Date }>();
 
     const ensureEntry = (date: Date) => {
-      const normalized = new Date(
-        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)
-      );
+      const normalized = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
       const label = formatter.format(normalized);
       if (!map.has(label)) {
         map.set(label, { carbon: 0, waste: 0, energy: 0, date: normalized });
@@ -441,9 +360,8 @@ export default function PostConstructionPhase({
         continue;
       }
       const entry = ensureEntry(date);
-      const electricityCarbon =
-        (log.electricity_usage_kwh ?? 0) * ELECTRICITY_CO2_FACTOR;
-      entry.carbon += electricityCarbon / 1000;
+      const electricityEmissionsKg = log.electricity_usage_kwh ?? 0;
+      entry.carbon += electricityEmissionsKg / 1000;
       entry.waste += log.waste_generated_kg ?? 0;
       entry.energy += electricityEmissionsKg;
     }
@@ -500,70 +418,30 @@ export default function PostConstructionPhase({
         benchmark: 95,
       },
     ];
-  }, [
-    targetTotals.electricity,
-    targetTotals.fuel,
-    targetTotals.waste,
-    targetTotals.water,
-    totalDays,
-    totalMonths,
-    totals.electricity,
-    totals.fuel,
-    totals.incidents,
-    totals.waste,
-    totals.water,
-  ]);
+  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, targetTotals.water, totalDays, totalMonths, totals.electricity, totals.fuel, totals.incidents, totals.waste, totals.water]);
 
   const totalMaterialsCost = useMemo(() => {
     return materialLogs.reduce((acc, log) => acc + (log.total_cost ?? 0), 0);
   }, [materialLogs]);
 
   const totalDeliveryFuel = useMemo(() => {
-    return materialLogs.reduce(
-      (acc, log) => acc + (log.delivery_fuel_used_liters ?? 0),
-      0
-    );
+    return materialLogs.reduce((acc, log) => acc + (log.delivery_fuel_used_liters ?? 0), 0);
   }, [materialLogs]);
 
   const formatNumber = (value: number, digits = 0) =>
-    new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(
-      value
-    );
+    new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(value);
 
-  const waterEfficiency =
-    targetTotals.water > 0
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((targetTotals.water - totals.water) / targetTotals.water) * 100
-          )
-        )
-      : 0;
+  const waterEfficiency = targetTotals.water > 0
+    ? Math.max(0, Math.min(100, ((targetTotals.water - totals.water) / targetTotals.water) * 100))
+    : 0;
 
-  const wasteDiversion =
-    targetTotals.waste > 0
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((targetTotals.waste - totals.waste) / targetTotals.waste) * 100
-          )
-        )
-      : 0;
+  const wasteDiversion = targetTotals.waste > 0
+    ? Math.max(0, Math.min(100, ((targetTotals.waste - totals.waste) / targetTotals.waste) * 100))
+    : 0;
 
-  const energyReduction =
-    targetTotals.electricity > 0
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((targetTotals.electricity - totals.electricity) /
-              targetTotals.electricity) *
-              100
-          )
-        )
-      : 0;
+  const energyReduction = targetTotals.electricity > 0
+    ? Math.max(0, Math.min(100, ((targetTotals.electricity - totals.electricity) / targetTotals.electricity) * 100))
+    : 0;
 
   const supplierHighlights = supplierMixData
     .sort((a, b) => b.deliveries - a.deliveries)
@@ -571,10 +449,7 @@ export default function PostConstructionPhase({
     .map((supplier) => ({
       name: supplier.type,
       status: "Supplier",
-      date: `${supplier.deliveries} deliveries • $${formatNumber(
-        supplier.cost,
-        0
-      )}`,
+      date: `${supplier.deliveries} deliveries • $${formatNumber(supplier.cost, 0)}`,
     }));
 
   const overallCompliance = complianceScores.length
@@ -603,34 +478,22 @@ export default function PostConstructionPhase({
 
   const improvements: string[] = [];
   if (totals.fuel > targetTotals.fuel) {
-    improvements.push(
-      "Review heavy equipment usage to reduce daily fuel burn."
-    );
+    improvements.push("Review heavy equipment usage to reduce daily fuel burn.");
   }
   if (totals.electricity > targetTotals.electricity) {
-    improvements.push(
-      "Tune temporary power loads to cut excess electricity demand."
-    );
+    improvements.push("Tune temporary power loads to drive down electricity emissions.");
   }
   if (totals.water > targetTotals.water) {
-    improvements.push(
-      "Expand on-site water reuse to stay within conservation goals."
-    );
+    improvements.push("Expand on-site water reuse to stay within conservation goals.");
   }
   if (totals.waste > targetTotals.waste) {
-    improvements.push(
-      "Increase sorting efficiency to boost landfill diversion."
-    );
+    improvements.push("Increase sorting efficiency to boost landfill diversion.");
   }
   if (totals.incidents > 0) {
-    improvements.push(
-      "Refresh safety toolbox talks to avoid repeat incidents."
-    );
+    improvements.push("Refresh safety toolbox talks to bring the TRIR back down.");
   }
   if (improvements.length === 0) {
-    improvements.push(
-      "Continue monitoring trends to preserve strong performance."
-    );
+    improvements.push("Continue monitoring trends to preserve strong performance.");
   }
 
   const getStatusIcon = (status: string) => {
@@ -650,10 +513,8 @@ export default function PostConstructionPhase({
 
   const getStatusBadge = (status: string) => {
     const colors = {
-      Supplier:
-        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
-      Default:
-        "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+      Supplier: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
+      Default: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
     };
     return colors[status as keyof typeof colors] || colors.Default;
   };
@@ -666,8 +527,7 @@ export default function PostConstructionPhase({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Gathering construction logs and material deliveries for{" "}
-            {project.name}.
+            Gathering construction logs and material deliveries for {project.name}.
           </p>
         </CardContent>
       </Card>
@@ -680,8 +540,7 @@ export default function PostConstructionPhase({
         <CardHeader>
           <CardTitle>No post-construction data yet</CardTitle>
           <CardDescription>
-            Submit at least one construction daily report to unlock the
-            analytics view.
+            Submit at least one construction daily report to unlock the analytics view.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -701,8 +560,7 @@ export default function PostConstructionPhase({
                 Post-Construction Assessment
               </CardTitle>
               <CardDescription>
-                Aggregated ESG performance derived from construction daily
-                reports
+                Aggregated ESG performance derived from construction daily reports
               </CardDescription>
             </div>
           </div>
@@ -717,11 +575,7 @@ export default function PostConstructionPhase({
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        {[
-          { id: "overview", label: "Overview", icon: Target },
-          { id: "metrics", label: "ESG Metrics", icon: TrendingUp },
-          { id: "compliance", label: "Compliance", icon: CheckCircle },
-        ].map((tab) => (
+        {[{ id: "overview", label: "Overview", icon: Target }, { id: "metrics", label: "ESG Metrics", icon: TrendingUp }, { id: "compliance", label: "Compliance", icon: CheckCircle }].map((tab) => (
           <Button
             key={tab.id}
             variant={selectedTab === tab.id ? "default" : "outline"}
@@ -751,12 +605,7 @@ export default function PostConstructionPhase({
             <CardContent>
               <div className="space-y-4">
                 {esgGoalsData.map((goal) => {
-                  const percentOfTarget =
-                    goal.target > 0
-                      ? Math.min((goal.actual / goal.target) * 100, 200)
-                      : goal.actual === 0
-                      ? 0
-                      : 200;
+                  const percentOfTarget = goal.target > 0 ? Math.min((goal.actual / goal.target) * 100, 200) : goal.actual === 0 ? 0 : 200;
                   return (
                     <div key={goal.category} className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -764,20 +613,19 @@ export default function PostConstructionPhase({
                         <div className="flex items-center gap-2">
                           {getStatusIcon(goal.status)}
                           <span className="text-sm font-medium">
-                            {formatNumber(goal.actual, 1)} {goal.unit} /{" "}
-                            {formatNumber(goal.target, 1)} {goal.unit}
+                            {formatNumber(goal.actual, 1)} {goal.unit} / {formatNumber(goal.target, 1)} {goal.unit}
                           </span>
                         </div>
                       </div>
                       <Progress
                         value={Math.min(100, percentOfTarget)}
-                        className={
-                          percentOfTarget <= 100 ? "h-2" : "h-2 bg-red-200"
-                        }
+                        className={percentOfTarget <= 100 ? "h-2" : "h-2 bg-red-200"}
                       />
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Target</span>
-                        <span>{percentOfTarget.toFixed(1)}% of target</span>
+                        <span>
+                          {percentOfTarget.toFixed(1)}% of target
+                        </span>
                       </div>
                     </div>
                   );
@@ -793,8 +641,7 @@ export default function PostConstructionPhase({
                 Key Performance Summary
               </CardTitle>
               <CardDescription>
-                Totals based on {totalDays} logged construction day
-                {totalDays === 1 ? "" : "s"}
+                Totals based on {totalDays} logged construction day{totalDays === 1 ? "" : "s"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -802,66 +649,41 @@ export default function PostConstructionPhase({
                 <div className="text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
                   <TreePine className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
                   <div className="text-2xl font-bold text-emerald-700">
-                    {formatNumber(
-                      Math.max(carbonTargetTons - carbonActualTons, 0),
-                      1
-                    )}
+                    {formatNumber(Math.max(carbonTargetTons - carbonActualTons, 0), 1)}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    tCO₂e below plan
-                  </div>
+                  <div className="text-sm text-muted-foreground">tCO₂e below plan</div>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                   <Droplets className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-blue-700">
-                    {formatNumber(waterEfficiency, 0)}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Water efficiency
-                  </div>
+                  <div className="text-2xl font-bold text-blue-700">{formatNumber(waterEfficiency, 0)}%</div>
+                  <div className="text-sm text-muted-foreground">Water efficiency</div>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20">
                   <Trash2 className="h-8 w-8 text-amber-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-amber-700">
-                    {formatNumber(wasteDiversion, 0)}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Waste diversion
-                  </div>
+                  <div className="text-2xl font-bold text-amber-700">{formatNumber(wasteDiversion, 0)}%</div>
+                  <div className="text-sm text-muted-foreground">Waste diversion</div>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
                   <Zap className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-purple-700">
-                    {formatNumber(energyReduction, 0)}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Energy reduction
-                  </div>
+                  <div className="text-2xl font-bold text-purple-700">{formatNumber(energyReduction, 0)}%</div>
+                  <div className="text-sm text-muted-foreground">Electricity emission reduction</div>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                 <div>
-                  <span className="font-semibold text-foreground block">
-                    Fuel Used
-                  </span>
+                  <span className="font-semibold text-foreground block">Fuel Used</span>
                   {formatNumber(totals.fuel, 1)} liters
                 </div>
                 <div>
-                  <span className="font-semibold text-foreground block">
-                    Electricity Used
-                  </span>
-                  {formatNumber(totals.electricity, 1)} kWh
+                  <span className="font-semibold text-foreground block">Electricity Emissions</span>
+                  {formatNumber(totals.electricity, 1)} kg CO₂e
                 </div>
                 <div>
-                  <span className="font-semibold text-foreground block">
-                    Material Deliveries
-                  </span>
+                  <span className="font-semibold text-foreground block">Material Deliveries</span>
                   {materialLogs.length} records
                 </div>
                 <div>
-                  <span className="font-semibold text-foreground block">
-                    Material Spend
-                  </span>
+                  <span className="font-semibold text-foreground block">Material Spend</span>
                   ${formatNumber(totalMaterialsCost, 2)}
                 </div>
               </div>
@@ -877,28 +699,16 @@ export default function PostConstructionPhase({
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 Carbon Footprint Comparison
               </CardTitle>
-              <CardDescription>
-                Planned versus actual emissions by source
-              </CardDescription>
+              <CardDescription>Planned versus actual emissions by source</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={carbonFootprintData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="phase" />
-                  <YAxis
-                    label={{
-                      value: "tCO₂e",
-                      angle: -90,
-                      position: "insideLeft",
-                    }}
-                  />
+                  <YAxis label={{ value: "tCO₂e", angle: -90, position: "insideLeft" }} />
                   <Tooltip />
-                  <Bar
-                    dataKey="planned"
-                    fill="#94a3b8"
-                    name="Planned (tCO₂e)"
-                  />
+                  <Bar dataKey="planned" fill="#94a3b8" name="Planned (tCO₂e)" />
                   <Bar dataKey="actual" fill="#10b981" name="Actual (tCO₂e)" />
                 </BarChart>
               </ResponsiveContainer>
@@ -906,8 +716,7 @@ export default function PostConstructionPhase({
                 <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
                   <CheckCircle className="h-5 w-5" />
                   <span className="font-semibold">
-                    Net carbon delta:{" "}
-                    {formatNumber(carbonTargetTons - carbonActualTons, 2)} tCO₂e
+                    Net carbon delta: {formatNumber(carbonTargetTons - carbonActualTons, 2)} tCO₂e
                   </span>
                 </div>
               </div>
@@ -919,15 +728,12 @@ export default function PostConstructionPhase({
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 Material Delivery Mix
               </CardTitle>
-              <CardDescription>
-                Distribution of deliveries by supplier
-              </CardDescription>
+              <CardDescription>Distribution of deliveries by supplier</CardDescription>
             </CardHeader>
             <CardContent>
               {supplierMixData.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Log material deliveries in the construction tab to see
-                  supplier statistics.
+                  Log material deliveries in the construction tab to see supplier statistics.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -939,15 +745,10 @@ export default function PostConstructionPhase({
                         cx="50%"
                         cy="50%"
                         outerRadius={80}
-                        label={({ type, deliveries }) =>
-                          `${type}: ${deliveries}`
-                        }
+                        label={({ type, deliveries }) => `${type}: ${deliveries}`}
                       >
                         {supplierMixData.map((entry, index) => (
-                          <Cell
-                            key={entry.type}
-                            fill={PIE_COLORS[index % PIE_COLORS.length]}
-                          />
+                          <Cell key={entry.type} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -963,22 +764,17 @@ export default function PostConstructionPhase({
                         <div className="flex items-center gap-3">
                           <div
                             className="w-4 h-4 rounded-full"
-                            style={{
-                              backgroundColor:
-                                PIE_COLORS[index % PIE_COLORS.length],
-                            }}
+                            style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
                           />
                           <span className="font-medium">{item.type}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          {item.deliveries} loads • $
-                          {formatNumber(item.cost, 0)}
+                          {item.deliveries} loads • ${formatNumber(item.cost, 0)}
                         </span>
                       </div>
                     ))}
                     <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-sm">
-                      <strong>Total delivery fuel used:</strong>{" "}
-                      {formatNumber(totalDeliveryFuel, 1)} liters
+                      <strong>Total delivery fuel used:</strong> {formatNumber(totalDeliveryFuel, 1)} liters
                     </div>
                   </div>
                 </div>
@@ -991,9 +787,7 @@ export default function PostConstructionPhase({
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 Monthly Performance Trends
               </CardTitle>
-              <CardDescription>
-                Carbon, waste, and electricity progression
-              </CardDescription>
+              <CardDescription>Carbon, waste, and electricity emissions progression</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -1002,27 +796,9 @@ export default function PostConstructionPhase({
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="carbon"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    name="Carbon (tCO₂e)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="waste"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    name="Waste (kg)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="energy"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    name="Electricity (kWh)"
-                  />
+                  <Line type="monotone" dataKey="carbon" stroke="#10b981" strokeWidth={2} name="Carbon (tCO₂e)" />
+                  <Line type="monotone" dataKey="waste" stroke="#3b82f6" strokeWidth={2} name="Waste (kg)" />
+                  <Line type="monotone" dataKey="energy" stroke="#f59e0b" strokeWidth={2} name="Electricity (kg CO₂e)" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -1037,15 +813,11 @@ export default function PostConstructionPhase({
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 Environmental Compliance Score
               </CardTitle>
-              <CardDescription>
-                Derived from actual performance vs project targets
-              </CardDescription>
+              <CardDescription>Derived from actual performance vs project targets</CardDescription>
             </CardHeader>
             <CardContent>
               {complianceScores.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Add daily logs to generate compliance insights.
-                </p>
+                <p className="text-sm text-muted-foreground">Add daily logs to generate compliance insights.</p>
               ) : (
                 <>
                   <div className="space-y-4">
@@ -1059,35 +831,22 @@ export default function PostConstructionPhase({
                             ) : (
                               <AlertTriangle className="h-4 w-4 text-amber-500" />
                             )}
-                            <span className="font-bold text-lg">
-                              {item.score}%
-                            </span>
+                            <span className="font-bold text-lg">{item.score}%</span>
                           </div>
                         </div>
                         <Progress value={item.score} className="h-3" />
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>Benchmark: {item.benchmark}%</span>
-                          <span
-                            className={
-                              item.score >= item.benchmark
-                                ? "text-emerald-600"
-                                : "text-amber-600"
-                            }
-                          >
-                            {item.score >= item.benchmark ? "Exceeds" : "Below"}{" "}
-                            requirement
+                          <span className={item.score >= item.benchmark ? "text-emerald-600" : "text-amber-600"}>
+                            {item.score >= item.benchmark ? "Exceeds" : "Below"} requirement
                           </span>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-center">
-                    <div className="text-3xl font-bold text-emerald-700 mb-1">
-                      {overallCompliance}%
-                    </div>
-                    <div className="text-sm text-emerald-600">
-                      Overall compliance score
-                    </div>
+                    <div className="text-3xl font-bold text-emerald-700 mb-1">{overallCompliance}%</div>
+                    <div className="text-sm text-emerald-600">Overall compliance score</div>
                   </div>
                 </>
               )}
@@ -1099,36 +858,24 @@ export default function PostConstructionPhase({
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 Top Delivery Partners
               </CardTitle>
-              <CardDescription>
-                Suppliers contributing most to the project footprint
-              </CardDescription>
+              <CardDescription>Suppliers contributing most to the project footprint</CardDescription>
             </CardHeader>
             <CardContent>
               {supplierHighlights.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No deliveries logged yet.
-                </p>
+                <p className="text-sm text-muted-foreground">No deliveries logged yet.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {supplierHighlights.map((entry) => (
-                    <div
-                      key={entry.name}
-                      className="p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-                    >
+                    <div key={entry.name} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           <Award className="h-6 w-6 text-emerald-600" />
                           <div>
                             <div className="font-semibold">{entry.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {entry.date}
-                            </div>
+                            <div className="text-sm text-muted-foreground">{entry.date}</div>
                           </div>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className={getStatusBadge(entry.status)}
-                        >
+                        <Badge variant="secondary" className={getStatusBadge(entry.status)}>
                           {entry.status}
                         </Badge>
                       </div>
@@ -1147,9 +894,7 @@ export default function PostConstructionPhase({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border-l-4 border-emerald-500">
-                <h4 className="font-semibold text-emerald-700 dark:text-emerald-300 mb-2">
-                  Strengths
-                </h4>
+                <h4 className="font-semibold text-emerald-700 dark:text-emerald-300 mb-2">Strengths</h4>
                 <ul className="text-sm space-y-1">
                   {strengths.map((item) => (
                     <li key={item}>• {item}</li>
@@ -1157,9 +902,7 @@ export default function PostConstructionPhase({
                 </ul>
               </div>
               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-l-4 border-amber-500">
-                <h4 className="font-semibold text-amber-700 dark:text-amber-300 mb-2">
-                  Areas for Improvement
-                </h4>
+                <h4 className="font-semibold text-amber-700 dark:text-amber-300 mb-2">Areas for Improvement</h4>
                 <ul className="text-sm space-y-1">
                   {improvements.map((item) => (
                     <li key={item}>• {item}</li>
