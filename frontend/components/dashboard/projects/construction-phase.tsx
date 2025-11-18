@@ -1433,78 +1433,85 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       let wasteSummary = "";
 
       if (shouldSubmitMonthly) {
-
         const monthStart = new Date(today);
         monthStart.setDate(1);
         const logMonth = monthStart.toISOString().slice(0, 10);
 
-        const rawElectricityKwh = parseNumber(monthlyMetrics.electricity);
+        const rawElectricityKwh = parseNumber(monthlyMetrics.electricity) ?? 0;
+        const rawWaterCubicM = parseNumber(monthlyMetrics.water) ?? 0;
+        const rawWaste = hasWasteEntries && wasteEntries.length > 0
+          ? wasteEntries.reduce((sum, entry) => sum + Number(entry.mass) * (entry.unit === "ton" ? 1000 : 1), 0)
+          : 0;
+
+        // Fetch existing placeholder values for this project/month
+        let existingElec = 0, existingWater = 0, existingWaste = 0;
+        const { data: existingRow, error: fetchError } = await supabase
+          .from("construction_monthly_log")
+          .select("elec_placeholder, water_placeholder, waste_placeholder")
+          .eq("project_id", project.id)
+          .eq("log_month", logMonth)
+          .maybeSingle();
+        if (!fetchError && existingRow) {
+          existingElec = Number(existingRow.elec_placeholder) || 0;
+          existingWater = Number(existingRow.water_placeholder) || 0;
+          existingWaste = Number(existingRow.waste_placeholder) || 0;
+        }
+
+        // Add new values to existing
+        const sumElec = rawElectricityKwh + existingElec;
+        const sumWater = rawWaterCubicM + existingWater;
+        const sumWaste = rawWaste + existingWaste;
+
         const electricityEmissionsKg =
-          rawElectricityKwh !== null
-            ? Number((rawElectricityKwh * PH_GRID_EMISSION_FACTOR_KG_PER_KWH).toFixed(4))
+          sumElec !== null
+            ? Number((sumElec * PH_GRID_EMISSION_FACTOR_KG_PER_KWH).toFixed(4))
             : null;
         // Scope 2 = electricity emissions in tCO2e
         const scope2 = electricityEmissionsKg !== null ? Number((electricityEmissionsKg).toFixed(4)) : null;
 
-        const rawWaterCubicM = parseNumber(monthlyMetrics.water);
         const waterEmissionsKg =
-          rawWaterCubicM !== null
-            ? Number((rawWaterCubicM * WATER_SUPPLY_EMISSION_FACTOR_KG_PER_CUBIC_M).toFixed(4))
+          sumWater !== null
+            ? Number((sumWater * WATER_SUPPLY_EMISSION_FACTOR_KG_PER_CUBIC_M).toFixed(4))
             : null;
 
-        if (hasWasteEntries) {
-          const percentageTotals = new Map<string, number>();
-
-          wasteEntries.forEach((entry) => {
-            const value = Number(entry.treatmentPercentage);
-
-            if (!Number.isFinite(value)) {
-              throw new Error(`Treatment percentage for ${entry.wasteType} is invalid.`);
-            }
-
-            percentageTotals.set(
-              entry.wasteType,
-              (percentageTotals.get(entry.wasteType) ?? 0) + value
-            );
-          });
-
-          const incompleteAllocations = Array.from(percentageTotals.entries()).filter(
-            ([, total]) => Math.abs(total - 100) > 0.001
-          );
-
-          if (incompleteAllocations.length > 0) {
-            const formatted = incompleteAllocations
-              .map(([wasteType, total]) => `${wasteType} (${total.toFixed(2)}%)`)
-              .join(", ");
-            throw new Error(
-              `Treatment method percentages must total 100% for: ${formatted}. Adjust the allocations before submitting.`
-            );
+        let wasteEmissionsKg = null;
+        if (hasWasteEntries && wasteEntries.length > 0) {
+          let totalEmissions = 0;
+          for (const entry of wasteEntries) {
+            const parsedMass = Number(entry.mass);
+            const massKg = Number.isFinite(parsedMass)
+              ? (entry.unit === "ton" ? parsedMass * 1000 : parsedMass)
+              : 0;
+            const percentageValue = Number(entry.treatmentPercentage);
+            const normalizedPercentage = Number.isFinite(percentageValue)
+              ? Math.max(0, percentageValue) / 100
+              : 0;
+            const emissionFactor = WASTE_EMISSION_FACTORS_KG_PER_KG[entry.treatmentMethod] ?? 0;
+            const allocatedMassKg = massKg * normalizedPercentage;
+            const emissionKg = allocatedMassKg * emissionFactor;
+            totalEmissions += emissionKg;
           }
+          wasteEmissionsKg = Number(totalEmissions.toFixed(4));
         }
-
-        const wasteEmissionsKg =
-          hasWasteEntries && wasteEntries.length > 0
-            ? Number(computedMonthlyWasteEmissions.toFixed(4))
-            : null;
 
         // Scope 3 = waste emissions + water emissions (both in kg CO2e)
         const scope3 =
           (wasteEmissionsKg !== null ? wasteEmissionsKg : 0) +
           (waterEmissionsKg !== null ? waterEmissionsKg : 0);
 
-        if (electricityEmissionsKg !== null && rawElectricityKwh !== null) {
-          electricitySummary = ` Electricity emissions: ${electricityEmissionsKg.toFixed(2)} kg CO₂e (from ${rawElectricityKwh.toFixed(2)} kWh).`;
+        if (electricityEmissionsKg !== null && sumElec !== null) {
+          electricitySummary = ` Electricity emissions: ${electricityEmissionsKg.toFixed(2)} kg CO₂e (from ${sumElec.toFixed(2)} kWh).`;
         }
 
-        if (waterEmissionsKg !== null && rawWaterCubicM !== null) {
-          waterSummary = ` Water emissions: ${waterEmissionsKg.toFixed(2)} kg CO₂e (from ${rawWaterCubicM.toFixed(2)} m³).`;
+        if (waterEmissionsKg !== null && sumWater !== null) {
+          waterSummary = ` Water emissions: ${waterEmissionsKg.toFixed(2)} kg CO₂e (from ${sumWater.toFixed(2)} m³).`;
         }
 
-        if (wasteEmissionsKg !== null && wasteEntries.length > 0) {
-          wasteSummary = ` Waste emissions: ${computedMonthlyWasteEmissions.toFixed(2)} kg CO₂e (allocated mass ${totalAllocatedWasteMassKg.toFixed(2)} kg; input mass ${totalWasteInputMassKg.toFixed(2)} kg).`;
+        if (wasteEmissionsKg !== null && sumWaste > 0) {
+          wasteSummary = ` Waste emissions: ${wasteEmissionsKg.toFixed(2)} kg CO₂e.`;
         }
 
-        // Add placeholder columns for raw values
+        // Add placeholder columns for summed values
         const { error: monthlyError } = await supabase
           .from("construction_monthly_log")
           .upsert(
@@ -1515,9 +1522,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                 electricity_usage_kwh: electricityEmissionsKg,
                 water_consumption_cubic_m: waterEmissionsKg,
                 waste_generated_kg: wasteEmissionsKg,
-                elec_placeholder: rawElectricityKwh,
-                water_placeholder: rawWaterCubicM,
-                waste_placeholder: hasWasteEntries && wasteEntries.length > 0 ? wasteEntries.reduce((sum, entry) => sum + Number(entry.mass) * (entry.unit === "ton" ? 1000 : 1), 0) : null,
+                elec_placeholder: sumElec,
+                water_placeholder: sumWater,
+                waste_placeholder: sumWaste,
                 scope2: scope2,
                 scope3: scope3,
                 submitted_on: today,
