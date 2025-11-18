@@ -1504,8 +1504,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           wasteSummary = ` Waste emissions: ${computedMonthlyWasteEmissions.toFixed(2)} kg CO₂e (allocated mass ${totalAllocatedWasteMassKg.toFixed(2)} kg; input mass ${totalWasteInputMassKg.toFixed(2)} kg).`;
         }
 
-
-
+        // Add placeholder columns for raw values
         const { error: monthlyError } = await supabase
           .from("construction_monthly_log")
           .upsert(
@@ -1516,6 +1515,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                 electricity_usage_kwh: electricityEmissionsKg,
                 water_consumption_cubic_m: waterEmissionsKg,
                 waste_generated_kg: wasteEmissionsKg,
+                elec_placeholder: rawElectricityKwh,
+                water_placeholder: rawWaterCubicM,
+                waste_placeholder: hasWasteEntries && wasteEntries.length > 0 ? wasteEntries.reduce((sum, entry) => sum + Number(entry.mass) * (entry.unit === "ton" ? 1000 : 1), 0) : null,
                 scope2: scope2,
                 scope3: scope3,
                 submitted_on: today,

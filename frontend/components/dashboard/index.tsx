@@ -268,7 +268,7 @@ export default function Dashboard() {
           .select("fuel_consumption_liters, equipment_usage_tco2e, scope1"),
         supabase
           .from("construction_monthly_log")
-          .select("electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, scope2, scope3"),
+          .select("elec_placeholder, water_placeholder, waste_placeholder, electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, scope2, scope3"),
       ]);
 
       if (!isMounted) {
@@ -282,7 +282,7 @@ export default function Dashboard() {
       const monthlyLogs =
         monthlyResult.error || !monthlyResult.data
           ? []
-          : (monthlyResult.data as ConstructionMonthlyLogRecord[]);
+          : (monthlyResult.data as any[]);
 
       if ((dailyResult.error && monthlyResult.error) || (dailyLogs.length === 0 && monthlyLogs.length === 0)) {
         setEmissionsScopeData(DEFAULT_SCOPE_DATA);
@@ -295,12 +295,9 @@ export default function Dashboard() {
       const toNumber = (value: number | null) =>
         typeof value === "number" && Number.isFinite(value) ? value : 0;
 
-
       let scope1_tco2e = 0;
-      let aggregatedElectricityEmissionsKg = 0;
       let scope2_tco2e = 0;
-      let aggregatedWater = 0;
-      let aggregatedWasteKg = 0;
+      let scope3_tco2e = 0;
 
       // Use the stored scope1 column if available (already tCO2e), otherwise fallback to calculation (kg -> tCO2e)
       for (const log of dailyLogs) {
@@ -315,25 +312,27 @@ export default function Dashboard() {
         }
       }
 
-      let scope3_tco2e = 0;
+      // Use the most recent monthly log for dashboard cards
+      const latestMonthly = monthlyLogs.length > 0 ? monthlyLogs[monthlyLogs.length - 1] : null;
+      const elecPlaceholder = latestMonthly?.elec_placeholder ?? 0;
+      const waterPlaceholder = latestMonthly?.water_placeholder ?? 0;
+      const wastePlaceholder = latestMonthly?.waste_placeholder ?? 0;
+
+      setTotalElectricityEmissionsKg(elecPlaceholder);
+      setTotalWaterConsumption(waterPlaceholder);
+      setTotalWasteGeneratedKg(wastePlaceholder);
+
+      // Still aggregate scope2 and scope3 for the breakdown
       for (const log of monthlyLogs) {
         const electricity = toNumber(log.electricity_usage_kwh);
         const water = toNumber(log.water_consumption_cubic_m);
         const wasteKg = toNumber(log.waste_generated_kg);
 
-        aggregatedElectricityEmissionsKg += electricity;
-        aggregatedWater += water;
-        aggregatedWasteKg += wasteKg;
-
-        // Use scope2 column if available (tCO2e), otherwise fallback to calculated value
         if (typeof log.scope2 === 'number' && Number.isFinite(log.scope2)) {
           scope2_tco2e += log.scope2;
         } else {
-          // fallback: convert kg to tCO2e
           scope2_tco2e += electricity;
         }
-
-        // Just sum scope3 column if present
         if (typeof log.scope3 === 'number' && Number.isFinite(log.scope3)) {
           scope3_tco2e += log.scope3;
         }
@@ -348,9 +347,6 @@ export default function Dashboard() {
         { name: "Scope 2", value: scope2_tco2e, percentage: percentage(scope2_tco2e) },
         { name: "Scope 3", value: scope3_tco2e, percentage: percentage(scope3_tco2e) },
       ]);
-      setTotalElectricityEmissionsKg(aggregatedElectricityEmissionsKg);
-      setTotalWaterConsumption(aggregatedWater);
-      setTotalWasteGeneratedKg(aggregatedWasteKg);
     };
 
     fetchEmissions();
