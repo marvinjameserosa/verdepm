@@ -15,7 +15,32 @@ type LatLngTuple = [number, number];
 
 const NOMINATIM_USER_AGENT =
   process.env.NOMINATIM_USER_AGENT?.trim() ||
-  "verdepm-frontend/1.0 (contact: please-set-nominatim-user-agent@invalid)";
+  "verdepm-frontend/1.0 (contact: jheredmiguelrepublica14@gmail.com)";
+
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+  timeoutMessage: string
+) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(timeoutMessage);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 const isValidLatitude = (value: number) => value >= -90 && value <= 90;
 const isValidLongitude = (value: number) => value >= -180 && value <= 180;
@@ -55,13 +80,18 @@ const geocodeWithNominatim = async (query: string): Promise<CoordinateResult> =>
   url.searchParams.set("addressdetails", "0");
   url.searchParams.set("polygon_geojson", "0");
 
-  const response = await fetch(url, {
-    cache: "no-store",
-    headers: {
-      "User-Agent": NOMINATIM_USER_AGENT,
-      "Accept-Language": "en",
+  const response = await fetchWithTimeout(
+    url,
+    {
+      cache: "no-store",
+      headers: {
+        "User-Agent": NOMINATIM_USER_AGENT,
+        "Accept-Language": "en",
+      },
     },
-  });
+    12000,
+    "Geocoding request timed out. Please refine the address or try again."
+  );
 
   if (!response.ok) {
     throw new Error(`Geocoding failed with status ${response.status}`);
@@ -109,12 +139,17 @@ const requestRoute = async (start: CoordinateResult, end: CoordinateResult) => {
   url.searchParams.set("alternatives", "false");
   url.searchParams.set("steps", "false");
 
-  const response = await fetch(url, {
-    cache: "no-store",
-    headers: {
-      "User-Agent": NOMINATIM_USER_AGENT,
+  const response = await fetchWithTimeout(
+    url,
+    {
+      cache: "no-store",
+      headers: {
+        "User-Agent": NOMINATIM_USER_AGENT,
+      },
     },
-  });
+    15000,
+    "Route planning request timed out. Please try again with different points."
+  );
 
   if (!response.ok) {
     throw new Error(`Directions request failed with status ${response.status}`);
