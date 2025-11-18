@@ -62,16 +62,16 @@ const MembersTab = () => {
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [deletingMember, setDeletingMember] = useState<User | null>(null);
 
-  useEffect(() => {
-    const fetchMembers = async () => {
-      const { data, error } = await supabase.from("users").select("*");
-      if (error) {
-        console.error("Error fetching members:", error);
-      } else {
-        setMembers(data as User[]);
-      }
-    };
+  const fetchMembers = async () => {
+    const { data, error } = await supabase.from("users").select("*");
+    if (error) {
+      console.error("Error fetching members:", error);
+    } else {
+      setMembers(data as User[]);
+    }
+  };
 
+  useEffect(() => {
     fetchMembers();
   }, []);
 
@@ -169,7 +169,7 @@ const MembersTab = () => {
                   receive an email with instructions to join your organization.
                 </DialogDescription>
               </DialogHeader>
-              <InviteMemberForm />
+              <InviteMemberForm onSuccess={fetchMembers} />
             </DialogContent>
           </Dialog>
         </div>
