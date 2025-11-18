@@ -12,6 +12,9 @@ import {
 
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
+import { SettingsModal } from "./settings-modal";
+import { HelpModal } from "./help-modal";
+import { useState } from "react";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -26,6 +29,9 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isSidebarOpen }: SidebarProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
   function NavItem({
     href,
     icon: Icon,
@@ -118,15 +124,41 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
         {/* Footer */}
         <div className="border-t border-border px-4 py-4">
           <div className="space-y-1">
-            <NavItem href="/dashboard/settings" icon={Settings}>
-              Settings
-            </NavItem>
-            <NavItem href="#" icon={HelpCircle}>
-              Help
-            </NavItem>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="w-full flex items-center px-3 py-2 text-sm rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+            >
+              <Settings className="h-4 w-4 mr-3 flex-shrink-0" />
+              <span
+                className={`transition-opacity duration-200 ${
+                  isSidebarOpen ? "opacity-100" : "opacity-0"
+                }`}
+                aria-hidden={!isSidebarOpen}
+              >
+                Settings
+              </span>
+            </button>
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="w-full flex items-center px-3 py-2 text-sm rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+            >
+              <HelpCircle className="h-4 w-4 mr-3 flex-shrink-0" />
+              <span
+                className={`transition-opacity duration-200 ${
+                  isSidebarOpen ? "opacity-100" : "opacity-0"
+                }`}
+                aria-hidden={!isSidebarOpen}
+              >
+                Help
+              </span>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <HelpModal open={helpOpen} onOpenChange={setHelpOpen} />
     </nav>
   );
 }

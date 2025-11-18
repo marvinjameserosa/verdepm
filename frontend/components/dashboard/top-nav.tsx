@@ -18,6 +18,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
+import { NotificationModal } from "./notification-modal";
 
 interface BreadcrumbItem {
   label: string;
@@ -32,10 +33,53 @@ interface TopNavProps {
 export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   const pathname = usePathname();
   const [projectName, setProjectName] = useState<string | null>(null);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: "1",
+      title: "New member added",
+      message: "John Doe has been added to the Verde Project Management team",
+      timestamp: new Date(Date.now() - 5 * 60000), // 5 minutes ago
+      read: false,
+      type: "info" as const,
+    },
+    {
+      id: "2",
+      title: "Project update",
+      message: "Construction phase completed for Project Alpha",
+      timestamp: new Date(Date.now() - 2 * 3600000), // 2 hours ago
+      read: false,
+      type: "success" as const,
+    },
+    {
+      id: "3",
+      title: "Report generated",
+      message: "Monthly ESG report is ready for review",
+      timestamp: new Date(Date.now() - 24 * 3600000), // 1 day ago
+      read: true,
+      type: "info" as const,
+    },
+  ]);
   const breadcrumbs: BreadcrumbItem[] = [];
   const pathParts = pathname.split("/").filter((part) => part);
   const mainCategory = pathParts[1];
   const slug = pathParts[2];
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const handleMarkAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const handleClearNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
 
   useEffect(() => {
     if (mainCategory !== "projects" || !slug) {
@@ -163,10 +207,24 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
       <div className="flex items-center gap-2 sm:gap-4 ml-auto">
         <button
           type="button"
-          className="p-1.5 sm:p-2 hover:bg-muted rounded-full transition-colors"
+          className="p-1.5 sm:p-2 hover:bg-muted rounded-full transition-colors relative"
+          onClick={() => setNotificationOpen(true)}
+          aria-label="Open notifications"
         >
           <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+          {unreadCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 h-2 w-2 bg-red-500 rounded-full ring-2 ring-background" />
+          )}
         </button>
+
+        <NotificationModal
+          open={notificationOpen}
+          onOpenChange={setNotificationOpen}
+          notifications={notifications}
+          onMarkAsRead={handleMarkAsRead}
+          onMarkAllAsRead={handleMarkAllAsRead}
+          onClearNotification={handleClearNotification}
+        />
 
         <ThemeToggle />
 
