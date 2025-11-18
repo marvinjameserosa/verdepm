@@ -88,9 +88,28 @@ type WasteEntrySummary = WasteEntry & {
 
 const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
   () =>
-    import("@/components/dashboard/projects/delivery-route-map").then(
-      (module) => module.default
-    ),
+    import("@/components/dashboard/projects/delivery-route-map").then((module) => {
+      // Patch the default export to add null checks for _leaflet_pos errors
+      const Original = module.default;
+      function SafeDeliveryRouteMap(props: any) {
+        try {
+          return <Original {...props} />;
+        } catch (e) {
+          if (
+            typeof window !== "undefined" &&
+            e &&
+            typeof e === "object" &&
+            "message" in e &&
+            String(e.message).includes("_leaflet_pos")
+          ) {
+            // Render fallback UI or nothing if _leaflet_pos error occurs
+            return <div className="text-red-600 text-xs">Map failed to load. Please refresh or check route data.</div>;
+          }
+          throw e;
+        }
+      }
+      return SafeDeliveryRouteMap;
+    }),
   { ssr: false }
 );
 
@@ -271,6 +290,8 @@ function DistanceFuelCard({
   onEfficiencyChange,
   computedFuelLiters,
 }: DistanceFuelCardProps) {
+  // Calculate tCO2e for today's fuel
+  const todayTco2e = computedFuelLiters !== null ? computedFuelLiters * 2.68 : null;
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -316,6 +337,12 @@ function DistanceFuelCard({
           Total fuel for today:
           <span className="ml-1 font-semibold">
             {computedFuelLiters !== null ? `${computedFuelLiters.toFixed(2)} L` : "--"}
+          </span>
+        </div>
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
+          Total tCO₂e for today:
+          <span className="ml-1 font-semibold">
+            {todayTco2e !== null ? `${(todayTco2e).toFixed(2)} tCO₂e` : "--"}
           </span>
         </div>
       </CardContent>
@@ -1288,20 +1315,30 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         throw new Error("Total hours worked must be greater than zero.");
       }
 
+
+      // Calculate fuel tCO2e (route fuel summary)
       const fuelConsumptionLiters =
         distanceValue !== null && efficiencyValue !== null
           ? Number((distanceValue * efficiencyValue).toFixed(4))
           : null;
+      const fuelTco2e =
+        fuelConsumptionLiters !== null
+          ? Number((fuelConsumptionLiters * 2.68).toFixed(4))
+          : null;
 
+      // Equipment emissions
       const equipmentFuelConsumptionLiters =
         equipmentHoursValue !== null && equipmentFuelRateValue !== null
           ? equipmentHoursValue * equipmentFuelRateValue
           : null;
-
       const equipmentEmissionsKg =
         equipmentFuelConsumptionLiters !== null
           ? Number((equipmentFuelConsumptionLiters * EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER).toFixed(4))
           : null;
+
+      // Scope 1 = fuel tCO2e + equipment tCO2e
+      const scope1 =
+        (fuelTco2e !== null ? fuelTco2e : 0) + (equipmentEmissionsKg !== null ? equipmentEmissionsKg : 0);
 
       const safetyTrirRaw =
         incidentCountValue !== null && hoursWorkedValue !== null
@@ -1315,6 +1352,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       let dailyLogId: string | undefined;
 
+
       if (shouldSubmitDaily) {
         const { data: dailyLog, error: dailyError } = await supabase
           .from("construction_daily_log")
@@ -1325,6 +1363,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               fuel_consumption_liters: fuelConsumptionLiters,
               equipment_usage_tco2e: equipmentEmissionsKg,
               safety_incidents: safetyTrirRounded,
+              scope1: scope1,
             },
           ])
           .select("id")
@@ -1394,6 +1433,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       let wasteSummary = "";
 
       if (shouldSubmitMonthly) {
+
         const monthStart = new Date(today);
         monthStart.setDate(1);
         const logMonth = monthStart.toISOString().slice(0, 10);
@@ -1403,6 +1443,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           rawElectricityKwh !== null
             ? Number((rawElectricityKwh * PH_GRID_EMISSION_FACTOR_KG_PER_KWH).toFixed(4))
             : null;
+        // Scope 2 = electricity emissions in tCO2e
+        const scope2 = electricityEmissionsKg !== null ? Number((electricityEmissionsKg).toFixed(4)) : null;
 
         const rawWaterCubicM = parseNumber(monthlyMetrics.water);
         const waterEmissionsKg =
@@ -1445,6 +1487,11 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             ? Number(computedMonthlyWasteEmissions.toFixed(4))
             : null;
 
+        // Scope 3 = waste emissions + water emissions (both in kg CO2e)
+        const scope3 =
+          (wasteEmissionsKg !== null ? wasteEmissionsKg : 0) +
+          (waterEmissionsKg !== null ? waterEmissionsKg : 0);
+
         if (electricityEmissionsKg !== null && rawElectricityKwh !== null) {
           electricitySummary = ` Electricity emissions: ${electricityEmissionsKg.toFixed(2)} kg CO₂e (from ${rawElectricityKwh.toFixed(2)} kWh).`;
         }
@@ -1457,6 +1504,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           wasteSummary = ` Waste emissions: ${computedMonthlyWasteEmissions.toFixed(2)} kg CO₂e (allocated mass ${totalAllocatedWasteMassKg.toFixed(2)} kg; input mass ${totalWasteInputMassKg.toFixed(2)} kg).`;
         }
 
+
+
         const { error: monthlyError } = await supabase
           .from("construction_monthly_log")
           .upsert(
@@ -1467,6 +1516,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                 electricity_usage_kwh: electricityEmissionsKg,
                 water_consumption_cubic_m: waterEmissionsKg,
                 waste_generated_kg: wasteEmissionsKg,
+                scope2: scope2,
+                scope3: scope3,
                 submitted_on: today,
                 updated_at: new Date().toISOString(),
               },
