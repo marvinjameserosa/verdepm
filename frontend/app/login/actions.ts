@@ -4,14 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { loginSchema } from "@/types/auth";
 
-export async function Login(formData: FormData) {
+type LoginResult = {
+  error?: string;
+};
+
+export async function Login(formData: FormData): Promise<LoginResult | void> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   const result = loginSchema.safeParse({ email, password });
 
   if (!result.success) {
-    return redirect("/login?message=Invalid email or password");
+    return { error: "Invalid email or password" };
   }
 
   const supabase = await createClient();
@@ -22,7 +26,7 @@ export async function Login(formData: FormData) {
   });
 
   if (error) {
-    return redirect(`/login?message=${encodeURIComponent(error.message)}`);
+    return { error: error.message };
   }
 
   revalidatePath("/", "layout");
