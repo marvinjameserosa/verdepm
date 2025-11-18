@@ -815,10 +815,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
       projectName: step1Values.projectName,
       projectAddress: step1Values.projectAddress,
       projectDescription: step1Values.projectDescription,
-      documentPaths,
+      documentPaths: {},
     }),
     [
-      documentPaths,
       step1Values.projectAddress,
       step1Values.projectDescription,
       step1Values.projectName,
