@@ -93,7 +93,7 @@ const certifications = [
 const reportTemplates = [
   {
     id: "esg-summary",
-    title: "ESG Performance Summary",
+    title: "ESG Performance Summary Report",
     description:
       "Comprehensive overview of Environmental, Social, and Governance metrics",
     icon: TreePine,
