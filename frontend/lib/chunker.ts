@@ -1,8 +1,11 @@
-export function chunkText(text: string, size = 800) {
+export function chunkText(text: string, maxWordsPerChunk = 80) {
   const words = text.split(" ");
   const chunks = [];
-  for (let i = 0; i < words.length; i += size) {
-    chunks.push(words.slice(i, i + size).join(" "));
+  
+  for (let i = 0; i < words.length; i += maxWordsPerChunk) {
+    const chunk = words.slice(i, i + maxWordsPerChunk).join(" ");
+    chunks.push(chunk);
   }
-  return chunks;
+  
+  return chunks.filter(chunk => chunk.trim().length > 0);
 }
