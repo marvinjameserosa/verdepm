@@ -5,7 +5,6 @@ import {
   BarChart2,
   Folder,
   Users2,
-  Shield,
   Settings,
   HelpCircle,
   Home,
@@ -13,6 +12,14 @@ import {
 
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
+
+const navItems = [
+  { href: "/dashboard", icon: Home, label: "Dashboard" },
+  { href: "/dashboard/projects", icon: Folder, label: "Projects" },
+  { href: "/dashboard/members", icon: Users2, label: "Members" },
+  { href: "/dashboard/reports", icon: BarChart2, label: "Reports" },
+  { href: "/dashboard/settings", icon: Settings, label: "Settings" },
+];
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -102,9 +109,6 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
               <div className="space-y-1">
                 <NavItem href="/dashboard/members" icon={Users2}>
                   Members
-                </NavItem>
-                <NavItem href="/dashboard/permissions" icon={Shield}>
-                  Permissions
                 </NavItem>
               </div>
             </div>
