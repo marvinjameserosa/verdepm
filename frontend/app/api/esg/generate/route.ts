@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
       allContent += "\n\n---Daily Logs---\n" +
         dailyLogs.map((d: any) =>
-          `Date: ${d.log_date}\nFuel: ${d.fuel_consumption_liters}\nEquipment CO₂e (kg): ${d.equipment_usage_tco2e}\nSafety TRIR: ${d.safety_incidents}\nNotes: ${d.notes}`
+          `Date: ${d.log_date}\nFuel: ${d.fuel_consumption_liters}\nEquipment CO2e (kg): ${d.equipment_usage_tco2e}\nSafety TRIR: ${d.safety_incidents}\nNotes: ${d.notes}`
         ).join("\n\n");
     }
 
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
       allContent += "\n\n---Monthly Resource Logs---\n" +
         monthlyLogs.map((m: any) =>
-          `Month: ${m.log_month}\nElectricity (kg CO₂e): ${m.electricity_usage_kwh}\nWater (m³): ${m.water_consumption_cubic_m}\nWaste (kg): ${m.waste_generated_kg}\nSubmitted On: ${m.submitted_on}`
+          `Month: ${m.log_month}\nElectricity (kg CO2e): ${m.electricity_usage_kwh}\nWater (m3): ${m.water_consumption_cubic_m}\nWaste (kg): ${m.waste_generated_kg}\nSubmitted On: ${m.submitted_on}`
         ).join("\n\n");
     }
 
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
     allContent += `\n\n---SUMMARY METRICS---
 - Total Fuel Used: ${totalFuel} liters
 - Total Electricity Usage: ${totalElectricity} kWh
-- Total Water Usage: ${totalWater} m³
+- Total Water Usage: ${totalWater} m3
 - Total Equipment Hours: ${totalEquipmentHours} hours
 - Total Waste Generated: ${totalWaste} kg
 - Safety Incidents: ${totalSafetyIncidents}
@@ -139,6 +139,19 @@ export async function POST(req: Request) {
     const fontSize = 12;
     let y = height - 50;
 
+    // Helper function to sanitize text for PDF (remove Unicode characters that WinAnsi can't encode)
+    const sanitizeTextForPDF = (text: string): string => {
+      return text
+        .replace(/₂/g, '2')  // Replace subscript 2 with regular 2
+        .replace(/₃/g, '3')  // Replace subscript 3 with regular 3
+        .replace(/₁/g, '1')  // Replace subscript 1 with regular 1
+        .replace(/°/g, ' deg')  // Replace degree symbol
+        .replace(/µ/g, 'u')  // Replace micro symbol
+        .replace(/²/g, '2')  // Replace superscript 2
+        .replace(/³/g, '3')  // Replace superscript 3
+        .replace(/[^\x00-\x7F]/g, '?'); // Replace any remaining non-ASCII characters with ?
+    };
+
     const drawText = (text: string, options?: { 
       font?: typeof font; 
       size?: number; 
@@ -146,7 +159,9 @@ export async function POST(req: Request) {
       x?: number; 
       y?: number 
     }) => {
-      page.drawText(text, { 
+      // Sanitize text before drawing
+      const sanitizedText = sanitizeTextForPDF(text);
+      page.drawText(sanitizedText, { 
         x: options?.x || 50, 
         y: options?.y ?? y, 
         size: options?.size || fontSize, 
@@ -172,8 +187,8 @@ export async function POST(req: Request) {
     const metrics = [
       ["Metric", "Value"],
       ["Fuel Used", `${totalFuel} liters`],
-      ["Electricity Emissions", `${totalElectricityEmissionsKg.toFixed(2)} kg CO₂e`],
-      ["Equipment Combustion", `${totalEquipmentEmissionsKg.toFixed(2)} kg CO₂e`],
+      ["Electricity Emissions", `${totalElectricityEmissionsKg.toFixed(2)} kg CO2e`],
+      ["Equipment Combustion", `${totalEquipmentEmissionsKg.toFixed(2)} kg CO2e`],
       ["Average Safety TRIR", safetyEntryCount > 0 ? averageSafetyTrir.toFixed(2) : "N/A"],
       ["Material Deliveries", `${materialDeliveries} records`],
       ["Material Spend", `$${materialSpend.toLocaleString()}`],
@@ -192,7 +207,9 @@ export async function POST(req: Request) {
     metrics.forEach((row, rowIndex) => {
       row.forEach((cell, colIndex) => {
         const x = tableX + colWidths.slice(0, colIndex).reduce((a, b) => a + b, 0);
-        page.drawText(cell, { 
+        // Ensure cell is converted to string and sanitized for PDF
+        const cellText = sanitizeTextForPDF(String(cell || ''));
+        page.drawText(cellText, { 
           x, 
           y: tableY, 
           size: rowIndex === 0 ? 11 : 10, 
