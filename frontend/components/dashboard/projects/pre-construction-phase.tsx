@@ -169,6 +169,17 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
   }, []);
 
   const loadData = useCallback(async () => {
+    if (!project?.id) {
+      setProjectSetupId(null);
+      setStep1Values(getDefaultStep1Values(project));
+      setDocumentPaths({});
+      setMaterials([]);
+      setTargets([]);
+      setUserId(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
     try {
@@ -211,9 +222,10 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
       const { data: setupData, error: setupError } = await supabase
         .from("preconstruction_project_setup")
         .select(
-          "id, project_name, project_address, project_description, sec_dti_path, mayors_permit_path, bir_registration_path"
+          "id, project_id, project_name, project_address, project_description, sec_dti_path, mayors_permit_path, bir_registration_path"
         )
         .eq("user_id", user.id)
+        .eq("project_id", project.id)
         .maybeSingle();
 
       if (setupError) {
@@ -458,8 +470,15 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
         const trimmedProjectAddress = values.projectAddress.trim();
         const trimmedProjectDescription = values.projectDescription.trim();
 
+        const projectIdForSetup = projectDetails?.id ?? project?.id;
+
+        if (!projectIdForSetup) {
+          throw new Error("Project context is missing. Reload the page and try again.");
+        }
+
         const payload = {
           user_id: userId,
+          project_id: projectIdForSetup,
           project_name: trimmedProjectName,
           project_address: trimmedProjectAddress,
           project_description: trimmedProjectDescription,
