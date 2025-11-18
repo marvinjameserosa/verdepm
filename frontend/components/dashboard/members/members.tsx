@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -34,16 +34,18 @@ import {
   Crown,
   Shield,
   Eye,
-  Edit,
   Trash2,
   Mail,
   Calendar,
   Search,
   MoreHorizontal,
-  Building,
-  Globe,
+  Edit,
 } from "lucide-react";
 import { InviteMemberForm } from "./InviteMemberForm";
+import type { User } from "@/types/user";
+import { EditMemberDialog } from "./EditMemberDialog";
+import { supabase } from "@/utils/supabase/client";
+import { ConfirmationDialog } from "./ConfirmationDialog";
 
 // Subscription tiers with limits
 const subscriptionTiers = {
@@ -53,89 +55,79 @@ const subscriptionTiers = {
   unlimited: { name: "Enterprise Plus", maxMembers: -1, color: "purple" },
 };
 
-// Sample data for members
-const membersData = [
-  {
-    id: 1,
-    name: "John Anderson",
-    email: "john.anderson@verdepm.com",
-    role: "Administrator",
-    department: "Management",
-    status: "Active",
-    joinDate: "2024-01-15",
-    lastActive: "2024-10-12",
-    projects: ["Verde Tower", "Crimson Bridge"],
-    avatar: "JA",
-    phone: "+1 (555) 123-4567",
-    permissions: ["All Access"],
-  },
-  {
-    id: 2,
-    name: "Sarah Chen",
-    email: "sarah.chen@verdepm.com",
-    role: "Project Manager",
-    department: "Construction",
-    status: "Active",
-    joinDate: "2024-02-20",
-    lastActive: "2024-10-12",
-    projects: ["Azure Shopping Mall", "Solaris Industrial Park"],
-    avatar: "SC",
-    phone: "+1 (555) 234-5678",
-    permissions: ["Project Management", "Reporting"],
-  },
-  {
-    id: 3,
-    name: "Michael Rodriguez",
-    email: "m.rodriguez@verdepm.com",
-    role: "ESG Analyst",
-    department: "Sustainability",
-    status: "Active",
-    joinDate: "2024-03-10",
-    lastActive: "2024-10-11",
-    projects: ["Verde Tower", "Aqua-front Residences"],
-    avatar: "MR",
-    phone: "+1 (555) 345-6789",
-    permissions: ["ESG Analytics", "Reporting"],
-  },
-  {
-    id: 4,
-    name: "Emma Thompson",
-    email: "emma.thompson@verdepm.com",
-    role: "Compliance Officer",
-    department: "Legal & Compliance",
-    status: "Active",
-    joinDate: "2024-04-05",
-    lastActive: "2024-10-10",
-    projects: ["Crimson Bridge", "Ember Hotel"],
-    avatar: "ET",
-    phone: "+1 (555) 456-7890",
-    permissions: ["Compliance Management", "Documentation"],
-  },
-  {
-    id: 5,
-    name: "David Kim",
-    email: "david.kim@contractor.com",
-    role: "Contractor",
-    department: "External",
-    status: "Pending",
-    joinDate: "2024-10-01",
-    lastActive: "2024-10-08",
-    projects: ["Verde Tower"],
-    avatar: "DK",
-    phone: "+1 (555) 567-8901",
-    permissions: ["Project View"],
-  },
-];
-
 const MembersTab = () => {
-  const [currentTier] = useState(
-    subscriptionTiers.professional
-  );
-  const [members] = useState(membersData);
+  const [currentTier] = useState(subscriptionTiers.professional);
+  const [members, setMembers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingMember, setEditingMember] = useState<User | null>(null);
+  const [deletingMember, setDeletingMember] = useState<User | null>(null);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      const { data, error } = await supabase.from("users").select("*");
+      if (error) {
+        console.error("Error fetching members:", error);
+      } else {
+        setMembers(data as User[]);
+      }
+    };
+
+    fetchMembers();
+  }, []);
+
+  const handleUpdateMember = async (updatedMember: User) => {
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        first_name: updatedMember.first_name,
+        last_name: updatedMember.last_name,
+        phone: updatedMember.phone,
+        role: updatedMember.role,
+        modified_at: new Date().toISOString(),
+      })
+      .eq("user_id", updatedMember.user_id)
+      .select();
+
+    if (error) {
+      console.error("Error updating member:", error);
+    } else if (data) {
+      setMembers((prevMembers) =>
+        prevMembers.map((member) =>
+          member.user_id === updatedMember.user_id ? (data[0] as User) : member
+        )
+      );
+    }
+    setEditingMember(null);
+  };
+
+  const handleDeleteMember = async () => {
+    if (!deletingMember) return;
+
+    const response = await fetch("/api/admin/delete-user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ userId: deletingMember.user_id }),
+    });
+
+    if (response.ok) {
+      setMembers((prevMembers) =>
+        prevMembers.filter(
+          (member) => member.user_id !== deletingMember.user_id
+        )
+      );
+    } else {
+      const error = await response.text();
+      console.error("Error deleting member:", error);
+    }
+    setDeletingMember(null);
+  };
 
   const filteredMembers = members.filter((member) =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase())
+    `${member.first_name} ${member.last_name}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   );
 
   const getStatusBadge = (status: string) => {
@@ -148,21 +140,6 @@ const MembersTab = () => {
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
-    }
-  };
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case "Administrator":
-        return <Crown className="h-4 w-4 text-purple-500" />;
-      case "Project Manager":
-        return <Building className="h-4 w-4 text-blue-500" />;
-      case "ESG Analyst":
-        return <Globe className="h-4 w-4 text-emerald-500" />;
-      case "Compliance Officer":
-        return <Shield className="h-4 w-4 text-amber-500" />;
-      default:
-        return <Eye className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -198,36 +175,6 @@ const MembersTab = () => {
         </div>
       </div>
 
-      {/* Subscription & Member Limit Section */}
-      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">
-            Subscription Plan
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-2">
-            <Badge
-              className={`bg-${currentTier.color}-100 text-${currentTier.color}-800`}
-            >
-              {currentTier.name}
-            </Badge>
-            <Crown className="h-4 w-4 text-amber-500" />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {currentTier.maxMembers === -1
-              ? "Unlimited members"
-              : `${members.length}/${currentTier.maxMembers} members used`}
-          </div>
-          {currentTier.maxMembers !== -1 && (
-            <Progress
-              value={(members.length / currentTier.maxMembers) * 100}
-              className="h-2 mt-2"
-            />
-          )}
-        </CardContent>
-      </Card>
-
       {/* Controls */}
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardContent className="p-6">
@@ -251,17 +198,17 @@ const MembersTab = () => {
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardHeader>
           <CardTitle className="text-emerald-700 dark:text-emerald-300">
-            Team Directory
+            Organization
           </CardTitle>
           <CardDescription>
-            {filteredMembers.length} of {membersData.length} members
+            {filteredMembers.length} of {members.length} members
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {filteredMembers.map((member) => (
               <div
-                key={member.id}
+                key={member.user_id}
                 className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
               >
                 <div className="flex items-center justify-between">
@@ -273,11 +220,10 @@ const MembersTab = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{member.name}</h3>
-                        {getRoleIcon(member.role)}
+                        <h3 className="font-semibold">{`${member.first_name} ${member.last_name}`}</h3>
                         <Badge
                           variant="outline"
-                          className={getStatusBadge(member.status)}
+                          className={getStatusBadge(member.status ?? "")}
                         >
                           {member.status}
                         </Badge>
@@ -290,7 +236,6 @@ const MembersTab = () => {
                           <Calendar className="h-3 w-3" />
                           Joined {member.joinDate}
                         </span>
-                        <span>Projects: {member.projects.join(", ")}</span>
                       </div>
                     </div>
                   </div>
@@ -312,16 +257,21 @@ const MembersTab = () => {
                           <Eye className="h-4 w-4 mr-2" />
                           View Profile
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setEditingMember(member)}
+                        >
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit Permissions
+                          Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Mail className="h-4 w-4 mr-2" />
                           Send Message
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => setDeletingMember(member)}
+                        >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Remove Access
                         </DropdownMenuItem>
@@ -345,6 +295,22 @@ const MembersTab = () => {
           )}
         </CardContent>
       </Card>
+
+      <EditMemberDialog
+        isOpen={!!editingMember}
+        onClose={() => setEditingMember(null)}
+        member={editingMember}
+        onUpdate={handleUpdateMember}
+      />
+      <ConfirmationDialog
+        isOpen={!!deletingMember}
+        onClose={() => setDeletingMember(null)}
+        onConfirm={handleDeleteMember}
+        title="Are you sure?"
+        description={`This will permanently remove ${
+          deletingMember?.first_name
+        } ${deletingMember?.last_name ?? ""} from the organization.`}
+      />
     </div>
   );
 };

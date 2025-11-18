@@ -39,24 +39,16 @@ import {
 } from "lucide-react";
 import { Background } from "@/components/ui/background";
 
+
 function getDummyEsgScores(project: Project) {
-  const hash = project.name
-    .split("")
-    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+  const hash = project.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   return {
     environmental: 75 + (hash % 20),
     social: 70 + (hash % 25),
     governance: 80 + (hash % 15),
-    overall:
-      Math.round(
-        ((75 + (hash % 20) + 70 + (hash % 25) + 80 + (hash % 15)) / 3) * 10
-      ) / 10,
-    status:
-      project.status === "completed"
-        ? "Completed"
-        : project.status === "in-progress"
-        ? "On Track"
-        : "Delayed",
+    overall: Math.round((75 + (hash % 20) + 70 + (hash % 25) + 80 + (hash % 15)) / 3 * 10) / 10,
+    status: project.status === 'completed' ? 'Completed' : (project.status === 'in-progress' ? 'On Track' : 'Delayed'),
   };
 }
 type EmissionsScopeDatum = {
@@ -244,6 +236,7 @@ const supplierData = {
   complete: 247,
   incomplete: 38,
 };
+
 
 export default function Dashboard() {
   const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
