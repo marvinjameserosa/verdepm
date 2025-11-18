@@ -175,40 +175,6 @@ const MembersTab = () => {
         </div>
       </div>
 
-      {/* Subscription & Member Limit Section */}
-      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">
-            Subscription Plan
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-2">
-            <Badge
-              className={`bg-${currentTier.color}-100 text-${currentTier.color}-800`}
-            >
-              {currentTier.name}
-            </Badge>
-            <Crown className="h-4 w-4 text-amber-500" />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {currentTier.maxMembers === -1
-              ? "Unlimited members"
-              : `${members.length}/${currentTier.maxMembers} members used`}
-          </div>
-          {currentTier.maxMembers !== -1 && (
-            <Progress
-              value={
-                members.length > 0
-                  ? (members.length / currentTier.maxMembers) * 100
-                  : 0
-              }
-              className="h-2 mt-2"
-            />
-          )}
-        </CardContent>
-      </Card>
-
       {/* Controls */}
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardContent className="p-6">
