@@ -13,7 +13,7 @@ import {
   PanelLeftClose,
   PanelRightClose,
 } from "lucide-react";
-import Profile01 from "./profile-01";
+import Profile01 from "./profile";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { usePathname } from "next/navigation";
@@ -243,7 +243,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
             sideOffset={8}
             className="w-[280px] sm:w-80 bg-background border-border rounded-lg shadow-lg"
           >
-            <Profile01 avatar="https://ferf1mheo22r9ira.public.blob.vercel-storage.com/avatar-01-n0x8HFv8EUetf9z6ht0wScJKoTHqf8.png" />
+            <Profile01 />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

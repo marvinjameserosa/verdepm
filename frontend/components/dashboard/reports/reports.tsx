@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -25,9 +25,17 @@ import {
   TreePine,
   Users,
   Award,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Image,
+  Video,
+  Music,
 } from "lucide-react";
 import { Background } from "@/components/ui/background";
 import { LucideIcon } from "lucide-react";
+import { StorageService } from "@/lib/storage";
+import type { FileListResponse, StorageBucket } from "@/types/storage";
 
 // Report data interfaces
 interface ESGData {
@@ -73,53 +81,7 @@ interface ReportTemplate {
 }
 
 // Documentation items from post-construction phase
-const documentationItems = [
-  {
-    name: "GRI Sustainability Report 2024",
-    type: "PDF Report",
-    size: "2.4 MB",
-    status: "Complete",
-    description: "Comprehensive ESG performance report following GRI standards",
-  },
-  {
-    name: "LEED Certification Package",
-    type: "Documentation",
-    size: "8.7 MB",
-    status: "Complete",
-    description:
-      "Complete LEED Platinum certification documents and scorecards",
-  },
-  {
-    name: "Lessons Learned Summary",
-    type: "Analysis Report",
-    size: "1.2 MB",
-    status: "Complete",
-    description: "Key insights and recommendations for future projects",
-  },
-  {
-    name: "Stakeholder Presentation",
-    type: "Presentation",
-    size: "15.3 MB",
-    status: "Complete",
-    description:
-      "Executive summary presentation for stakeholders and investors",
-  },
-  {
-    name: "Carbon Footprint Assessment",
-    type: "Environmental Report",
-    size: "3.1 MB",
-    status: "Complete",
-    description:
-      "Detailed analysis of project carbon emissions and reduction strategies",
-  },
-  {
-    name: "Social Impact Analysis",
-    type: "Impact Report",
-    size: "2.8 MB",
-    status: "Complete",
-    description: "Community engagement outcomes and social benefits assessment",
-  },
-];
+
 
 const certifications = [
   { name: "LEED Platinum", status: "Achieved", date: "2024-10-01" },
@@ -131,7 +93,7 @@ const certifications = [
 const reportTemplates = [
   {
     id: "esg-summary",
-    title: "ESG Performance Summary",
+    title: "ESG Performance Summary Report",
     description:
       "Comprehensive overview of Environmental, Social, and Governance metrics",
     icon: TreePine,
@@ -196,6 +158,139 @@ export default function ReportsTab() {
   );
   const [reportContent, setReportContent] = useState("");
   const [reportTitle, setReportTitle] = useState("");
+  const [isGeneratingESG, setIsGeneratingESG] = useState(false);
+  const [esgGenerationStatus, setEsgGenerationStatus] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+    fileName?: string;
+  }>({ type: null, message: '' });
+  const [generatedReports, setGeneratedReports] = useState<Array<{
+    name: string;
+    type: string;
+    size: string;
+    status: string;
+    description: string;
+    fileName?: string;
+    generatedAt?: string;
+  }>>([]);
+
+  // State for actual project files
+  const [projectFiles, setProjectFiles] = useState<{
+    preconstruction: FileListResponse[];
+    construction: FileListResponse[];
+    esgReports: FileListResponse[];
+  }>({
+    preconstruction: [],
+    construction: [],
+    esgReports: []
+  });
+  const [filesLoading, setFilesLoading] = useState(true);
+  const [filesError, setFilesError] = useState<string | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{
+    lastFetchTime?: string;
+    bucketValidation?: { exists: string[]; missing: string[] };
+    authStatus?: string;
+  }>({});
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { supabase } = await import('@/utils/supabase/client');
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      setDebugInfo(prev => ({
+        ...prev,
+        authStatus: user ? `Authenticated as ${user.email}` : 'Not authenticated'
+      }));
+      
+      console.log('Auth check:', { user: user?.email, error });
+    };
+    
+    checkAuth();
+    loadProjectFiles();
+  }, []);
+
+  const loadProjectFiles = async () => {
+    setFilesLoading(true);
+    setFilesError(null);
+    
+    try {
+      console.log('Loading project files...');
+      
+      // Update debug info
+      setDebugInfo(prev => ({
+        ...prev,
+        lastFetchTime: new Date().toISOString(),
+      }));
+
+      const files = await StorageService.getProjectFiles();
+      console.log('Loaded project files:', {
+        preconstruction: files.preconstructionDocs?.length || 0,
+        construction: files.constructionDocs?.length || 0,
+        esgReports: files.esgReports?.length || 0,
+      });
+      
+      setProjectFiles({
+        preconstruction: files.preconstructionDocs || [],
+        construction: files.constructionDocs || [],
+        esgReports: files.esgReports || []
+      });
+      
+      // Check if all buckets returned empty and suggest authentication
+      const totalFiles = (files.preconstructionDocs?.length || 0) + 
+                        (files.constructionDocs?.length || 0) + 
+                        (files.esgReports?.length || 0);
+                        
+      if (totalFiles === 0) {
+        console.warn('No files found in any bucket - this might be an authentication or permissions issue');
+      }
+    } catch (error) {
+      console.error('Error loading project files:', error);
+      let errorMessage = error instanceof Error ? error.message : 'Failed to load project files';
+      
+      // Provide more helpful error messages
+      if (errorMessage.includes('JWT') || errorMessage.includes('auth')) {
+        errorMessage = 'Authentication required to access project files. Please log in.';
+      } else if (errorMessage.includes('permission') || errorMessage.includes('policy')) {
+        errorMessage = 'Permission denied. Please check your access rights.';
+      }
+      
+      setFilesError(errorMessage);
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  const handleFileDownload = async (bucket: StorageBucket, fileName: string) => {
+    try {
+      const url = await StorageService.getDownloadUrl(bucket, fileName);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('Failed to download file. Please check if you have permission to access this file.');
+    }
+  };
+
+  const getFileIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'pdf': return <FileText className="h-5 w-5 text-red-500" />;
+      case 'jpg': case 'jpeg': case 'png': case 'gif': case 'webp':
+        return <Image className="h-5 w-5 text-blue-500" />;
+      case 'mp4': case 'avi': case 'mov': case 'wmv':
+        return <Video className="h-5 w-5 text-purple-500" />;
+      case 'mp3': case 'wav': case 'flac':
+        return <Music className="h-5 w-5 text-green-500" />;
+      default: return <FileText className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  const formatFileSize = (size: number) => {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -231,11 +326,10 @@ export default function ReportsTab() {
 This comprehensive ESG performance report provides an overview of our project's Environmental, Social, and Governance achievements during the post-construction phase.
 
 ## Environmental Performance
-- **Score:** ${data.environmental.score}/100 (Target: ${
-          data.environmental.target
-        })
+- **Score:** ${data.environmental.score}/100 (Target: ${data.environmental.target
+          })
 - **Status:** ${data.environmental.status.toUpperCase()}
-- **Carbon Footprint:** ${data.carbonFootprint} tCO₂e
+- **Carbon Footprint:** ${data.carbonFootprint} tCO2e
 - **Waste Recycling Rate:** ${data.wasteRecycled}%
 - **Energy Efficiency:** ${data.energyEfficiency}%
 
@@ -273,14 +367,14 @@ This comprehensive ESG performance report provides an overview of our project's 
 
 ## Carbon Emissions Overview
 
-**Total Project Emissions:** ${data.totalEmissions} tCO₂e
-**Original Target:** ${data.reductionTarget} tCO₂e
+**Total Project Emissions:** ${data.totalEmissions} tCO2e
+**Original Target:** ${data.reductionTarget} tCO2e
 **Reduction Achieved:** ${data.reductionAchieved}%
 
 ## Emissions by Scope
-- **Scope 1 (Direct):** ${data.scopes.scope1} tCO₂e
-- **Scope 2 (Electricity):** ${data.scopes.scope2} tCO₂e
-- **Scope 3 (Indirect):** ${data.scopes.scope3} tCO₂e
+- **Scope 1 (Direct):** ${data.scopes.scope1} tCO2e
+- **Scope 2 (Electricity):** ${data.scopes.scope2} tCO2e
+- **Scope 3 (Indirect):** ${data.scopes.scope3} tCO2e
 
 ## Carbon Reduction Strategies Implemented
 1. **Energy Efficient Systems:** 15% reduction in electricity consumption
@@ -319,19 +413,19 @@ This comprehensive ESG performance report provides an overview of our project's 
 **Overall Compliance Rate:** ${data.complianceRate}%
 
 ### Environmental Regulations
-- ✅ Air Quality Standards: Fully compliant
-- ✅ Water Discharge Permits: All requirements met
-- ✅ Waste Management: Properly documented and disposed
+- [PASS] Air Quality Standards: Fully compliant
+- [PASS] Water Discharge Permits: All requirements met
+- [PASS] Waste Management: Properly documented and disposed
 
 ### Building Codes & Safety
-- ✅ Fire Safety Standards: Exceeded requirements
-- ✅ Structural Engineering: Third-party verified
-- ✅ Accessibility Standards: ADA compliant
+- [PASS] Fire Safety Standards: Exceeded requirements
+- [PASS] Structural Engineering: Third-party verified
+- [PASS] Accessibility Standards: ADA compliant
 
 ### Labor & Social Compliance
-- ✅ Fair Labor Standards: All contractors verified
-- ✅ Safety Protocols: Zero incident record
-- ✅ Community Impact: All mitigation measures implemented
+- [PASS] Fair Labor Standards: All contractors verified
+- [PASS] Safety Protocols: Zero incident record
+- [PASS] Community Impact: All mitigation measures implemented
 
 ## Risk Assessment
 - **High Priority:** None identified
@@ -412,6 +506,60 @@ This report template is ready for customization. Please add your content here.
     }
   }
 
+  // Function to generate ESG report via API
+  const generateESGReport = async () => {
+    setIsGeneratingESG(true);
+    setEsgGenerationStatus({ type: null, message: '' });
+
+    try {
+      const response = await fetch('/api/esg/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: 'verde-tower-project' })
+      });
+
+      const text = await response.text();
+      console.log('ESG API response status:', response.status);
+      console.log('ESG API response text:', text);
+
+      if (!response.ok) {
+        let errorMsg = `Failed to generate ESG report: ${response.statusText}`;
+        try {
+          const errorResult = JSON.parse(text);
+          errorMsg = errorResult.error || errorMsg;
+        } catch {
+          // If parsing fails, use the raw text
+          errorMsg = text || errorMsg;
+        }
+        throw new Error(errorMsg);
+      }
+
+      const result = text ? JSON.parse(text) : {};
+
+      if (result.error) throw new Error(result.error);
+
+      const newReport = {
+        name: `ESG Environment Report - ${new Date().toLocaleDateString()}`,
+        type: "ESG Report",
+        size: "2.1 MB",
+        status: "Complete",
+        description: "AI-generated ESG Environment Report with charts, tables, and compliance insights",
+        fileName: result.pdfFileName,
+        generatedAt: new Date().toISOString()
+      };
+
+      setGeneratedReports(prev => [newReport, ...prev]);
+      setEsgGenerationStatus({ type: 'success', message: 'ESG report generated successfully!', fileName: result.pdfFileName });
+
+    } catch (error) {
+      console.error('Error generating ESG report:', error);
+      setEsgGenerationStatus({ type: 'error', message: error instanceof Error ? error.message : 'Failed to generate ESG report' });
+    } finally {
+      setIsGeneratingESG(false);
+    }
+  };
+
+
   return (
     <Background variant="subtle" className="min-h-screen">
       <div className="relative z-10 p-6">
@@ -466,48 +614,271 @@ This report template is ready for customization. Please add your content here.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {documentationItems.map((doc, index) => (
-                      <div
-                        key={index}
-                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                              <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <div>
-                              <div className="font-semibold">{doc.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {doc.description}
+                  {/* Generated Reports Section */}
+                  {generatedReports.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                          Generated Reports
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
+                        {generatedReports.map((doc, index) => (
+                          <div
+                            key={`generated-${index}`}
+                            className="p-4 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                                  <TreePine className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold">{doc.name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {doc.description}
+                                  </div>
+                                  <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                                    <span>{doc.type}</span>
+                                    <span>{doc.size}</span>
+                                    {doc.generatedAt && (
+                                      <span>Generated: {new Date(doc.generatedAt).toLocaleString()}</span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                                <span>{doc.type}</span>
-                                <span>{doc.size}</span>
+                              <div className="flex items-center gap-3">
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+                                >
+                                  {doc.status}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-lg border-emerald-300 hover:bg-emerald-50"
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download
+                                </Button>
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <Badge
-                              variant="secondary"
-                              className={getStatusBadge(doc.status)}
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Project Files from Storage */}
+                  {filesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                      <span className="ml-2 text-gray-600">Loading project files...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Pre-construction Documents */}
+                      {projectFiles.preconstruction.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                              Pre-construction Documents ({projectFiles.preconstruction.length})
+                            </h3>
+                          </div>
+                          {projectFiles.preconstruction.map((file, index) => (
+                            <div
+                              key={`preconstruction-${index}`}
+                              className="p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                             >
-                              {doc.status}
-                            </Badge>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-lg"
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/40">
+                                    {getFileIcon(file.name)}
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold">{file.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Pre-construction phase document
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                                      <span>{file.name.split('.').pop()?.toUpperCase() || 'FILE'}</span>
+                                      <span>{formatFileSize(file.metadata?.size || 0)}</span>
+                                      <span>Modified: {new Date(file.updated_at || file.created_at || Date.now()).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+                                  >
+                                    Available
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-lg border-blue-300 hover:bg-blue-50"
+                                    onClick={() => handleFileDownload('preconstruction-docs', file.name)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Construction Documents */}
+                      {projectFiles.construction.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <FileText className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                            <h3 className="text-sm font-semibold text-orange-700 dark:text-orange-300">
+                              Construction Documents ({projectFiles.construction.length})
+                            </h3>
+                          </div>
+                          {projectFiles.construction.map((file, index) => (
+                            <div
+                              key={`construction-${index}`}
+                              className="p-4 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
                             >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/40">
+                                    {getFileIcon(file.name)}
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold">{file.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Construction phase document
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                                      <span>{file.name.split('.').pop()?.toUpperCase() || 'FILE'}</span>
+                                      <span>{formatFileSize(file.metadata?.size || 0)}</span>
+                                      <span>Modified: {new Date(file.updated_at || file.created_at || Date.now()).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+                                  >
+                                    Available
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-lg border-orange-300 hover:bg-orange-50"
+                                    onClick={() => handleFileDownload('construction-docs', file.name)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* ESG Reports */}
+                      {projectFiles.esgReports.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <TreePine className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                              ESG Reports ({projectFiles.esgReports.length})
+                            </h3>
+                          </div>
+                          {projectFiles.esgReports.map((file, index) => (
+                            <div
+                              key={`esg-${index}`}
+                              className="p-4 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                                    {getFileIcon(file.name)}
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold">{file.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      ESG Environmental Report
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                                      <span>{file.name.split('.').pop()?.toUpperCase() || 'FILE'}</span>
+                                      <span>{formatFileSize(file.metadata?.size || 0)}</span>
+                                      <span>Generated: {new Date(file.updated_at || file.created_at || Date.now()).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+                                  >
+                                    Available
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-lg border-emerald-300 hover:bg-emerald-50"
+                                    onClick={() => handleFileDownload('esg-reports', file.name)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Error state */}
+                      {filesError && (
+                        <div className="text-center py-8 text-red-500">
+                          <AlertCircle className="h-12 w-12 mx-auto mb-3 text-red-300" />
+                          <h3 className="text-lg font-medium mb-2">Error loading files</h3>
+                          <p className="text-sm mb-4">{filesError}</p>
+                          <div className="flex gap-2 justify-center">
+                            <Button onClick={() => loadProjectFiles()} variant="outline" size="sm">
+                              Try Again
                             </Button>
+                            {filesError.includes('Authentication') && (
+                              <Button 
+                                onClick={() => window.location.href = '/login'} 
+                                variant="default" 
+                                size="sm"
+                              >
+                                Login
+                              </Button>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+
+                      {/* No files message */}
+                      {!filesError && projectFiles.preconstruction.length === 0 && projectFiles.construction.length === 0 && projectFiles.esgReports.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <h3 className="text-lg font-medium mb-2">No project files found</h3>
+                          <p className="text-sm mb-4">Upload documents to the Pre-construction, Construction phases, or generate ESG reports to see them here.</p>
+                          <Button onClick={() => loadProjectFiles()} variant="outline" size="sm">
+                            <Loader2 className="h-4 w-4 mr-2" />
+                            Refresh Files
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Users className="h-5 w-5 text-blue-600" />
@@ -522,12 +893,136 @@ This report template is ready for customization. Please add your content here.
                       </div>
                     </div>
                   </div>
+
+                  {/* Debug Panel */}
+                  <div className="mt-4">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowDebugInfo(!showDebugInfo)}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      {showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info'}
+                    </Button>
+                    
+                    {showDebugInfo && (
+                      <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded border text-xs font-mono">
+                        <div className="space-y-2">
+                          <div>
+                            <strong>Last Fetch:</strong> {debugInfo.lastFetchTime || 'Never'}
+                          </div>
+                          <div>
+                            <strong>Loading:</strong> {filesLoading ? 'Yes' : 'No'}
+                          </div>
+                          <div>
+                            <strong>Error:</strong> {filesError || 'None'}
+                          </div>
+                          <div>
+                            <strong>Auth Status:</strong> {debugInfo.authStatus || 'Checking...'}
+                          </div>
+                          <div>
+                            <strong>File Counts:</strong> Pre: {projectFiles.preconstruction.length}, Construction: {projectFiles.construction.length}, ESG: {projectFiles.esgReports.length}
+                          </div>
+                          <Button onClick={() => loadProjectFiles()} size="sm" className="mt-2">
+                            Force Refresh
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
+
+
             {/* Generate Reports Tab */}
             <TabsContent value="generate" className="space-y-6 mt-6">
+              {/* ESG Report Generation Section */}
+              <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                    <TreePine className="h-5 w-5" />
+                    ESG Report Generator
+                  </CardTitle>
+                  <CardDescription>
+                    Generate comprehensive ESG Environment Report with AI analysis
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="font-semibold text-emerald-700 dark:text-emerald-300 mb-2">
+                        AI-Powered ESG Analysis
+                      </div>
+                      <div className="text-sm text-muted-foreground mb-3">
+                        Generate a comprehensive ESG Environment Report including carbon footprint analysis,
+                        compliance metrics, and sustainability insights based on your project data.
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>* Real-time data integration</span>
+                        <span>* AI-powered insights</span>
+                        <span>* PDF export ready</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <Button
+                        onClick={generateESGReport}
+                        disabled={isGeneratingESG}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-6"
+                      >
+                        {isGeneratingESG ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generating Report...
+                          </>
+                        ) : (
+                          <>
+                            <TreePine className="h-4 w-4 mr-2" />
+                            Generate ESG Report
+                          </>
+                        )}
+                      </Button>
+
+                      {esgGenerationStatus.type && (
+                        <div className={`px-3 py-2 rounded-lg text-sm ${esgGenerationStatus.type === 'success'
+                            ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                            : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                          }`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            {esgGenerationStatus.type === 'success' ? (
+                              <CheckCircle className="h-4 w-4" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4" />
+                            )}
+                            <span>{esgGenerationStatus.message}</span>
+                          </div>
+                          {esgGenerationStatus.type === 'error' && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                onClick={generateESGReport}
+                                disabled={isGeneratingESG}
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-7 border-red-300 hover:bg-red-50"
+                              >
+                                Try Again
+                              </Button>
+                              <span className="text-xs opacity-75">
+                                {esgGenerationStatus.message.includes('quota')
+                                  ? 'Wait a few minutes before retrying'
+                                  : 'Check your connection and try again'
+                                }
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Report Templates */}
               {!selectedReport && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

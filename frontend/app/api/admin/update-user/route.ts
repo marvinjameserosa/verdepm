@@ -1,14 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { createClient as createServerClient } from "@/utils/supabase/server";
+import {
+  createClient as createServerClient,
+  createAdminClient,
+} from "@/utils/supabase/server";
 
 export async function PUT(request: Request) {
   const { userId, email, firstname, lastname, phone, role } =
     await request.json();
 
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Missing user identifier." },
+      { status: 400 }
+    );
+  }
+
   // Get the current authenticated user (the one making the modification)
   const supabase = await createServerClient();
-  const { data: { user: currentUser }, error: authCheckError } = await supabase.auth.getUser();
+  const {
+    data: { user: currentUser },
+    error: authCheckError,
+  } = await supabase.auth.getUser();
 
   if (authCheckError || !currentUser) {
     return NextResponse.json(
@@ -17,34 +29,23 @@ export async function PUT(request: Request) {
     );
   }
 
-  // Ensure environment variables are available
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAdmin = createAdminClient();
+  const shouldUpdateAuth = Boolean(email || phone || firstname || lastname);
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return NextResponse.json(
-      { error: "Supabase environment variables are not set." },
-      { status: 500 }
-    );
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-
-  // Update the user in auth.users if email changed
-  if (email) {
+  if (shouldUpdateAuth) {
+    const displayName = [firstname, lastname].filter(Boolean).join(" ");
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       {
-        email: email,
-        phone: phone,
-        user_metadata: {
-          display_name: `${firstname} ${lastname}`,
-        },
+        ...(email ? { email } : {}),
+        ...(phone ? { phone } : {}),
+        ...(displayName
+          ? {
+              user_metadata: {
+                display_name: displayName,
+              },
+            }
+          : {}),
       }
     );
 
@@ -55,18 +56,20 @@ export async function PUT(request: Request) {
   }
 
   // Update the corresponding row in public.users
-  const { error: profileError } = await supabaseAdmin
+  const { data: updatedUser, error: profileError } = await supabaseAdmin
     .from("users")
     .update({
       first_name: firstname,
       last_name: lastname,
-      phone: phone,
-      email: email,
-      role: role,
+      phone,
+      email,
+      role,
       modified_by: currentUser.id, // Track who modified the user
       modified_at: new Date().toISOString(),
     })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("*")
+    .single();
 
   if (profileError) {
     console.error("Error updating user profile:", profileError);
@@ -75,5 +78,6 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({
     message: "User updated successfully.",
+    user: updatedUser,
   });
 }
