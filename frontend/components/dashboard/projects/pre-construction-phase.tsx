@@ -11,6 +11,7 @@ import {
 } from "./preconstruction/types";
 import { supabase } from "@/utils/supabase/client";
 import type { Project } from "@/types/project";
+import { mapProjectFromSupabase } from "./project-helpers";
 
 type Step1InitialValues = NonNullable<
   Parameters<typeof Step1ProjectSetup>[0]["initialValues"]
@@ -128,9 +129,10 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 
 type PreConstructionPhaseProps = {
   project?: Project;
+  onProjectUpdated?: (project: Project) => void;
 };
 
-export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
+export function PreConstructionPhase({ project, onProjectUpdated }: PreConstructionPhaseProps) {
   const [projectDetails, setProjectDetails] = useState<Project | null>(project ?? null);
   const [step, setStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
@@ -488,6 +490,8 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
           setProjectSetupId(data.id);
         }
 
+        let nextProjectState: Project | null = null;
+
         if (projectDetails?.id) {
           const nextSlug = await ensureUniqueProjectSlug();
           const updates: Record<string, string | null> = {};
@@ -511,41 +515,38 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
 
           if (Object.keys(updates).length > 0) {
             const {
-              data: updatedRows,
+              data: updatedProjectRow,
               error: projectUpdateError,
             } = await supabase
               .from("projects")
               .update(updates)
               .eq("id", projectDetails.id)
-              .select("id, name, slug, location, description")
-              .limit(1);
+              .select(
+                "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
+              )
+              .maybeSingle();
 
             if (projectUpdateError) {
               throw projectUpdateError;
             }
 
-            if (!updatedRows || updatedRows.length === 0) {
+            if (!updatedProjectRow) {
               throw new Error(
                 "Project could not be updated. Check permissions or that the project still exists."
               );
             }
 
-            const [updatedProject] = updatedRows;
-
-            setProjectDetails((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    ...updatedProject,
-                    description:
-                      (updatedProject.description as string | null | undefined) ??
-                      null,
-                    location:
-                      (updatedProject.location as string | null | undefined) ??
-                      null,
-                  }
-                : prev
-            );
+            const mappedProject = mapProjectFromSupabase(updatedProjectRow);
+            nextProjectState = mappedProject;
+            setProjectDetails(mappedProject);
+          } else {
+            nextProjectState = {
+              ...projectDetails,
+              name: trimmedProjectName,
+              location: trimmedProjectAddress,
+              description: trimmedProjectDescription || null,
+            };
+            setProjectDetails(nextProjectState);
           }
         }
 
@@ -556,6 +557,10 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
           projectDescription: trimmedProjectDescription,
           documentPaths: nextDocPaths,
         });
+
+        if (nextProjectState) {
+          onProjectUpdated?.(nextProjectState);
+        }
 
         setSuccessMessage("Project details saved.");
         nextStep();
@@ -570,7 +575,7 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         setIsSavingStep1(false);
       }
     },
-    [documentPaths, nextStep, projectDetails, projectSetupId, resetFeedback, userId]
+    [documentPaths, nextStep, onProjectUpdated, projectDetails, projectSetupId, resetFeedback, userId]
   );
 
   const handleSaveTarget = useCallback(

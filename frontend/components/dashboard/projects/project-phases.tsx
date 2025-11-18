@@ -8,9 +8,10 @@ import type { Project } from "@/types/project";
 
 type ProjectPhasesProps = {
   project: Project;
+  onProjectUpdated?: (project: Project) => void;
 };
 
-export default function ProjectPhases({ project }: ProjectPhasesProps) {
+export default function ProjectPhases({ project, onProjectUpdated }: ProjectPhasesProps) {
   return (
     <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl border border-white/20 shadow-2xl p-6">
       <Tabs defaultValue="pre-construction" className="w-full">
@@ -35,7 +36,7 @@ export default function ProjectPhases({ project }: ProjectPhasesProps) {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pre-construction" className="mt-6">
-          <PreConstructionPhase project={project} />
+          <PreConstructionPhase project={project} onProjectUpdated={onProjectUpdated} />
         </TabsContent>
         <TabsContent value="construction" className="mt-6">
           <ConstructionPhase project={project} />
