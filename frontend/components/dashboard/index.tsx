@@ -60,12 +60,15 @@ type EmissionsScopeDatum = {
 type ConstructionDailyLogRecord = {
   fuel_consumption_liters: number | null;
   equipment_usage_tco2e: number | null;
+  scope1: number | null;
 };
 
 type ConstructionMonthlyLogRecord = {
   electricity_usage_kwh: number | null;
   water_consumption_cubic_m: number | null;
   waste_generated_kg: number | null;
+  scope2?: number | null;
+  scope3?: number | null;
 };
 
 const FUEL_EMISSION_FACTOR_KG_PER_LITER = 2.68;
@@ -262,10 +265,10 @@ export default function Dashboard() {
       const [dailyResult, monthlyResult] = await Promise.all([
         supabase
           .from("construction_daily_log")
-          .select("fuel_consumption_liters, equipment_usage_tco2e"),
+          .select("fuel_consumption_liters, equipment_usage_tco2e, scope1"),
         supabase
           .from("construction_monthly_log")
-          .select("electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg"),
+          .select("elec_placeholder, water_placeholder, waste_placeholder, electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, scope2, scope3"),
       ]);
 
       if (!isMounted) {
@@ -279,7 +282,7 @@ export default function Dashboard() {
       const monthlyLogs =
         monthlyResult.error || !monthlyResult.data
           ? []
-          : (monthlyResult.data as ConstructionMonthlyLogRecord[]);
+          : (monthlyResult.data as any[]);
 
       if ((dailyResult.error && monthlyResult.error) || (dailyLogs.length === 0 && monthlyLogs.length === 0)) {
         setEmissionsScopeData(DEFAULT_SCOPE_DATA);
@@ -292,45 +295,58 @@ export default function Dashboard() {
       const toNumber = (value: number | null) =>
         typeof value === "number" && Number.isFinite(value) ? value : 0;
 
-      let scope1Kg = 0;
-      let aggregatedElectricityEmissionsKg = 0;
-      let aggregatedWater = 0;
-      let aggregatedWasteKg = 0;
+      let scope1_tco2e = 0;
+      let scope2_tco2e = 0;
+      let scope3_tco2e = 0;
 
+      // Use the stored scope1 column if available (already tCO2e), otherwise fallback to calculation (kg -> tCO2e)
       for (const log of dailyLogs) {
-        const fuelLiters = toNumber(log.fuel_consumption_liters);
-        const equipmentEmissionKg = toNumber(log.equipment_usage_tco2e);
-        const fuelEmissionKg = fuelLiters * FUEL_EMISSION_FACTOR_KG_PER_LITER;
-        scope1Kg += fuelEmissionKg + equipmentEmissionKg;
+        if (typeof log.scope1 === 'number' && Number.isFinite(log.scope1)) {
+          scope1_tco2e += log.scope1;
+        } else {
+          // fallback for legacy rows (kg -> tCO2e)
+          const fuelLiters = toNumber(log.fuel_consumption_liters);
+          const equipmentEmissionKg = toNumber(log.equipment_usage_tco2e);
+          const fuelEmissionKg = fuelLiters * FUEL_EMISSION_FACTOR_KG_PER_LITER;
+          scope1_tco2e += (fuelEmissionKg + equipmentEmissionKg) / 1000;
+        }
       }
 
+      // Use the most recent monthly log for dashboard cards
+      const latestMonthly = monthlyLogs.length > 0 ? monthlyLogs[monthlyLogs.length - 1] : null;
+      const elecPlaceholder = latestMonthly?.elec_placeholder ?? 0;
+      const waterPlaceholder = latestMonthly?.water_placeholder ?? 0;
+      const wastePlaceholder = latestMonthly?.waste_placeholder ?? 0;
+
+      setTotalElectricityEmissionsKg(elecPlaceholder);
+      setTotalWaterConsumption(waterPlaceholder);
+      setTotalWasteGeneratedKg(wastePlaceholder);
+
+      // Still aggregate scope2 and scope3 for the breakdown
       for (const log of monthlyLogs) {
         const electricity = toNumber(log.electricity_usage_kwh);
         const water = toNumber(log.water_consumption_cubic_m);
         const wasteKg = toNumber(log.waste_generated_kg);
 
-        aggregatedElectricityEmissionsKg += electricity;
-        aggregatedWater += water;
-        aggregatedWasteKg += wasteKg;
+        if (typeof log.scope2 === 'number' && Number.isFinite(log.scope2)) {
+          scope2_tco2e += log.scope2;
+        } else {
+          scope2_tco2e += electricity;
+        }
+        if (typeof log.scope3 === 'number' && Number.isFinite(log.scope3)) {
+          scope3_tco2e += log.scope3;
+        }
       }
 
-      const scope1_tco2e = scope1Kg / 1000;
-      const scope2_tco2e = aggregatedElectricityEmissionsKg / 1000;
-      const scope3_water_tco2e = (aggregatedWater * WATER_EMISSION_FACTOR) / 1000;
-      const scope3_waste_tco2e = aggregatedWasteKg / 1000;
-      const scope3_total_tco2e = scope3_water_tco2e + scope3_waste_tco2e;
-      const total = scope1_tco2e + scope2_tco2e + scope3_total_tco2e;
+      const total = scope1_tco2e + scope2_tco2e + scope3_tco2e;
       const percentage = (value: number) =>
         total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0;
 
       setEmissionsScopeData([
         { name: "Scope 1", value: scope1_tco2e, percentage: percentage(scope1_tco2e) },
         { name: "Scope 2", value: scope2_tco2e, percentage: percentage(scope2_tco2e) },
-        { name: "Scope 3", value: scope3_total_tco2e, percentage: percentage(scope3_total_tco2e) },
+        { name: "Scope 3", value: scope3_tco2e, percentage: percentage(scope3_tco2e) },
       ]);
-      setTotalElectricityEmissionsKg(aggregatedElectricityEmissionsKg);
-      setTotalWaterConsumption(aggregatedWater);
-      setTotalWasteGeneratedKg(aggregatedWasteKg);
     };
 
     fetchEmissions();
@@ -425,9 +441,10 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-emerald-700">
-                  {(totalEmissions / 1000).toFixed(1)}k
+                  {totalEmissions.toFixed(1)}
+                  <span className="text-base font-normal text-muted-foreground ml-1">tCO₂e</span>
                 </div>
-                <p className="text-xs text-muted-foreground">tCO₂e this year</p>
+                <p className="text-xs text-muted-foreground">Combined Scope 1, 2 & 3</p>
                 <div className="flex items-center mt-2">
                   {/*<TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
                   <span className="text-xs text-emerald-600">
@@ -836,7 +853,7 @@ export default function Dashboard() {
           </div> */}
 
           {/* ESG Detailed Breakdown Tabs */}
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+          {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 ESG Detailed Analysis
@@ -846,8 +863,8 @@ export default function Dashboard() {
                 indicators
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="environmental" className="w-full">
+            <CardContent> 
+              <Tabs defaultValue="environmental" className="w-full"> 
                 {/* <TabsList className="grid w-full grid-cols-3 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50">
                   <TabsTrigger
                     value="environmental"
@@ -869,7 +886,7 @@ export default function Dashboard() {
                   </TabsTrigger>
                 </TabsList> */}
 
-                <TabsContent value="environmental" className="space-y-4 mt-6">
+                {/*<TabsContent value="environmental" className="space-y-4 mt-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
                       <h4 className="font-semibold mb-3 text-emerald-700 dark:text-emerald-300">
@@ -1105,10 +1122,10 @@ export default function Dashboard() {
                 </TabsContent>
               </Tabs>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Emissions Trends */}
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+          {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
             <CardHeader>
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 Emissions Over Time
@@ -1189,7 +1206,7 @@ export default function Dashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <div className="grid grid-cols-1 gap-6">
             {/* Project Breakdown */}
