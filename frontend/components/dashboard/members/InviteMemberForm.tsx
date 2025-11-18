@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function InviteMemberForm() {
+export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstname, setFirstname] = useState("");
@@ -32,7 +32,7 @@ export function InviteMemberForm() {
     phone?: string[];
     role?: string[];
   }>({});
-  
+
   const { inviteMember, loading, error, data } = useInviteMember();
   const successMessage =
     data && typeof data === "object" && "message" in data
@@ -44,7 +44,7 @@ export function InviteMemberForm() {
     setValidationErrors({});
 
     // Validate with Zod
-    const result = inviteMemberSchema.safeParse({
+    const validationResult = inviteMemberSchema.safeParse({
       email,
       password,
       firstname,
@@ -53,19 +53,28 @@ export function InviteMemberForm() {
       role,
     });
 
-    if (!result.success) {
-      setValidationErrors(result.error.flatten().fieldErrors);
+    if (!validationResult.success) {
+      setValidationErrors(validationResult.error.flatten().fieldErrors);
       return;
     }
 
-    await inviteMember(email, password, firstname, lastname, phone, role);
-    if (!error) {
+    const inviteResult = await inviteMember(
+      email,
+      password,
+      firstname,
+      lastname,
+      phone,
+      role
+    );
+
+    if (inviteResult && !error) {
       setEmail("");
       setPassword("");
       setFirstname("");
       setLastname("");
       setPhone("");
       setRole("");
+      onSuccess();
     }
   };
 
@@ -86,7 +95,9 @@ export function InviteMemberForm() {
             className={validationErrors.firstname ? "border-red-500" : ""}
           />
           {validationErrors.firstname && (
-            <p className="text-xs text-red-600 mt-1">{validationErrors.firstname[0]}</p>
+            <p className="text-xs text-red-600 mt-1">
+              {validationErrors.firstname[0]}
+            </p>
           )}
         </div>
         <div>
@@ -99,7 +110,9 @@ export function InviteMemberForm() {
             className={validationErrors.lastname ? "border-red-500" : ""}
           />
           {validationErrors.lastname && (
-            <p className="text-xs text-red-600 mt-1">{validationErrors.lastname[0]}</p>
+            <p className="text-xs text-red-600 mt-1">
+              {validationErrors.lastname[0]}
+            </p>
           )}
         </div>
       </div>
@@ -114,7 +127,9 @@ export function InviteMemberForm() {
           className={validationErrors.email ? "border-red-500" : ""}
         />
         {validationErrors.email && (
-          <p className="text-xs text-red-600 mt-1">{validationErrors.email[0]}</p>
+          <p className="text-xs text-red-600 mt-1">
+            {validationErrors.email[0]}
+          </p>
         )}
       </div>
       <div>
@@ -126,18 +141,26 @@ export function InviteMemberForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="********"
-            className={`pr-10 ${validationErrors.password ? "border-red-500" : ""}`}
+            className={`pr-10 ${
+              validationErrors.password ? "border-red-500" : ""
+            }`}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
           </button>
         </div>
         {validationErrors.password && (
-          <p className="text-xs text-red-600 mt-1">{validationErrors.password[0]}</p>
+          <p className="text-xs text-red-600 mt-1">
+            {validationErrors.password[0]}
+          </p>
         )}
       </div>
       <div>
@@ -151,13 +174,17 @@ export function InviteMemberForm() {
           className={validationErrors.phone ? "border-red-500" : ""}
         />
         {validationErrors.phone && (
-          <p className="text-xs text-red-600 mt-1">{validationErrors.phone[0]}</p>
+          <p className="text-xs text-red-600 mt-1">
+            {validationErrors.phone[0]}
+          </p>
         )}
       </div>
       <div>
         <Label htmlFor="role">Role</Label>
         <Select onValueChange={setRole} value={role}>
-          <SelectTrigger className={validationErrors.role ? "border-red-500" : ""}>
+          <SelectTrigger
+            className={validationErrors.role ? "border-red-500" : ""}
+          >
             <SelectValue placeholder="Select a role" />
           </SelectTrigger>
           <SelectContent className="z-100">
@@ -167,13 +194,17 @@ export function InviteMemberForm() {
           </SelectContent>
         </Select>
         {validationErrors.role && (
-          <p className="text-xs text-red-600 mt-1">{validationErrors.role[0]}</p>
+          <p className="text-xs text-red-600 mt-1">
+            {validationErrors.role[0]}
+          </p>
         )}
       </div>
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? "Creating User..." : "Create User"}
       </Button>
-      {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
+      {successMessage && (
+        <p className="text-sm text-green-600">{successMessage}</p>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
   );
