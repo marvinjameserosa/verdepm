@@ -192,6 +192,7 @@ export default function ReportsTab() {
     bucketValidation?: { exists: string[]; missing: string[] };
     authStatus?: string;
   }>({});
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
 
   // Check authentication on component mount
   useEffect(() => {
@@ -263,13 +264,126 @@ export default function ReportsTab() {
   };
 
   const handleFileDownload = async (bucket: StorageBucket, fileName: string) => {
+    const fileKey = `${bucket}-${fileName}`;
+    setDownloadingFiles(prev => new Set(prev).add(fileKey));
+    
     try {
       const url = await StorageService.getDownloadUrl(bucket, fileName);
       window.open(url, '_blank');
     } catch (error) {
       console.error('Error downloading file:', error);
       alert('Failed to download file. Please check if you have permission to access this file.');
+    } finally {
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileKey);
+        return newSet;
+      });
     }
+  };
+
+  const handleGeneratedReportDownload = async (fileName: string) => {
+    const fileKey = `esg-reports-${fileName}`;
+    setDownloadingFiles(prev => new Set(prev).add(fileKey));
+    
+    try {
+      console.log('Downloading generated report:', fileName);
+      
+      // For generated ESG reports, they're stored in the 'esg-reports' bucket
+      const url = await StorageService.getDownloadUrl('esg-reports', fileName);
+      
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.target = '_blank'; // Fallback to opening in new tab if download fails
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      console.log('Download initiated successfully');
+      
+      // Show a success message briefly (optional - you can remove if too intrusive)
+      // setTimeout(() => {
+      //   alert('Download started successfully!');
+      // }, 500);
+    } catch (error) {
+      console.error('Error downloading generated report:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to download generated report.';
+      if (error instanceof Error) {
+        if (error.message.includes('not found') || error.message.includes('404')) {
+          errorMessage = 'Report file not found. It may have been moved or deleted.';
+        } else if (error.message.includes('permission') || error.message.includes('403')) {
+          errorMessage = 'Permission denied. Please check your access rights.';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        }
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileKey);
+        return newSet;
+      });
+    }
+  };
+
+  const handleExportToPDF = () => {
+    // Convert markdown content to PDF (simplified version)
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${reportTitle}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+            h1 { color: #059669; border-bottom: 2px solid #059669; }
+            h2 { color: #047857; margin-top: 30px; }
+            h3 { color: #065f46; }
+            pre { background: #f3f4f6; padding: 10px; border-radius: 4px; }
+            strong { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <pre>${reportContent}</pre>
+        </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const handleCopyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(reportContent);
+      alert('Report content copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = reportContent;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Report content copied to clipboard!');
+    }
+  };
+
+  const handleShareViaEmail = () => {
+    const subject = encodeURIComponent(reportTitle);
+    const body = encodeURIComponent(`Please find the attached report:\n\n${reportTitle}\n\nGenerated on: ${new Date().toLocaleDateString()}\n\n---\n\n${reportContent}`);
+    const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
+    window.location.href = mailtoLink;
   };
 
   const getFileIcon = (fileName: string) => {
@@ -658,10 +772,22 @@ This report template is ready for customization. Please add your content here.
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="rounded-lg border-emerald-300 hover:bg-emerald-50"
+                                  className={`rounded-lg border-emerald-300 hover:bg-emerald-50 ${
+                                    !doc.fileName ? 'opacity-50 cursor-not-allowed' : ''
+                                  }`}
+                                  onClick={() => doc.fileName && handleGeneratedReportDownload(doc.fileName)}
+                                  disabled={!doc.fileName || downloadingFiles.has(`esg-reports-${doc.fileName}`)}
+                                  title={!doc.fileName ? 'File not available for download' : 'Download generated report'}
                                 >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Download
+                                  {downloadingFiles.has(`esg-reports-${doc.fileName}`) ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Download className="h-4 w-4 mr-2" />
+                                  )}
+                                  {downloadingFiles.has(`esg-reports-${doc.fileName}`) 
+                                    ? 'Downloading...' 
+                                    : doc.fileName ? 'Download' : 'Preparing...'
+                                  }
                                 </Button>
                               </div>
                             </div>
@@ -722,9 +848,14 @@ This report template is ready for customization. Please add your content here.
                                     variant="outline"
                                     className="rounded-lg border-blue-300 hover:bg-blue-50"
                                     onClick={() => handleFileDownload('preconstruction-docs', file.name)}
+                                    disabled={downloadingFiles.has(`preconstruction-docs-${file.name}`)}
                                   >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download
+                                    {downloadingFiles.has(`preconstruction-docs-${file.name}`) ? (
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4 mr-2" />
+                                    )}
+                                    {downloadingFiles.has(`preconstruction-docs-${file.name}`) ? 'Downloading...' : 'Download'}
                                   </Button>
                                 </div>
                               </div>
@@ -776,9 +907,14 @@ This report template is ready for customization. Please add your content here.
                                     variant="outline"
                                     className="rounded-lg border-orange-300 hover:bg-orange-50"
                                     onClick={() => handleFileDownload('construction-docs', file.name)}
+                                    disabled={downloadingFiles.has(`construction-docs-${file.name}`)}
                                   >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download
+                                    {downloadingFiles.has(`construction-docs-${file.name}`) ? (
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4 mr-2" />
+                                    )}
+                                    {downloadingFiles.has(`construction-docs-${file.name}`) ? 'Downloading...' : 'Download'}
                                   </Button>
                                 </div>
                               </div>
@@ -830,9 +966,14 @@ This report template is ready for customization. Please add your content here.
                                     variant="outline"
                                     className="rounded-lg border-emerald-300 hover:bg-emerald-50"
                                     onClick={() => handleFileDownload('esg-reports', file.name)}
+                                    disabled={downloadingFiles.has(`esg-reports-${file.name}`)}
                                   >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download
+                                    {downloadingFiles.has(`esg-reports-${file.name}`) ? (
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4 mr-2" />
+                                    )}
+                                    {downloadingFiles.has(`esg-reports-${file.name}`) ? 'Downloading...' : 'Download'}
                                   </Button>
                                 </div>
                               </div>
@@ -1193,19 +1334,50 @@ This report template is ready for customization. Please add your content here.
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        <Button className="w-full" variant="outline">
+                        <Button 
+                          className="w-full" 
+                          variant="outline"
+                          onClick={() => window.open('data:text/html;charset=utf-8,' + encodeURIComponent(`
+                            <!DOCTYPE html>
+                            <html>
+                              <head>
+                                <title>${reportTitle}</title>
+                                <style>
+                                  body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+                                  h1 { color: #059669; border-bottom: 2px solid #059669; }
+                                  h2 { color: #047857; margin-top: 30px; }
+                                  h3 { color: #065f46; }
+                                  pre { background: #f3f4f6; padding: 10px; border-radius: 4px; white-space: pre-wrap; }
+                                </style>
+                              </head>
+                              <body><pre>${reportContent}</pre></body>
+                            </html>
+                          `), '_blank')}
+                        >
                           <Eye className="h-4 w-4 mr-2" />
                           Preview Report
                         </Button>
-                        <Button className="w-full" variant="outline">
+                        <Button 
+                          className="w-full" 
+                          variant="outline"
+                          onClick={handleExportToPDF}
+                        >
                           <Download className="h-4 w-4 mr-2" />
                           Export as PDF
                         </Button>
-                        <Button className="w-full" variant="outline">
+                        <Button 
+                          className="w-full" 
+                          variant="outline"
+                          onClick={handleShareViaEmail}
+                        >
                           <Share2 className="h-4 w-4 mr-2" />
                           Share via Email
                         </Button>
-                        <Button className="w-full" variant="outline">
+                        <Button 
+                          className="w-full" 
+                          variant="outline"
+                          onClick={handleCopyToClipboard}
+                        >
                           <Copy className="h-4 w-4 mr-2" />
                           Copy to Clipboard
                         </Button>

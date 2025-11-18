@@ -3,7 +3,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { isRedirectError } from "next/dist/client/components/redirect";
 import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Login } from "@/app/login/actions";
 import { loginSchema } from "@/types/auth";
@@ -63,7 +62,7 @@ export function LoginForm() {
         return;
       }
     } catch (error) {
-      if (isRedirectError(error)) {
+      if (error instanceof Error && error.name === "NEXT_REDIRECT") {
         throw error;
       }
       console.error("Login failed", error);

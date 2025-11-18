@@ -24,9 +24,6 @@ interface MenuItem {
 const defaultProfile = {
   name: "Eugene An",
   role: "Prompt Engineer",
-  avatar:
-    "https://ferf1mheo22r9ira.public.blob.vercel-storage.com/avatar-02-albo9B0tWOSLXCVZh9rX9KFxXIVWMr.png",
-  subscription: "Free Trial",
 };
 
 type ProfileState = typeof defaultProfile;
@@ -59,7 +56,7 @@ export default function Profile01() {
       const authUser = userResponse.user;
       const { data: userProfile, error: profileError } = await supabase
         .from("users")
-        .select("first_name, last_name, role, avatar")
+        .select("first_name, last_name, role")
         .eq("user_id", authUser.id)
         .maybeSingle();
 
@@ -84,13 +81,6 @@ export default function Profile01() {
           userProfile?.role ||
           authUser.user_metadata?.role ||
           defaultProfile.role,
-        avatar:
-          userProfile?.avatar ||
-          authUser.user_metadata?.avatar_url ||
-          defaultProfile.avatar,
-        subscription:
-          (authUser.user_metadata?.subscription as string | undefined) ||
-          defaultProfile.subscription,
       });
 
       setIsLoading(false);
@@ -120,13 +110,6 @@ export default function Profile01() {
 
   const menuItems: MenuItem[] = [
     {
-      label: "Subscription",
-      value: profile.subscription,
-      href: "#",
-      icon: <CreditCard className="w-4 h-4" />,
-      external: false,
-    },
-    {
       label: "Settings",
       href: "#",
       icon: <Settings className="w-4 h-4" />,
@@ -143,36 +126,23 @@ export default function Profile01() {
     <div className="w-full max-w-sm mx-auto">
       <div className="relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
         <div className="relative px-6 pt-12 pb-6">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="relative shrink-0">
-              <Image
-                src={profile.avatar}
-                alt={profile.name}
-                width={72}
-                height={72}
-                className="rounded-full ring-4 ring-white dark:ring-zinc-900 object-cover"
-              />
-              <div className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-zinc-900" />
-            </div>
-
-            {/* Profile Info */}
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                {isLoading ? (
-                  <span className="inline-block h-4 w-32 animate-pulse rounded bg-muted" />
-                ) : (
-                  profile.name
-                )}
-              </h2>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                {isLoading ? (
-                  <span className="inline-block h-3 w-24 animate-pulse rounded bg-muted" />
-                ) : (
-                  profile.role
-                )}
-              </p>
-            </div>
+          <div className="flex-1 mb-8">
+            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+              {isLoading ? (
+                <span className="inline-block h-4 w-32 animate-pulse rounded bg-muted" />
+              ) : (
+                profile.name
+              )}
+            </h2>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              {isLoading ? (
+                <span className="inline-block h-3 w-24 animate-pulse rounded bg-muted" />
+              ) : (
+                profile.role
+              )}
+            </p>
           </div>
+
           {errorMessage && (
             <p className="mb-4 text-sm text-destructive" role="status">
               {errorMessage}
