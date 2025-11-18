@@ -29,36 +29,40 @@ export async function POST(req: Request) {
   const dailyLogs = dailyLogsResult.data;
   const monthlyLogs = monthlyLogsResult.data;
 
-  let totalFuel = 0,
-      totalElectricity = 0,
+    let totalFuel = 0,
+      totalElectricityEmissionsKg = 0,
       totalWater = 0,
-      totalEquipmentHours = 0,
+      totalEquipmentEmissionsKg = 0,
       totalWaste = 0,
-      totalSafetyIncidents = 0;
+      safetyTrirSum = 0,
+      safetyEntryCount = 0;
 
   if (dailyLogs) {
     dailyLogs.forEach(d => {
       totalFuel += d.fuel_consumption_liters || 0;
-      totalEquipmentHours += d.equipment_usage_hours || 0;
-      totalSafetyIncidents += d.safety_incidents || 0;
+      totalEquipmentEmissionsKg += d.equipment_usage_tco2e || 0;
+      if (typeof d.safety_incidents === "number" && Number.isFinite(d.safety_incidents)) {
+        safetyTrirSum += d.safety_incidents;
+        safetyEntryCount += 1;
+      }
     });
 
     allContent += "\n\n---Daily Logs---\n" +
       dailyLogs.map(d =>
-        `Date: ${d.log_date}\nFuel: ${d.fuel_consumption_liters}\nEquipment Hours: ${d.equipment_usage_hours}\nSafety Incidents: ${d.safety_incidents}\nNotes: ${d.notes}`
+        `Date: ${d.log_date}\nFuel: ${d.fuel_consumption_liters}\nEquipment CO₂e (kg): ${d.equipment_usage_tco2e}\nSafety TRIR: ${d.safety_incidents}\nNotes: ${d.notes}`
       ).join("\n\n");
   }
 
   if (monthlyLogs) {
     monthlyLogs.forEach(m => {
-      totalElectricity += m.electricity_usage_kwh || 0;
+      totalElectricityEmissionsKg += m.electricity_usage_kwh || 0;
       totalWater += m.water_consumption_cubic_m || 0;
       totalWaste += m.waste_generated_kg || 0;
     });
 
     allContent += "\n\n---Monthly Resource Logs---\n" +
-      monthlyLogs.map(m =>
-        `Month: ${m.log_month}\nElectricity (kWh): ${m.electricity_usage_kwh}\nWater (m³): ${m.water_consumption_cubic_m}\nWaste (kg): ${m.waste_generated_kg}\nSubmitted On: ${m.submitted_on}`
+        monthlyLogs.map(m =>
+          `Month: ${m.log_month}\nElectricity (kg CO₂e): ${m.electricity_usage_kwh}\nWater (m³): ${m.water_consumption_cubic_m}\nWaste (kg): ${m.waste_generated_kg}\nSubmitted On: ${m.submitted_on}`
       ).join("\n\n");
   }
 
@@ -85,6 +89,8 @@ export async function POST(req: Request) {
         `Material Plan: ${m.material_plan}\nSupplier: ${m.actual_supplier}\nQuantity & Unit: ${m.quantity_and_unit}\nTotal Cost: ${m.total_cost}\nDelivery Fuel Used: ${m.delivery_fuel_used_liters}\nReceipt Path: ${m.receipt_path}`
       ).join("\n\n");
   }
+
+  const averageSafetyTrir = safetyEntryCount > 0 ? safetyTrirSum / safetyEntryCount : 0;
 
   const esgReportText = await generateReport(allContent);
 
@@ -114,7 +120,9 @@ export async function POST(req: Request) {
     ["Water efficiency", "0%"],
     ["Waste diversion", "0%"],
     ["Fuel Used", `${totalFuel} liters`],
-    ["Electricity Used", `${totalElectricity} kWh`],
+    ["Electricity Emissions", `${totalElectricityEmissionsKg.toFixed(2)} kg CO₂e`],
+    ["Equipment Combustion", `${totalEquipmentEmissionsKg.toFixed(2)} kg CO₂e`],
+    ["Average Safety TRIR", safetyEntryCount > 0 ? averageSafetyTrir.toFixed(2) : "N/A"],
     ["Material Deliveries", `${materialDeliveries} records`],
     ["Material Spend", `$${materialSpend.toLocaleString()}`],
     ["Total delivery fuel used", `${totalDeliveryFuel.toLocaleString()} liters`]
@@ -135,9 +143,8 @@ export async function POST(req: Request) {
 
   // Section: Top Suppliers
   drawText("Top Delivery Partners", { font: fontBold, size: 14, color: rgb(0,0.3,0.3) });
-  Object.keys(supplierMap).forEach(s => {
-    const info = supplierMap[s];
-    drawText(`${s}: ${info.count} deliveries • $${info.spend.toLocaleString()} • ${info.fuelUsed.toLocaleString()} L fuel`);
+  Object.entries(supplierMap).forEach(([supplierName, info]) => {
+    drawText(`${supplierName}: ${info.count} deliveries • $${info.spend.toLocaleString()} • ${info.fuelUsed.toLocaleString()} L fuel`);
   });
   y -= 20;
 

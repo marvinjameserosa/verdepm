@@ -43,7 +43,7 @@ type ConstructionDailyLog = {
   id: string;
   log_date: string;
   fuel_consumption_liters: number | null;
-  equipment_usage_hours: number | null;
+  equipment_usage_tco2e: number | null;
   safety_incidents: number | null;
 };
 
@@ -72,13 +72,12 @@ const DAILY_TARGETS = {
 };
 
 const MONTHLY_TARGETS = {
-  electricity: 2000,
+  electricity: 2000 * 0.507, // kg CO2e equivalent of planned electricity usage
   water: 10,
   waste: 250,
 };
 
 const FUEL_CO2_FACTOR = 2.68;
-const ELECTRICITY_CO2_FACTOR = 0.4;
 const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1", "#22d3ee"];
 
 type PostConstructionPhaseProps = {
@@ -102,7 +101,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
 
       const dailyPromise = supabase
         .from("construction_daily_log")
-        .select("id, log_date, fuel_consumption_liters, equipment_usage_hours, safety_incidents")
+        .select("id, log_date, fuel_consumption_liters, equipment_usage_tco2e, safety_incidents")
         .eq("project_id", project.id)
         .order("log_date", { ascending: true });
 
@@ -165,21 +164,32 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
   }, [project.id]);
 
   const totals = useMemo(() => {
-    const accumulator = { fuel: 0, electricity: 0, water: 0, equipment: 0, waste: 0, incidents: 0 };
+    let fuel = 0;
+    let electricity = 0;
+    let water = 0;
+    let equipment = 0;
+    let waste = 0;
+    let safetyTrirSum = 0;
+    let safetyEntries = 0;
 
     for (const log of dailyLogs) {
-      accumulator.fuel += log.fuel_consumption_liters ?? 0;
-      accumulator.equipment += log.equipment_usage_hours ?? 0;
-      accumulator.incidents += log.safety_incidents ?? 0;
+      fuel += log.fuel_consumption_liters ?? 0;
+      equipment += log.equipment_usage_tco2e ?? 0;
+      if (typeof log.safety_incidents === "number" && Number.isFinite(log.safety_incidents)) {
+        safetyTrirSum += log.safety_incidents;
+        safetyEntries += 1;
+      }
     }
 
     for (const log of monthlyLogs) {
-      accumulator.electricity += log.electricity_usage_kwh ?? 0;
-      accumulator.water += log.water_consumption_cubic_m ?? 0;
-      accumulator.waste += log.waste_generated_kg ?? 0;
+      electricity += log.electricity_usage_kwh ?? 0;
+      water += log.water_consumption_cubic_m ?? 0;
+      waste += log.waste_generated_kg ?? 0;
     }
 
-    return accumulator;
+    const incidents = safetyEntries > 0 ? safetyTrirSum / safetyEntries : 0;
+
+    return { fuel, electricity, water, equipment, waste, incidents };
   }, [dailyLogs, monthlyLogs]);
 
   const totalDays = dailyLogs.length;
@@ -197,13 +207,13 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
 
   const carbonActualTons = useMemo(() => {
     const fuelCarbonKg = totals.fuel * FUEL_CO2_FACTOR;
-    const electricityCarbonKg = totals.electricity * ELECTRICITY_CO2_FACTOR;
+    const electricityCarbonKg = totals.electricity;
     return (fuelCarbonKg + electricityCarbonKg) / 1000;
   }, [totals.electricity, totals.fuel]);
 
   const carbonTargetTons = useMemo(() => {
     const fuelTargetKg = targetTotals.fuel * FUEL_CO2_FACTOR;
-    const electricityTargetKg = targetTotals.electricity * ELECTRICITY_CO2_FACTOR;
+    const electricityTargetKg = targetTotals.electricity;
     return (fuelTargetKg + electricityTargetKg) / 1000;
   }, [targetTotals.electricity, targetTotals.fuel]);
 
@@ -235,10 +245,10 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         status: getPerformanceStatus(totals.fuel, targetTotals.fuel, true),
       },
       {
-        category: "Electricity Usage",
+        category: "Electricity Emissions",
         actual: totals.electricity,
         target: targetTotals.electricity,
-        unit: "kWh",
+        unit: "kg CO₂e",
         status: getPerformanceStatus(totals.electricity, targetTotals.electricity, true),
       },
       {
@@ -256,10 +266,10 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         status: getPerformanceStatus(totals.waste, targetTotals.waste, true),
       },
       {
-        category: "Safety Incidents",
+        category: "Safety TRIR",
         actual: totals.incidents,
         target: 0,
-        unit: "incidents",
+        unit: "TRIR",
         status: getPerformanceStatus(totals.incidents, 0, true),
       },
     ];
@@ -277,8 +287,8 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
       },
       {
         phase: "Electricity",
-        planned: Number(((targetTotals.electricity * ELECTRICITY_CO2_FACTOR) / 1000).toFixed(2)),
-        actual: Number(((totals.electricity * ELECTRICITY_CO2_FACTOR) / 1000).toFixed(2)),
+        planned: Number((targetTotals.electricity / 1000).toFixed(2)),
+        actual: Number((totals.electricity / 1000).toFixed(2)),
       },
       {
         phase: "Waste Handling",
@@ -350,10 +360,10 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         continue;
       }
       const entry = ensureEntry(date);
-      const electricityCarbon = (log.electricity_usage_kwh ?? 0) * ELECTRICITY_CO2_FACTOR;
-      entry.carbon += electricityCarbon / 1000;
+      const electricityEmissionsKg = log.electricity_usage_kwh ?? 0;
+      entry.carbon += electricityEmissionsKg / 1000;
       entry.waste += log.waste_generated_kg ?? 0;
-      entry.energy += log.electricity_usage_kwh ?? 0;
+      entry.energy += electricityEmissionsKg;
     }
 
     return Array.from(map.entries())
@@ -388,7 +398,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         benchmark: 85,
       },
       {
-        metric: "Electricity Efficiency",
+        metric: "Electricity Emissions",
         score: scoreFor(totals.electricity, targetTotals.electricity),
         benchmark: 85,
       },
@@ -403,7 +413,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         benchmark: 90,
       },
       {
-        metric: "Site Safety",
+        metric: "Site Safety (TRIR)",
         score: totals.incidents > 0 ? 60 : 100,
         benchmark: 95,
       },
@@ -454,13 +464,13 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
     strengths.push("Fuel consumption stayed within planned limits.");
   }
   if (totals.electricity <= targetTotals.electricity) {
-    strengths.push("Electricity usage met the project efficiency target.");
+    strengths.push("Electricity emissions met the project efficiency target.");
   }
   if (totals.waste <= targetTotals.waste) {
     strengths.push("Waste generation remained under the diversion goal.");
   }
   if (totals.incidents === 0) {
-    strengths.push("Zero safety incidents recorded during construction.");
+    strengths.push("TRIR held at zero recordable incidents across logged days.");
   }
   if (strengths.length === 0) {
     strengths.push("Project team maintained consistent reporting cadence.");
@@ -471,7 +481,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
     improvements.push("Review heavy equipment usage to reduce daily fuel burn.");
   }
   if (totals.electricity > targetTotals.electricity) {
-    improvements.push("Tune temporary power loads to cut excess electricity demand.");
+    improvements.push("Tune temporary power loads to drive down electricity emissions.");
   }
   if (totals.water > targetTotals.water) {
     improvements.push("Expand on-site water reuse to stay within conservation goals.");
@@ -480,7 +490,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
     improvements.push("Increase sorting efficiency to boost landfill diversion.");
   }
   if (totals.incidents > 0) {
-    improvements.push("Refresh safety toolbox talks to avoid repeat incidents.");
+    improvements.push("Refresh safety toolbox talks to bring the TRIR back down.");
   }
   if (improvements.length === 0) {
     improvements.push("Continue monitoring trends to preserve strong performance.");
@@ -656,7 +666,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
                 <div className="text-center p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
                   <Zap className="h-8 w-8 text-purple-600 mx-auto mb-2" />
                   <div className="text-2xl font-bold text-purple-700">{formatNumber(energyReduction, 0)}%</div>
-                  <div className="text-sm text-muted-foreground">Energy reduction</div>
+                  <div className="text-sm text-muted-foreground">Electricity emission reduction</div>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-muted-foreground">
@@ -665,8 +675,8 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
                   {formatNumber(totals.fuel, 1)} liters
                 </div>
                 <div>
-                  <span className="font-semibold text-foreground block">Electricity Used</span>
-                  {formatNumber(totals.electricity, 1)} kWh
+                  <span className="font-semibold text-foreground block">Electricity Emissions</span>
+                  {formatNumber(totals.electricity, 1)} kg CO₂e
                 </div>
                 <div>
                   <span className="font-semibold text-foreground block">Material Deliveries</span>
@@ -777,7 +787,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
               <CardTitle className="text-emerald-700 dark:text-emerald-300">
                 Monthly Performance Trends
               </CardTitle>
-              <CardDescription>Carbon, waste, and electricity progression</CardDescription>
+              <CardDescription>Carbon, waste, and electricity emissions progression</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -788,7 +798,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
                   <Tooltip />
                   <Line type="monotone" dataKey="carbon" stroke="#10b981" strokeWidth={2} name="Carbon (tCO₂e)" />
                   <Line type="monotone" dataKey="waste" stroke="#3b82f6" strokeWidth={2} name="Waste (kg)" />
-                  <Line type="monotone" dataKey="energy" stroke="#f59e0b" strokeWidth={2} name="Electricity (kWh)" />
+                  <Line type="monotone" dataKey="energy" stroke="#f59e0b" strokeWidth={2} name="Electricity (kg CO₂e)" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
