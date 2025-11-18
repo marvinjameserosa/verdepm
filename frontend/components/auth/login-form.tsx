@@ -1,9 +1,8 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Login } from "@/app/login/actions";
 import { loginSchema } from "@/types/auth";
@@ -15,7 +14,8 @@ import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
-  const errorMessage = searchParams.get("message");
+  const queryMessage = searchParams.get("message");
+  const [authError, setAuthError] = useState<string | null>(queryMessage);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -23,11 +23,23 @@ export function LoginForm() {
     email?: string[];
     password?: string[];
   }>({});
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    setAuthError(queryMessage);
+  }, [queryMessage]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
     setErrors({});
+    setAuthError(null);
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email") as string;
@@ -40,18 +52,39 @@ export function LoginForm() {
       return;
     }
 
-    await Login(formData);
+    try {
+      const result = await Login(formData);
+
+      if (result && "error" in result && result.error) {
+        if (isMountedRef.current) {
+          setAuthError(result.error);
+        }
+        return;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "NEXT_REDIRECT") {
+        throw error;
+      }
+      console.error("Login failed", error);
+      if (isMountedRef.current) {
+        setAuthError("Unexpected error. Please try again.");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
   }
   return (
     <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5">
       {/* Error Message Alert */}
-      {errorMessage && (
+      {authError && (
         <div
           className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg relative flex items-start gap-2 sm:gap-3 animate-in slide-in-from-top-1"
           role="alert"
         >
           <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mt-0.5" />
-          <span className="text-xs sm:text-sm font-medium">{errorMessage}</span>
+          <span className="text-xs sm:text-sm font-medium">{authError}</span>
         </div>
       )}
 

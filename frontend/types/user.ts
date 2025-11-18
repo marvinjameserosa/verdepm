@@ -23,3 +23,12 @@ export type User = {
   avatar?: string;
   permissions?: string[];
 };
+
+export const USER_ROLE_OPTIONS: User["role"][] = [
+  "Administrator",
+  "Project Manager",
+  "ESG Analyst",
+  "Compliance Officer",
+  "Contractor",
+  "Viewer",
+];

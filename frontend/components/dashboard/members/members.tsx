@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -42,7 +42,7 @@ import {
   Edit,
 } from "lucide-react";
 import { InviteMemberForm } from "./InviteMemberForm";
-import type { User } from "@/types/user";
+import { USER_ROLE_OPTIONS, type User } from "@/types/user";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { supabase } from "@/utils/supabase/client";
 import { ConfirmationDialog } from "./ConfirmationDialog";
@@ -61,6 +61,15 @@ const MembersTab = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [deletingMember, setDeletingMember] = useState<User | null>(null);
+  const availableRoles = useMemo(() => {
+    const unique = new Set<User["role"]>();
+    members.forEach((member) => {
+      if (member.role) {
+        unique.add(member.role);
+      }
+    });
+    return unique.size ? Array.from(unique) : USER_ROLE_OPTIONS;
+  }, [members]);
 
   const fetchMembers = async () => {
     const { data, error } = await supabase.from("users").select("*");
@@ -76,28 +85,43 @@ const MembersTab = () => {
   }, []);
 
   const handleUpdateMember = async (updatedMember: User) => {
-    const { data, error } = await supabase
-      .from("users")
-      .update({
-        first_name: updatedMember.first_name,
-        last_name: updatedMember.last_name,
-        phone: updatedMember.phone,
-        role: updatedMember.role,
-        modified_at: new Date().toISOString(),
-      })
-      .eq("user_id", updatedMember.user_id)
-      .select();
+    try {
+      const response = await fetch("/api/admin/update-user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: updatedMember.user_id,
+          email: updatedMember.email,
+          firstname: updatedMember.first_name,
+          lastname: updatedMember.last_name,
+          phone: updatedMember.phone,
+          role: updatedMember.role,
+        }),
+      });
 
-    if (error) {
-      console.error("Error updating member:", error);
-    } else if (data) {
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage = payload?.error ?? "Failed to update member.";
+        throw new Error(errorMessage);
+      }
+
+      const updatedUser = (payload?.user as User) ?? updatedMember;
+
       setMembers((prevMembers) =>
         prevMembers.map((member) =>
-          member.user_id === updatedMember.user_id ? (data[0] as User) : member
+          member.user_id === updatedMember.user_id
+            ? { ...member, ...updatedMember, ...updatedUser }
+            : member
         )
       );
+    } catch (error) {
+      console.error("Error updating member:", error);
+    } finally {
+      setEditingMember(null);
     }
-    setEditingMember(null);
   };
 
   const handleDeleteMember = async () => {
@@ -251,23 +275,12 @@ const MembersTab = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Profile
-                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setEditingMember(member)}
                         >
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          Edit Account
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Mail className="h-4 w-4 mr-2" />
-                          Send Message
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-red-600"
                           onClick={() => setDeletingMember(member)}
@@ -301,6 +314,7 @@ const MembersTab = () => {
         onClose={() => setEditingMember(null)}
         member={editingMember}
         onUpdate={handleUpdateMember}
+        availableRoles={availableRoles}
       />
       <ConfirmationDialog
         isOpen={!!deletingMember}

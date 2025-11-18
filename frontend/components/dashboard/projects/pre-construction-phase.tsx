@@ -27,6 +27,16 @@ const DEFAULT_STEP1_VALUES: Step1InitialValues = {
   documentPaths: {},
 };
 
+const generateSlug = (input: string) =>
+  input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const buildSlugFallback = (identifier: string) =>
+  `project-${identifier.replace(/[^a-z0-9]+/gi, "").slice(0, 12).toLowerCase() || crypto.randomUUID().slice(0, 12)}`;
+
 const getDefaultStep1Values = (project?: Project): Step1InitialValues => ({
   projectName: project?.name ?? DEFAULT_STEP1_VALUES.projectName,
   projectAddress: project?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
@@ -121,25 +131,40 @@ type PreConstructionPhaseProps = {
 };
 
 export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
+  const [projectDetails, setProjectDetails] = useState<Project | null>(project ?? null);
   const [step, setStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
   const [projectSetupId, setProjectSetupId] = useState<string | null>(null);
   const [step1Values, setStep1Values] = useState<Step1InitialValues>(() =>
-    getDefaultStep1Values(project)
+    getDefaultStep1Values(projectDetails ?? undefined)
   );
   const [targets, setTargets] = useState<EsgTarget[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [documentPaths, setDocumentPaths] = useState<DocumentPathMap>({});
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSavingStep1, setIsSavingStep1] = useState(false);
   const [isSavingTarget, setIsSavingTarget] = useState(false);
   const [isSavingMaterial, setIsSavingMaterial] = useState(false);
+  const [deletingTargetId, setDeletingTargetId] = useState<string | null>(null);
+  const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(null);
+  const [isSubmittingForApproval, setIsSubmittingForApproval] = useState(false);
+  const [submittedForApprovalAt, setSubmittedForApprovalAt] = useState<string | null>(null);
+  const [supportsSubmittedAtColumn, setSupportsSubmittedAtColumn] = useState(false);
+  const [supportsApprovalStatusColumn, setSupportsApprovalStatusColumn] = useState(false);
+
+  useEffect(() => {
+    setProjectDetails(project ?? null);
+  }, [project]);
 
   const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, 3)), []);
   const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
 
-  const resetErrors = useCallback(() => setErrorMessage(null), []);
+  const resetFeedback = useCallback(() => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+  }, []);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -352,12 +377,49 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         return;
       }
 
-      resetErrors();
+      resetFeedback();
       setIsSavingStep1(true);
 
       try {
         const setupId = projectSetupId ?? crypto.randomUUID();
         const storage = supabase.storage.from("preconstruction-docs");
+
+        const ensureUniqueProjectSlug = async () => {
+          if (!projectDetails?.id) {
+            return null;
+          }
+
+          const baseSlug =
+            generateSlug(values.projectName) ||
+            projectDetails.slug ||
+            buildSlugFallback(projectDetails.id);
+
+          const { data, error } = await supabase
+            .from("projects")
+            .select("id, slug")
+            .ilike("slug", `${baseSlug}%`);
+
+          if (error) {
+            throw error;
+          }
+
+          const conflictingSlugs = (data ?? [])
+            .filter((row) => row.id !== projectDetails.id && typeof row.slug === "string")
+            .map((row) => row.slug);
+
+          if (!conflictingSlugs.includes(baseSlug)) {
+            return baseSlug;
+          }
+
+          let suffix = 2;
+          let candidate = `${baseSlug}-${suffix}`;
+          while (conflictingSlugs.includes(candidate)) {
+            suffix += 1;
+            candidate = `${baseSlug}-${suffix}`;
+          }
+
+          return candidate;
+        };
 
         const uploads = await Promise.all(
           (
@@ -390,11 +452,15 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
           nextDocPaths[key] = path;
         });
 
+        const trimmedProjectName = values.projectName.trim();
+        const trimmedProjectAddress = values.projectAddress.trim();
+        const trimmedProjectDescription = values.projectDescription.trim();
+
         const payload = {
           user_id: userId,
-          project_name: values.projectName,
-          project_address: values.projectAddress,
-          project_description: values.projectDescription,
+          project_name: trimmedProjectName,
+          project_address: trimmedProjectAddress,
+          project_description: trimmedProjectDescription,
           sec_dti_path: nextDocPaths["sec-dti"] ?? null,
           mayors_permit_path: nextDocPaths["mayors-permit"] ?? null,
           bir_registration_path: nextDocPaths.bir ?? null,
@@ -422,14 +488,76 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
           setProjectSetupId(data.id);
         }
 
+        if (projectDetails?.id) {
+          const nextSlug = await ensureUniqueProjectSlug();
+          const updates: Record<string, string | null> = {};
+
+          if (projectDetails.name !== trimmedProjectName) {
+            updates.name = trimmedProjectName;
+          }
+
+          if (projectDetails.location !== trimmedProjectAddress) {
+            updates.location = trimmedProjectAddress;
+          }
+
+          const incomingDescription = trimmedProjectDescription || null;
+          if ((projectDetails.description ?? null) !== incomingDescription) {
+            updates.description = incomingDescription;
+          }
+
+          if (nextSlug && nextSlug !== projectDetails.slug) {
+            updates.slug = nextSlug;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            const {
+              data: updatedRows,
+              error: projectUpdateError,
+            } = await supabase
+              .from("projects")
+              .update(updates)
+              .eq("id", projectDetails.id)
+              .select("id, name, slug, location, description")
+              .limit(1);
+
+            if (projectUpdateError) {
+              throw projectUpdateError;
+            }
+
+            if (!updatedRows || updatedRows.length === 0) {
+              throw new Error(
+                "Project could not be updated. Check permissions or that the project still exists."
+              );
+            }
+
+            const [updatedProject] = updatedRows;
+
+            setProjectDetails((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    ...updatedProject,
+                    description:
+                      (updatedProject.description as string | null | undefined) ??
+                      null,
+                    location:
+                      (updatedProject.location as string | null | undefined) ??
+                      null,
+                  }
+                : prev
+            );
+          }
+        }
+
         setDocumentPaths(nextDocPaths);
         setStep1Values({
-          projectName: values.projectName,
-          projectAddress: values.projectAddress,
-          projectDescription: values.projectDescription,
+          projectName: trimmedProjectName,
+          projectAddress: trimmedProjectAddress,
+          projectDescription: trimmedProjectDescription,
           documentPaths: nextDocPaths,
         });
 
+        setSuccessMessage("Project details saved.");
         nextStep();
       } catch (error) {
         console.error("Failed to save project setup", error);
@@ -442,7 +570,7 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         setIsSavingStep1(false);
       }
     },
-    [documentPaths, nextStep, projectSetupId, resetErrors, userId]
+    [documentPaths, nextStep, projectDetails, projectSetupId, resetFeedback, userId]
   );
 
   const handleSaveTarget = useCallback(
@@ -452,7 +580,7 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         return;
       }
 
-      resetErrors();
+      resetFeedback();
 
       if (!target.category || !target.goal || !target.metric) {
         setErrorMessage("Please complete the target details before saving.");
@@ -497,7 +625,7 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         setIsSavingTarget(false);
       }
     },
-    [projectSetupId, resetErrors]
+    [projectSetupId, resetFeedback]
   );
 
   const handleAddMaterial = useCallback(
@@ -507,7 +635,7 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         return;
       }
 
-      resetErrors();
+      resetFeedback();
 
       if (
         !material.category ||
@@ -606,7 +734,75 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
         setIsSavingMaterial(false);
       }
     },
-    [projectSetupId, resetErrors]
+    [projectSetupId, resetFeedback]
+  );
+
+  const handleDeleteTarget = useCallback(
+    async (targetId: string) => {
+      if (!projectSetupId) {
+        setErrorMessage("Save project setup before modifying ESG targets.");
+        return;
+      }
+
+      resetFeedback();
+      setDeletingTargetId(targetId);
+
+      try {
+        const { error } = await supabase
+          .from("preconstruction_esg_target")
+          .delete()
+          .eq("id", targetId)
+          .eq("project_setup_id", projectSetupId);
+
+        if (error) {
+          throw error;
+        }
+
+        setTargets((prev) => prev.filter((target) => target.id !== targetId));
+      } catch (error) {
+        console.error("Failed to delete ESG target", error);
+        setErrorMessage(
+          error instanceof Error ? error.message : "Unable to delete ESG target."
+        );
+      } finally {
+        setDeletingTargetId(null);
+      }
+    },
+    [projectSetupId, resetFeedback]
+  );
+
+  const handleDeleteMaterial = useCallback(
+    async (materialId: string) => {
+      if (!projectSetupId) {
+        setErrorMessage("Save project setup before modifying sourcing materials.");
+        return;
+      }
+
+      resetFeedback();
+      setDeletingMaterialId(materialId);
+
+      try {
+        const { error } = await supabase
+          .from("preconstruction_material")
+          .delete()
+          .eq("id", materialId)
+          .eq("project_setup_id", projectSetupId);
+
+        if (error) {
+          throw error;
+        }
+
+        setMaterials((prev) => prev.filter((material) => material.id !== materialId));
+      } catch (error) {
+        console.error("Failed to delete material", error);
+        setErrorMessage(
+          error instanceof Error ? error.message : "Unable to delete material."
+        );
+      } finally {
+        setDeletingMaterialId(null);
+      }
+    },
+    [projectSetupId, resetFeedback]
   );
 
   const step1InitialValues = useMemo<Step1InitialValues>(
@@ -639,6 +835,11 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
       {errorMessage && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {errorMessage}
+        </div>
+      )}
+      {successMessage && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          {successMessage}
         </div>
       )}
       <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 p-4 space-y-3">
@@ -710,10 +911,14 @@ export function PreConstructionPhase({ project }: PreConstructionPhaseProps) {
               onBack={prevStep}
               onSaveTarget={handleSaveTarget}
               onAddMaterial={handleAddMaterial}
+              onDeleteTarget={handleDeleteTarget}
+              onDeleteMaterial={handleDeleteMaterial}
               targets={targets}
               materials={materials}
               isSavingTarget={isSavingTarget}
               isSavingMaterial={isSavingMaterial}
+              deletingTargetId={deletingTargetId}
+              deletingMaterialId={deletingMaterialId}
             />
           )}
           {step === 3 && (

@@ -16,9 +16,11 @@ import {
   ChevronsUpDown,
   GanttChartSquare,
   Layers,
+  Loader2,
   PlusCircle,
   Search,
   Target,
+  Trash2,
   Upload,
 } from "lucide-react";
 import {
@@ -65,10 +67,14 @@ type Props = {
   onBack: () => void;
   onSaveTarget: (target: TargetForm) => Promise<void>;
   onAddMaterial: (material: MaterialDraft, specSheet?: File | null) => Promise<void>;
+  onDeleteTarget: (targetId: string) => Promise<void>;
+  onDeleteMaterial: (materialId: string) => Promise<void>;
   targets: EsgTarget[];
   materials: Material[];
   isSavingTarget: boolean;
   isSavingMaterial: boolean;
+  deletingTargetId?: string | null;
+  deletingMaterialId?: string | null;
 };
 
 export default function Step2TargetSetting({
@@ -76,10 +82,14 @@ export default function Step2TargetSetting({
   onBack,
   onSaveTarget,
   onAddMaterial,
+  onDeleteTarget,
+  onDeleteMaterial,
   targets,
   materials,
   isSavingTarget,
   isSavingMaterial,
+  deletingTargetId,
+  deletingMaterialId,
 }: Props) {
   const [targetForm, setTargetForm] = useState<TargetForm>({
     category: "",
@@ -269,15 +279,36 @@ export default function Step2TargetSetting({
                     {targets.map((target) => (
                       <li
                         key={target.id}
-                        className="flex flex-col rounded-lg border border-gray-200 dark:border-gray-800 p-3 bg-white/80 dark:bg-gray-900/60"
+                        className="flex flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-800 p-3 bg-white/80 dark:bg-gray-900/60"
                       >
-                        <span className="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
-                          {target.category}
-                        </span>
-                        <span className="text-sm font-semibold">{target.goal}</span>
-                        <span className="text-xs text-muted-foreground">
-                          Metric: {target.metric}
-                        </span>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <span className="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+                              {target.category}
+                            </span>
+                            <span className="block text-sm font-semibold">{target.goal}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              Metric: {target.metric}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
+                            onClick={() => {
+                              void onDeleteTarget(target.id);
+                            }}
+                            disabled={isSavingTarget || deletingTargetId === target.id}
+                            aria-label="Delete target"
+                          >
+                            {deletingTargetId === target.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -512,17 +543,38 @@ export default function Step2TargetSetting({
                         key={material.id}
                         className="border border-gray-200 dark:border-gray-800 rounded-lg p-3 text-sm bg-white/80 dark:bg-gray-900/60"
                       >
-                        <div className="font-semibold text-emerald-700 dark:text-emerald-200">
-                          {material.name}
-                        </div>
-                        <div className="text-muted-foreground">
-                          {material.supplier} • {material.unit}
-                        </div>
-                        <div className="text-xs text-muted-foreground flex flex-wrap gap-2">
-                          <span>Status: {material.status}</span>
-                          {material.credentials && (
-                            <span>• {material.credentials}</span>
-                          )}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="font-semibold text-emerald-700 dark:text-emerald-200">
+                              {material.name}
+                            </div>
+                            <div className="text-muted-foreground">
+                              {material.supplier} • {material.unit ?? "--"}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex flex-wrap gap-2">
+                              <span>Status: {material.status}</span>
+                              {material.credentials && (
+                                <span>• {material.credentials}</span>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
+                            onClick={() => {
+                              void onDeleteMaterial(material.id);
+                            }}
+                            disabled={isSavingMaterial || deletingMaterialId === material.id}
+                            aria-label="Delete material"
+                          >
+                            {deletingMaterialId === material.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     ))}
