@@ -21,10 +21,13 @@ export async function POST(req: Request) {
     allContent += `\n\n---FILE: ${f.name}---\n${rawText}`;
   }
 
-  const { data: dailyLogs } = await supabase
-    .from("construction_daily_log")
-    .select("*")
-    .eq("project_id", projectId);
+  const [dailyLogsResult, monthlyLogsResult] = await Promise.all([
+    supabase.from("construction_daily_log").select("*").eq("project_id", projectId),
+    supabase.from("construction_monthly_log").select("*").eq("project_id", projectId),
+  ]);
+
+  const dailyLogs = dailyLogsResult.data;
+  const monthlyLogs = monthlyLogsResult.data;
 
   let totalFuel = 0,
       totalElectricity = 0,
@@ -36,16 +39,26 @@ export async function POST(req: Request) {
   if (dailyLogs) {
     dailyLogs.forEach(d => {
       totalFuel += d.fuel_consumption_liters || 0;
-      totalElectricity += d.electricity_usage_kwh || 0;
-      totalWater += d.water_consumption_cubic_m || 0;
       totalEquipmentHours += d.equipment_usage_hours || 0;
-      totalWaste += d.todays_waste_generated_kg || 0;
       totalSafetyIncidents += d.safety_incidents || 0;
     });
 
     allContent += "\n\n---Daily Logs---\n" +
       dailyLogs.map(d =>
-        `Date: ${d.log_date}\nFuel: ${d.fuel_consumption_liters}\nElectricity: ${d.electricity_usage_kwh}\nWater: ${d.water_consumption_cubic_m}\nEquipment Hours: ${d.equipment_usage_hours}\nWaste: ${d.todays_waste_generated_kg}\nSafety Incidents: ${d.safety_incidents}\nNotes: ${d.notes}`
+        `Date: ${d.log_date}\nFuel: ${d.fuel_consumption_liters}\nEquipment Hours: ${d.equipment_usage_hours}\nSafety Incidents: ${d.safety_incidents}\nNotes: ${d.notes}`
+      ).join("\n\n");
+  }
+
+  if (monthlyLogs) {
+    monthlyLogs.forEach(m => {
+      totalElectricity += m.electricity_usage_kwh || 0;
+      totalWater += m.water_consumption_cubic_m || 0;
+      totalWaste += m.waste_generated_kg || 0;
+    });
+
+    allContent += "\n\n---Monthly Resource Logs---\n" +
+      monthlyLogs.map(m =>
+        `Month: ${m.log_month}\nElectricity (kWh): ${m.electricity_usage_kwh}\nWater (m³): ${m.water_consumption_cubic_m}\nWaste (kg): ${m.waste_generated_kg}\nSubmitted On: ${m.submitted_on}`
       ).join("\n\n");
   }
 

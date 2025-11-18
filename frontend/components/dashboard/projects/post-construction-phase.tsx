@@ -43,11 +43,17 @@ type ConstructionDailyLog = {
   id: string;
   log_date: string;
   fuel_consumption_liters: number | null;
+  equipment_usage_hours: number | null;
+  safety_incidents: number | null;
+};
+
+type ConstructionMonthlyLog = {
+  id: string;
+  log_month: string;
   electricity_usage_kwh: number | null;
   water_consumption_cubic_m: number | null;
-  equipment_usage_hours: number | null;
-  todays_waste_generated_kg: number | null;
-  safety_incidents: number | null;
+  waste_generated_kg: number | null;
+  submitted_on: string | null;
 };
 
 type ConstructionMaterialLog = {
@@ -63,6 +69,9 @@ type ConstructionMaterialLog = {
 
 const DAILY_TARGETS = {
   fuel: 500,
+};
+
+const MONTHLY_TARGETS = {
   electricity: 2000,
   water: 10,
   waste: 250,
@@ -81,6 +90,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dailyLogs, setDailyLogs] = useState<ConstructionDailyLog[]>([]);
+  const [monthlyLogs, setMonthlyLogs] = useState<ConstructionMonthlyLog[]>([]);
   const [materialLogs, setMaterialLogs] = useState<ConstructionMaterialLog[]>([]);
 
   useEffect(() => {
@@ -92,11 +102,15 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
 
       const dailyPromise = supabase
         .from("construction_daily_log")
-        .select(
-          "id, log_date, fuel_consumption_liters, electricity_usage_kwh, water_consumption_cubic_m, equipment_usage_hours, todays_waste_generated_kg, safety_incidents"
-        )
+        .select("id, log_date, fuel_consumption_liters, equipment_usage_hours, safety_incidents")
         .eq("project_id", project.id)
         .order("log_date", { ascending: true });
+
+      const monthlyPromise = supabase
+        .from("construction_monthly_log")
+        .select("id, log_month, electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, submitted_on")
+        .eq("project_id", project.id)
+        .order("log_month", { ascending: true });
 
       const materialPromise = supabase
         .from("construction_material_log")
@@ -106,7 +120,11 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         .eq("project_id", project.id)
         .order("created_at", { ascending: true });
 
-      const [dailyResult, materialResult] = await Promise.all([dailyPromise, materialPromise]);
+      const [dailyResult, monthlyResult, materialResult] = await Promise.all([
+        dailyPromise,
+        monthlyPromise,
+        materialPromise,
+      ]);
 
       if (!isMounted) {
         return;
@@ -118,6 +136,14 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         setDailyLogs([]);
       } else {
         setDailyLogs(dailyResult.data ?? []);
+      }
+
+      if (monthlyResult.error) {
+        console.error("Failed to load construction monthly logs", monthlyResult.error);
+        setErrorMessage((prev) => prev ?? monthlyResult.error.message ?? "Unable to load monthly performance data.");
+        setMonthlyLogs([]);
+      } else {
+        setMonthlyLogs(monthlyResult.data ?? []);
       }
 
       if (materialResult.error) {
@@ -139,30 +165,34 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
   }, [project.id]);
 
   const totals = useMemo(() => {
-    return dailyLogs.reduce(
-      (acc, log) => {
-        acc.fuel += log.fuel_consumption_liters ?? 0;
-        acc.electricity += log.electricity_usage_kwh ?? 0;
-        acc.water += log.water_consumption_cubic_m ?? 0;
-        acc.equipment += log.equipment_usage_hours ?? 0;
-        acc.waste += log.todays_waste_generated_kg ?? 0;
-        acc.incidents += log.safety_incidents ?? 0;
-        return acc;
-      },
-      { fuel: 0, electricity: 0, water: 0, equipment: 0, waste: 0, incidents: 0 }
-    );
-  }, [dailyLogs]);
+    const accumulator = { fuel: 0, electricity: 0, water: 0, equipment: 0, waste: 0, incidents: 0 };
+
+    for (const log of dailyLogs) {
+      accumulator.fuel += log.fuel_consumption_liters ?? 0;
+      accumulator.equipment += log.equipment_usage_hours ?? 0;
+      accumulator.incidents += log.safety_incidents ?? 0;
+    }
+
+    for (const log of monthlyLogs) {
+      accumulator.electricity += log.electricity_usage_kwh ?? 0;
+      accumulator.water += log.water_consumption_cubic_m ?? 0;
+      accumulator.waste += log.waste_generated_kg ?? 0;
+    }
+
+    return accumulator;
+  }, [dailyLogs, monthlyLogs]);
 
   const totalDays = dailyLogs.length;
+  const totalMonths = monthlyLogs.length;
 
   const targetTotals = useMemo(
     () => ({
       fuel: totalDays * DAILY_TARGETS.fuel,
-      electricity: totalDays * DAILY_TARGETS.electricity,
-      water: totalDays * DAILY_TARGETS.water,
-      waste: totalDays * DAILY_TARGETS.waste,
+      electricity: totalMonths * MONTHLY_TARGETS.electricity,
+      water: totalMonths * MONTHLY_TARGETS.water,
+      waste: totalMonths * MONTHLY_TARGETS.waste,
     }),
-    [totalDays]
+    [totalDays, totalMonths]
   );
 
   const carbonActualTons = useMemo(() => {
@@ -193,7 +223,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
   };
 
   const esgGoalsData = useMemo(() => {
-    if (totalDays === 0) {
+    if (totalDays === 0 && totalMonths === 0) {
       return [];
     }
     return [
@@ -233,10 +263,10 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         status: getPerformanceStatus(totals.incidents, 0, true),
       },
     ];
-  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, targetTotals.water, totalDays, totals.electricity, totals.fuel, totals.incidents, totals.waste, totals.water]);
+  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, targetTotals.water, totalDays, totalMonths, totals.electricity, totals.fuel, totals.incidents, totals.waste, totals.water]);
 
   const carbonFootprintData = useMemo(() => {
-    if (totalDays === 0) {
+    if (totalDays === 0 && totalMonths === 0) {
       return [];
     }
     return [
@@ -256,7 +286,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         actual: Number((totals.waste / 1000).toFixed(2)),
       },
     ];
-  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, totalDays, totals.electricity, totals.fuel, totals.waste]);
+  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, totalDays, totalMonths, totals.electricity, totals.fuel, totals.waste]);
 
   const supplierMixData = useMemo(() => {
     if (materialLogs.length === 0) {
@@ -284,31 +314,47 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
   }, [materialLogs]);
 
   const monthlyProgress = useMemo(() => {
-    if (dailyLogs.length === 0) {
+    if (dailyLogs.length === 0 && monthlyLogs.length === 0) {
       return [];
     }
+
     const formatter = new Intl.DateTimeFormat(undefined, {
       month: "short",
       year: "2-digit",
     });
+
     const map = new Map<string, { carbon: number; waste: number; energy: number; date: Date }>();
 
-    dailyLogs.forEach((log) => {
+    const ensureEntry = (date: Date) => {
+      const normalized = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+      const label = formatter.format(normalized);
+      if (!map.has(label)) {
+        map.set(label, { carbon: 0, waste: 0, energy: 0, date: normalized });
+      }
+      return map.get(label)!;
+    };
+
+    for (const log of dailyLogs) {
       const date = new Date(log.log_date);
       if (Number.isNaN(date.getTime())) {
-        return;
+        continue;
       }
-      const label = formatter.format(date);
-      if (!map.has(label)) {
-        map.set(label, { carbon: 0, waste: 0, energy: 0, date });
-      }
-      const entry = map.get(label)!;
+      const entry = ensureEntry(date);
       const fuelCarbon = (log.fuel_consumption_liters ?? 0) * FUEL_CO2_FACTOR;
+      entry.carbon += fuelCarbon / 1000;
+    }
+
+    for (const log of monthlyLogs) {
+      const date = new Date(log.log_month);
+      if (Number.isNaN(date.getTime())) {
+        continue;
+      }
+      const entry = ensureEntry(date);
       const electricityCarbon = (log.electricity_usage_kwh ?? 0) * ELECTRICITY_CO2_FACTOR;
-      entry.carbon += (fuelCarbon + electricityCarbon) / 1000;
-      entry.waste += log.todays_waste_generated_kg ?? 0;
+      entry.carbon += electricityCarbon / 1000;
+      entry.waste += log.waste_generated_kg ?? 0;
       entry.energy += log.electricity_usage_kwh ?? 0;
-    });
+    }
 
     return Array.from(map.entries())
       .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
@@ -318,10 +364,10 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         waste: Number(data.waste.toFixed(2)),
         energy: Number(data.energy.toFixed(2)),
       }));
-  }, [dailyLogs]);
+  }, [dailyLogs, monthlyLogs]);
 
   const complianceScores = useMemo(() => {
-    if (totalDays === 0) {
+    if (totalDays === 0 && totalMonths === 0) {
       return [];
     }
     const scoreFor = (actual: number, target: number) => {
@@ -362,7 +408,7 @@ export default function PostConstructionPhase({ project }: PostConstructionPhase
         benchmark: 95,
       },
     ];
-  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, targetTotals.water, totalDays, totals.electricity, totals.fuel, totals.incidents, totals.waste, totals.water]);
+  }, [targetTotals.electricity, targetTotals.fuel, targetTotals.waste, targetTotals.water, totalDays, totalMonths, totals.electricity, totals.fuel, totals.incidents, totals.waste, totals.water]);
 
   const totalMaterialsCost = useMemo(() => {
     return materialLogs.reduce((acc, log) => acc + (log.total_cost ?? 0), 0);

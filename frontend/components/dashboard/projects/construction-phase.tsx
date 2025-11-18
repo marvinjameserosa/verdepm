@@ -194,14 +194,22 @@ type ConstructionPhaseProps = {
   project: Project;
 };
 
+type DailyMetricKey = "fuel" | "equipment" | "safety";
+type MonthlyMetricKey = "electricity" | "water" | "waste";
+
+type DailyMetricState = Record<DailyMetricKey, string>;
+type MonthlyMetricState = Record<MonthlyMetricKey, string>;
+
 export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
-  const [dailyMetrics, setDailyMetrics] = useState<Record<string, string>>({
+  const [dailyMetrics, setDailyMetrics] = useState<DailyMetricState>({
     fuel: "",
+    equipment: "",
+    safety: "",
+  });
+  const [monthlyMetrics, setMonthlyMetrics] = useState<MonthlyMetricState>({
     electricity: "",
     water: "",
-    equipment: "",
     waste: "",
-    safety: "",
   });
   const [loggedMaterials, setLoggedMaterials] = useState<MaterialLogEntry[]>(
     []
@@ -393,8 +401,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     setStatusMessage("Route fuel has been added to today's fuel consumption total.");
   };
 
-  const handleInputChange = (metric: string, value: string) => {
+  const handleDailyInputChange = (metric: DailyMetricKey, value: string) => {
     setDailyMetrics((prev) => ({ ...prev, [metric]: value }));
+  };
+
+  const handleMonthlyInputChange = (metric: MonthlyMetricKey, value: string) => {
+    setMonthlyMetrics((prev) => ({ ...prev, [metric]: value }));
   };
 
   const handleMaterialEntryChange = (
@@ -440,15 +452,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const handleSubmit = async () => {
     resetMessages();
 
-    if (
-      !dailyMetrics.fuel &&
-      !dailyMetrics.electricity &&
-      !dailyMetrics.water &&
-      !dailyMetrics.equipment &&
-      !dailyMetrics.waste &&
-      !dailyMetrics.safety
-    ) {
-      setErrorMessage("Enter at least one daily metric before submitting.");
+    const hasDailyMetrics = Object.values(dailyMetrics).some((value) => value.trim() !== "");
+    const hasMonthlyMetrics = Object.values(monthlyMetrics).some((value) => value.trim() !== "");
+    const hasMaterialEntries = loggedMaterials.length > 0;
+
+    if (!hasDailyMetrics && !hasMonthlyMetrics && !hasMaterialEntries) {
+      setErrorMessage("Enter at least one metric or material record before submitting.");
       return;
     }
 
@@ -485,66 +494,96 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         return parsed;
       };
 
-      const safetyValue = dailyMetrics.safety
-        ? Number(dailyMetrics.safety)
-        : 0;
+      const safetyValue = dailyMetrics.safety ? Number(dailyMetrics.safety) : 0;
       if (Number.isNaN(safetyValue)) {
         throw new Error("Safety incidents must be a number.");
       }
 
-      const { data: dailyLog, error: dailyError } = await supabase
-        .from("construction_daily_log")
-        .insert([
-          {
-            project_id: project.id,
-            log_date: today,
-            fuel_consumption_liters: parseNumber(dailyMetrics.fuel),
-            electricity_usage_kwh: parseNumber(dailyMetrics.electricity),
-            water_consumption_cubic_m: parseNumber(dailyMetrics.water),
-            equipment_usage_hours: parseNumber(dailyMetrics.equipment),
-            todays_waste_generated_kg: parseNumber(dailyMetrics.waste),
-            safety_incidents: safetyValue,
-          },
-        ])
-        .select("id")
-        .single();
+      let dailyLogId: string | undefined;
 
-      if (dailyError) {
-        if ("code" in dailyError && dailyError.code === "23505") {
-          throw new Error("A daily report for today already exists.");
-        }
-        throw dailyError;
-      }
-
-      let dailyLogId = dailyLog?.id as string | undefined;
-
-      if (!dailyLogId) {
-        const { data: fallback, error: fetchError } = await supabase
+      if (hasDailyMetrics || hasMaterialEntries) {
+        const { data: dailyLog, error: dailyError } = await supabase
           .from("construction_daily_log")
+          .insert([
+            {
+              project_id: project.id,
+              log_date: today,
+              fuel_consumption_liters: parseNumber(dailyMetrics.fuel),
+              equipment_usage_hours: parseNumber(dailyMetrics.equipment),
+              safety_incidents: safetyValue,
+            },
+          ])
           .select("id")
-          .eq("project_id", project.id)
-          .eq("log_date", today)
-          .maybeSingle();
+          .single();
 
-        if (fetchError) {
-          throw fetchError;
+        if (dailyError) {
+          if ("code" in dailyError && dailyError.code === "23505") {
+            throw new Error("A daily report for today already exists.");
+          }
+          throw dailyError;
         }
-        if (!fallback) {
-          throw new Error("Daily report saved but could not retrieve identifier.");
+
+        dailyLogId = dailyLog?.id as string | undefined;
+
+        if (!dailyLogId) {
+          const { data: fallback, error: fetchError } = await supabase
+            .from("construction_daily_log")
+            .select("id")
+            .eq("project_id", project.id)
+            .eq("log_date", today)
+            .maybeSingle();
+
+          if (fetchError) {
+            throw fetchError;
+          }
+          if (!fallback) {
+            throw new Error("Daily report saved but could not retrieve identifier.");
+          }
+          dailyLogId = fallback.id;
         }
-        dailyLogId = fallback.id;
       }
 
-      const bucket = supabase.storage.from("construction-docs");
+      if (hasMonthlyMetrics) {
+        const monthStart = new Date(today);
+        monthStart.setDate(1);
+        const logMonth = monthStart.toISOString().slice(0, 10);
 
-      if (loggedMaterials.length > 0) {
+        const { error: monthlyError } = await supabase
+          .from("construction_monthly_log")
+          .upsert(
+            [
+              {
+                project_id: project.id,
+                log_month: logMonth,
+                electricity_usage_kwh: parseNumber(monthlyMetrics.electricity),
+                water_consumption_cubic_m: parseNumber(monthlyMetrics.water),
+                waste_generated_kg: parseNumber(monthlyMetrics.waste),
+                submitted_on: today,
+                updated_at: new Date().toISOString(),
+              },
+            ],
+            { onConflict: "project_id,log_month" }
+          );
+
+        if (monthlyError) {
+          throw monthlyError;
+        }
+      }
+
+      if (hasMaterialEntries) {
+        if (!dailyLogId) {
+          throw new Error("Material entries require a daily log reference.");
+        }
+
+        const bucket = supabase.storage.from("construction-docs");
+
         const materialPayload = await Promise.all(
           loggedMaterials.map(async (entry) => {
             let receiptPath: string | null = null;
 
             if (entry.receiptFile) {
               const extension = entry.receiptFile.name.split(".").pop() || "pdf";
-              const storagePath = `project/${project.id}/daily/${dailyLog.id}/receipts/${crypto.randomUUID()}.${extension}`;
+              const storagePath = `project/${project.id}/daily/${dailyLogId}/receipts/${crypto.randomUUID()}.${extension}`;
               const { error: uploadError } = await bucket.upload(
                 storagePath,
                 entry.receiptFile,
@@ -583,14 +622,27 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         }
       }
 
-      setStatusMessage("Daily report saved successfully.");
+      if (hasDailyMetrics || hasMaterialEntries) {
+        if (hasMonthlyMetrics) {
+          setStatusMessage("Daily report and monthly metrics saved successfully.");
+        } else {
+          setStatusMessage("Daily report saved successfully.");
+        }
+      } else if (hasMonthlyMetrics) {
+        setStatusMessage("Monthly metrics saved successfully.");
+      } else {
+        setStatusMessage("Submission completed.");
+      }
+
       setDailyMetrics({
         fuel: "",
+        equipment: "",
+        safety: "",
+      });
+      setMonthlyMetrics({
         electricity: "",
         water: "",
-        equipment: "",
         waste: "",
-        safety: "",
       });
       setLoggedMaterials([]);
     } catch (error) {
@@ -704,8 +756,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               <MetricCard
                 key={metric.id}
                 {...metric}
-                value={dailyMetrics[metric.id]}
-                onChange={(value) => handleInputChange(metric.id, value)}
+                value={dailyMetrics[metric.id as DailyMetricKey]}
+                onChange={(value) => handleDailyInputChange(metric.id as DailyMetricKey, value)}
                 labelPrefix="Today's"
               />
             ))}
@@ -717,8 +769,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               <MetricCard
                 key={metric.id}
                 {...metric}
-                value={dailyMetrics[metric.id]}
-                onChange={(value) => handleInputChange(metric.id, value)}
+                value={monthlyMetrics[metric.id as MonthlyMetricKey]}
+                onChange={(value) => handleMonthlyInputChange(metric.id as MonthlyMetricKey, value)}
                 labelPrefix="This Month's"
               />
             ))}

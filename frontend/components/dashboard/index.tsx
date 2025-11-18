@@ -60,9 +60,12 @@ type EmissionsScopeDatum = {
 type ConstructionDailyLogRecord = {
   fuel_consumption_liters: number | null;
   equipment_usage_hours: number | null;
+};
+
+type ConstructionMonthlyLogRecord = {
   electricity_usage_kwh: number | null;
   water_consumption_cubic_m: number | null;
-  todays_waste_generated_kg: number | null;
+  waste_generated_kg: number | null;
 };
 
 const DEFAULT_SCOPE_DATA: EmissionsScopeDatum[] = [
@@ -253,17 +256,29 @@ export default function Dashboard() {
     let isMounted = true;
 
     const fetchEmissions = async () => {
-      const { data, error } = await supabase
-        .from("construction_daily_log")
-        .select(
-          "fuel_consumption_liters, equipment_usage_hours, electricity_usage_kwh, water_consumption_cubic_m, todays_waste_generated_kg"
-        );
+      const [dailyResult, monthlyResult] = await Promise.all([
+        supabase
+          .from("construction_daily_log")
+          .select("fuel_consumption_liters, equipment_usage_hours"),
+        supabase
+          .from("construction_monthly_log")
+          .select("electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg"),
+      ]);
 
       if (!isMounted) {
         return;
       }
 
-      if (error || !data) {
+      const dailyLogs =
+        dailyResult.error || !dailyResult.data
+          ? []
+          : (dailyResult.data as ConstructionDailyLogRecord[]);
+      const monthlyLogs =
+        monthlyResult.error || !monthlyResult.data
+          ? []
+          : (monthlyResult.data as ConstructionMonthlyLogRecord[]);
+
+      if ((dailyResult.error && monthlyResult.error) || (dailyLogs.length === 0 && monthlyLogs.length === 0)) {
         setEmissionsScopeData(DEFAULT_SCOPE_DATA);
         setTotalElectricityUsage(0);
         setTotalWaterConsumption(0);
@@ -271,36 +286,36 @@ export default function Dashboard() {
         return;
       }
 
-      const logs = data as ConstructionDailyLogRecord[];
       const toNumber = (value: number | null) =>
         typeof value === "number" && Number.isFinite(value) ? value : 0;
 
       let scope1 = 0;
-      let scope2 = 0;
-      let scope3 = 0;
+      let aggregatedElectricity = 0;
       let aggregatedWater = 0;
       let aggregatedWasteKg = 0;
 
       const PH_GRID_EMISSION_FACTOR = 0.76; 
       const WATER_EMISSION_FACTOR = 0.264; // kg CO2e per m3
-      for (const log of logs) {
+      for (const log of dailyLogs) {
         const fuel = toNumber(log.fuel_consumption_liters);
         const equipment = toNumber(log.equipment_usage_hours);
+        scope1 += fuel + equipment;
+      }
+
+      for (const log of monthlyLogs) {
         const electricity = toNumber(log.electricity_usage_kwh);
         const water = toNumber(log.water_consumption_cubic_m);
-        const wasteKg = toNumber(log.todays_waste_generated_kg);
+        const wasteKg = toNumber(log.waste_generated_kg);
 
-        scope1 += fuel + equipment;
-        scope2 += electricity;
-        
+        aggregatedElectricity += electricity;
         aggregatedWater += water;
         aggregatedWasteKg += wasteKg;
       }
 
-
-      const scope2_tco2e = scope2 * PH_GRID_EMISSION_FACTOR / 1000; 
+      const scope2_tco2e = aggregatedElectricity * PH_GRID_EMISSION_FACTOR / 1000; 
       const scope3_water_tco2e = aggregatedWater * WATER_EMISSION_FACTOR / 1000; 
-      const scope3_total_tco2e = scope3_water_tco2e + aggregatedWasteKg / 1000; 
+      const scope3_waste_tco2e = aggregatedWasteKg / 1000;
+      const scope3_total_tco2e = scope3_water_tco2e + scope3_waste_tco2e; 
       const total = scope1 + scope2_tco2e + scope3_total_tco2e;
       const percentage = (value: number) =>
         total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0;
@@ -310,7 +325,7 @@ export default function Dashboard() {
         { name: "Scope 2", value: scope2_tco2e, percentage: percentage(scope2_tco2e) },
         { name: "Scope 3", value: scope3_total_tco2e, percentage: percentage(scope3_total_tco2e) },
       ]);
-      setTotalElectricityUsage(scope2);
+      setTotalElectricityUsage(aggregatedElectricity);
       setTotalWaterConsumption(aggregatedWater);
       setTotalWasteGeneratedKg(aggregatedWasteKg);
     };
