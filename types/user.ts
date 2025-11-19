@@ -23,9 +23,9 @@ export type User = {
   joinDate?: string;
   lastActive?: string;
   projects?: string[];
-  avatar?: string;
-  avatar_url?: string;
-  avatar_storage_path?: string;
+  avatar?: string | null;
+  avatar_url?: string | null;
+  avatar_storage_path?: string | null;
   permissions?: string[];
 };
 

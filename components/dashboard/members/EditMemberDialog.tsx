@@ -92,8 +92,8 @@ export const EditMemberDialog = ({
         avatar_url: member.avatar_url ?? null,
         avatar_storage_path: member.avatar_storage_path ?? null,
       });
-      const initialAvatarUrl = [member.avatar_url, member.avatar].find((value) =>
-        isValidUrl(value)
+      const initialAvatarUrl = [member.avatar_url, member.avatar].find(
+        (value) => isValidUrl(value)
       );
       const initialPreview = initialAvatarUrl
         ? withCacheBuster(initialAvatarUrl)
@@ -181,11 +181,12 @@ export const EditMemberDialog = ({
       }
     }
 
-    const { data: publicUrlData, error: publicUrlError } =
-      supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath);
+    const { data: publicUrlData } = supabase.storage
+      .from(AVATAR_BUCKET)
+      .getPublicUrl(filePath);
 
-    if (publicUrlError) {
-      console.error("Failed to get public URL", publicUrlError);
+    if (!publicUrlData?.publicUrl) {
+      console.error("Failed to get public URL", publicUrlData);
       setAvatarError("Unable to load uploaded image. Please try again.");
       setIsUploadingAvatar(false);
       return;
@@ -271,8 +272,10 @@ export const EditMemberDialog = ({
               <Image
                 src={avatarPreview}
                 alt={
-                  (member.first_name || member.last_name)
-                    ? `${member.first_name ?? ""} ${member.last_name ?? ""}`.trim()
+                  member.first_name || member.last_name
+                    ? `${member.first_name ?? ""} ${
+                        member.last_name ?? ""
+                      }`.trim()
                     : member.email || "Member avatar"
                 }
                 fill
@@ -378,11 +381,7 @@ export const EditMemberDialog = ({
           </div>
         </div>
         <DialogFooter className="px-6 pb-6 pt-4 border-t border-emerald-100/70 dark:border-emerald-900/40 bg-white/60 dark:bg-slate-950/40 backdrop-blur">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="rounded-xl"
-          >
+          <Button variant="outline" onClick={onClose} className="rounded-xl">
             Cancel
           </Button>
           <Button
