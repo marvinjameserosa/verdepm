@@ -10,7 +10,10 @@ export type User = {
     | "ESG Analyst"
     | "Compliance Officer"
     | "Contractor"
-    | "Viewer";
+    | "Viewer"
+    | "owner"
+    | "manager"
+    | "member";
   created_at: string;
   modified_at: string;
   created_by: string;
@@ -31,4 +34,7 @@ export const USER_ROLE_OPTIONS: User["role"][] = [
   "Compliance Officer",
   "Contractor",
   "Viewer",
+  "owner",
+  "manager",
+  "member",
 ];
