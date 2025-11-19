@@ -74,7 +74,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 border border-emerald-100/70 dark:border-emerald-900/40 shadow-2xl">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl shadow-emerald-500/5 overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-2xl">Help & Support</DialogTitle>
           <DialogDescription>
@@ -98,7 +98,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Button
               variant="outline"
-              className="h-auto flex-col items-start p-4 gap-2"
+              className="h-auto flex-col items-start p-4 gap-2 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-emerald-500/10 shadow-lg transition-colors"
             >
               <BookOpen className="h-5 w-5 text-primary" />
               <div className="text-left">
@@ -110,7 +110,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
             </Button>
             <Button
               variant="outline"
-              className="h-auto flex-col items-start p-4 gap-2"
+              className="h-auto flex-col items-start p-4 gap-2 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-emerald-500/10 shadow-lg transition-colors"
             >
               <MessageCircle className="h-5 w-5 text-primary" />
               <div className="text-left">
@@ -122,7 +122,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
             </Button>
             <Button
               variant="outline"
-              className="h-auto flex-col items-start p-4 gap-2"
+              className="h-auto flex-col items-start p-4 gap-2 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-emerald-500/10 shadow-lg transition-colors"
             >
               <Mail className="h-5 w-5 text-primary" />
               <div className="text-left">

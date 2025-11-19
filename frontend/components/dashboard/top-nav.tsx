@@ -18,7 +18,8 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
-import { NotificationModal } from "./notification-modal";
+import NotificationModalContainer from "./notification-modal-container";
+import { useUserNotifications } from "@/lib/hooks/useUserNotifications";
 
 interface BreadcrumbItem {
   label: string;
@@ -52,51 +53,28 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
   const [avatarVersion, setAvatarVersion] = useState<number>(Date.now());
-  const [notifications, setNotifications] = useState([
-    {
-      id: "1",
-      title: "New member added",
-      message: "John Doe has been added to the Verde Project Management team",
-      timestamp: new Date(Date.now() - 5 * 60000), // 5 minutes ago
-      read: false,
-      type: "info" as const,
-    },
-    {
-      id: "2",
-      title: "Project update",
-      message: "Construction phase completed for Project Alpha",
-      timestamp: new Date(Date.now() - 2 * 3600000), // 2 hours ago
-      read: false,
-      type: "success" as const,
-    },
-    {
-      id: "3",
-      title: "Report generated",
-      message: "Monthly ESG report is ready for review",
-      timestamp: new Date(Date.now() - 24 * 3600000), // 1 day ago
-      read: true,
-      type: "info" as const,
-    },
-  ]);
+  // ...existing code...
   const breadcrumbs: BreadcrumbItem[] = [];
   const pathParts = pathname.split("/").filter((part) => part);
   const mainCategory = pathParts[1];
   const slug = pathParts[2];
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [userId, setUserId] = useState<string | null>(null);
 
+  // Remove direct useUserNotifications, let NotificationModalContainer handle fetching
+  // unreadCount will be handled inside NotificationModalContainer/modal
+
+  // Placeholder handlers (implement Supabase update logic if needed)
   const handleMarkAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    // TODO: Implement Supabase update for marking as read
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    // TODO: Implement Supabase update for marking all as read
   };
 
   const handleClearNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    // TODO: Implement Supabase delete for notification
   };
 
   useEffect(() => {
@@ -206,6 +184,20 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
       isMounted = false;
     };
   }, [mainCategory, slug]);
+
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data?.user) {
+        setUserId(null);
+      } else {
+        setUserId(data.user.id);
+      }
+    };
+    fetchUserId();
+  }, []);
+
+  // ...existing code...
 
   const formatFromSlug = (value: string) =>
     value
@@ -320,19 +312,16 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
           aria-label="Open notifications"
         >
           <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-          {unreadCount > 0 && (
-            <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 h-2 w-2 bg-red-500 rounded-full ring-2 ring-background" />
-          )}
+          {/* NotificationModalContainer will handle unread count badge */}
         </button>
 
-        <NotificationModal
-          open={notificationOpen}
-          onOpenChange={setNotificationOpen}
-          notifications={notifications}
-          onMarkAsRead={handleMarkAsRead}
-          onMarkAllAsRead={handleMarkAllAsRead}
-          onClearNotification={handleClearNotification}
-        />
+        {userId && (
+          <NotificationModalContainer
+            open={notificationOpen}
+            onOpenChange={setNotificationOpen}
+            userId={userId}
+          />
+        )}
 
         <ThemeToggle />
 

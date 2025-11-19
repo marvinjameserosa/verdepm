@@ -68,8 +68,8 @@ export function NotificationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-0 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 border border-emerald-100/70 dark:border-emerald-900/40 shadow-xl">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-emerald-100/70 dark:border-emerald-900/40 bg-white/60 dark:bg-slate-950/40 backdrop-blur">
+      <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-0 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl shadow-emerald-500/5 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200/50 dark:border-gray-700/50 bg-white/60 dark:bg-gray-900/40 backdrop-blur">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
