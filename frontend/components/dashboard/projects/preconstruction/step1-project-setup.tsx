@@ -19,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import LocationPicker from "@/components/ui/location-picker";
 
 type DocumentKey = "sec-dti" | "mayors-permit" | "bir";
 
@@ -42,12 +43,14 @@ type InitialValues = {
 
 type Props = {
   onSubmit: (values: Step1FormValues) => Promise<void>;
+  onSave: (values: Step1FormValues) => Promise<void>;
   initialValues?: InitialValues;
   isSubmitting: boolean;
 };
 
 export default function Step1ProjectSetup({
   onSubmit,
+  onSave,
   initialValues,
   isSubmitting,
 }: Props) {
@@ -126,6 +129,20 @@ export default function Step1ProjectSetup({
     }
   };
 
+  const handleSave = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    try {
+      await onSave({
+        projectName,
+        projectAddress,
+        projectDescription,
+        files,
+      });
+    } catch (error) {
+      console.error("Failed to save project setup", error);
+    }
+  };
+
   const getExistingFileLabel = (path?: string) => {
     if (!path) {
       return null;
@@ -179,14 +196,23 @@ export default function Step1ProjectSetup({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="projectAddress">Project Address</Label>
-                    <Input
-                      id="projectAddress"
-                      placeholder="e.g., '123 Sustainable Ave, Eco City'"
-                      className="bg-white/80 dark:bg-gray-800/80"
-                      value={projectAddress}
-                      onChange={(e) => setProjectAddress(e.target.value)}
-                      required
-                    />
+                    <div className="space-y-2">
+                      <LocationPicker
+                        value={projectAddress}
+                        onChange={setProjectAddress}
+                        onSave={() => {
+                          onSave({
+                            projectName,
+                            projectAddress,
+                            projectDescription,
+                            files,
+                          });
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Selected Location: {projectAddress || "None"}
+                      </p>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="projectDescription">
@@ -304,13 +330,24 @@ export default function Step1ProjectSetup({
                 Need to brief a teammate? Share the overview link after saving.
               </p>
             </div>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full lg:w-auto"
-            >
-              {isSubmitting ? "Saving..." : "Next"}
-            </Button>
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={handleSave}
+                className="w-full lg:w-auto"
+              >
+                Save
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full lg:w-auto"
+              >
+                {isSubmitting ? "Saving..." : "Next"}
+              </Button>
+            </div>
           </CardFooter>
         </form>
       </Card>
