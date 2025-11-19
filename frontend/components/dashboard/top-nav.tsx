@@ -239,6 +239,13 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
         breadcrumbs.push({ label: "Team" });
         breadcrumbs.push({ label: "Members", href: "/dashboard/members" });
         break;
+      case "organization":
+        breadcrumbs.push({ label: "Team" });
+        breadcrumbs.push({
+          label: "Organization",
+          href: "/dashboard/organization",
+        });
+        break;
       case "permissions":
         breadcrumbs.push({ label: "Team" });
         breadcrumbs.push({

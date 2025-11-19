@@ -9,6 +9,7 @@ import {
   HelpCircle,
   Home,
   Flag,
+  Building,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/dashboard/projects", icon: Folder, label: "Projects" },
   { href: "/dashboard/approval", icon: Flag, label: "Approval" },
   { href: "/dashboard/members", icon: Users2, label: "Members" },
+  { href: "/dashboard/organization", icon: Building, label: "Organization" },
   { href: "/dashboard/reports", icon: BarChart2, label: "Reports" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
@@ -120,6 +122,9 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
               <div className="space-y-1">
                 <NavItem href="/dashboard/members" icon={Users2}>
                   Members
+                </NavItem>
+                <NavItem href="/dashboard/organization" icon={Building}>
+                  Organization
                 </NavItem>
               </div>
             </div>
