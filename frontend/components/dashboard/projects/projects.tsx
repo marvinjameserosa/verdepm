@@ -5,21 +5,12 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   ListFilter,
   Search,
-  Building2,
-  Calendar,
-  Users,
-  Target,
 } from "lucide-react";
-import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -29,15 +20,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddProjectModal } from "./add-project-modal";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase/client";
 import type { Project, ProjectStatus } from "@/types/project";
 import {
   mapProjectFromSupabase,
-  projectPriorityLabels,
-  projectStatusBadgeClass,
   projectStatusLabels,
 } from "./project-helpers";
+import { ProjectCard } from "./project-card";
 
 const STATUS_FILTER_ORDER: ProjectStatus[] = [
   "planning",
@@ -54,30 +43,6 @@ export default function ProjectsTab() {
   const [selectedStatuses, setSelectedStatuses] = useState<ProjectStatus[]>(
     STATUS_FILTER_ORDER
   );
-
-  const formatDate = (value?: string | null) => {
-    if (!value) {
-      return null;
-    }
-
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return value;
-    }
-
-    return parsed.toLocaleDateString();
-  };
-
-  const formatTimeline = (project: Project) => {
-    if (!project.startDate && !project.endDate) {
-      return "Timeline";
-    }
-
-    const startDisplay = formatDate(project.startDate) ?? "TBD";
-    const endDisplay = project.endDate ? formatDate(project.endDate) ?? "TBD" : null;
-
-    return endDisplay ? `${startDisplay} - ${endDisplay}` : startDisplay;
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -249,76 +214,7 @@ export default function ProjectsTab() {
           </Card>
         ) : (
           filteredProjects.map((project) => (
-            <Link
-              href={`/dashboard/projects/${project.slug}`}
-              key={project.id}
-              className="group block transition-all duration-300 hover:scale-[1.02]"
-            >
-              <Card className="h-full backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl border border-white/20 shadow-2xl transition-all duration-300">
-                <CardHeader className="relative pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50">
-                        <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg font-semibold">
-                          {project.name}
-                        </CardTitle>
-                        {project.clientName ? (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {project.clientName}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "font-medium border text-xs px-2.5 py-1",
-                        projectStatusBadgeClass[project.status]
-                      )}
-                    >
-                      {projectStatusLabels[project.status]}
-                    </Badge>
-                  </div>
-                  <CardDescription className="text-muted-foreground mt-3 line-clamp-2 leading-relaxed">
-                    {project.description}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="relative pt-0">
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50">
-                    <div className="flex flex-col items-center text-center">
-                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                        <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatTimeline(project)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center text-center">
-                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                        <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {project.projectManager ?? "Team"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center text-center">
-                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                        <Target className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {project.priority
-                          ? projectPriorityLabels[project.priority]
-                          : "Priority"}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <ProjectCard key={project.id} project={project} />
           ))
         )}
       </div>
