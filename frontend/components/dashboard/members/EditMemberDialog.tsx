@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { USER_ROLE_OPTIONS, type User } from "@/types/user";
+import { supabase } from "@/utils/supabase/client";
 
 interface EditMemberDialogProps {
   isOpen: boolean;
@@ -37,9 +38,7 @@ export const EditMemberDialog = ({
   availableRoles,
 }: EditMemberDialogProps) => {
   const [formData, setFormData] = useState<Partial<User>>({});
-  const roleOptions = availableRoles?.length
-    ? availableRoles
-    : USER_ROLE_OPTIONS;
+  const roleOptions = ["owner", "manager", "member"];
 
   useEffect(() => {
     if (member) {
@@ -134,7 +133,7 @@ export const EditMemberDialog = ({
               <SelectContent className="z-100">
                 {roleOptions.map((roleName) => (
                   <SelectItem key={roleName} value={roleName}>
-                    {roleName}
+                    {roleName.charAt(0).toUpperCase() + roleName.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
