@@ -68,8 +68,8 @@ export function NotificationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+      <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-0 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 border border-emerald-100/70 dark:border-emerald-900/40 shadow-xl">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-emerald-100/70 dark:border-emerald-900/40 bg-white/60 dark:bg-slate-950/40 backdrop-blur">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
@@ -94,7 +94,7 @@ export function NotificationModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Bell className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />

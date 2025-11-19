@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import {
-  LogOut,
-  MoveUpRight,
-  Settings,
-  CreditCard,
-  FileText,
-} from "lucide-react";
-import Image from "next/image";
+import { LogOut, MoveUpRight, Settings, FileText } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
@@ -123,18 +116,18 @@ export default function Profile01() {
   ];
 
   return (
-    <div className="w-full max-w-sm mx-auto">
-      <div className="relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+    <div className="w-full">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl">
         <div className="relative px-6 pt-12 pb-6">
           <div className="flex-1 mb-8">
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
               {isLoading ? (
                 <span className="inline-block h-4 w-32 animate-pulse rounded bg-muted" />
               ) : (
                 profile.name
               )}
             </h2>
-            <p className="text-zinc-600 dark:text-zinc-400">
+            <p className="text-gray-600 dark:text-slate-400">
               {isLoading ? (
                 <span className="inline-block h-3 w-24 animate-pulse rounded bg-muted" />
               ) : (
@@ -148,25 +141,25 @@ export default function Profile01() {
               {errorMessage}
             </p>
           )}
-          <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-6" />
+          <div className="h-px bg-emerald-100/70 dark:bg-emerald-900/30 my-6" />
           <div className="space-y-2">
             {menuItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
                 className="flex items-center justify-between p-2 
-                                    hover:bg-zinc-50 dark:hover:bg-zinc-800/50 
+                                    hover:bg-sky-50/80 dark:hover:bg-emerald-900/40 
                                     rounded-lg transition-colors duration-200"
               >
                 <div className="flex items-center gap-2">
                   {item.icon}
-                  <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
                     {item.label}
                   </span>
                 </div>
                 <div className="flex items-center">
                   {item.value && (
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400 mr-2">
+                    <span className="text-sm text-gray-500 dark:text-slate-400 mr-2">
                       {item.value}
                     </span>
                   )}
@@ -180,12 +173,12 @@ export default function Profile01() {
               onClick={handleLogout}
               disabled={isSigningOut}
               className="w-full flex items-center justify-between p-2 
-                                hover:bg-zinc-50 dark:hover:bg-zinc-800/50 
+                                hover:bg-sky-50/80 dark:hover:bg-emerald-900/40 
                                 rounded-lg transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <div className="flex items-center gap-2">
                 <LogOut className="w-4 h-4" />
-                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
                   {isSigningOut ? "Signing out..." : "Logout"}
                 </span>
               </div>

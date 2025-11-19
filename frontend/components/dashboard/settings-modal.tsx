@@ -27,7 +27,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 border border-emerald-100/70 dark:border-emerald-900/40 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl">Settings</DialogTitle>
           <DialogDescription>
@@ -42,7 +42,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <Bell className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-lg font-semibold">Notifications</h3>
             </div>
-            <Separator />
+            <Separator className="bg-emerald-100/70 dark:bg-emerald-900/30" />
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -79,7 +79,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <Lock className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-lg font-semibold">Security</h3>
             </div>
-            <Separator />
+            <Separator className="bg-emerald-100/70 dark:bg-emerald-900/30" />
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -106,7 +106,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <Palette className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-lg font-semibold">Preferences</h3>
             </div>
-            <Separator />
+            <Separator className="bg-emerald-100/70 dark:bg-emerald-900/30" />
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -130,7 +130,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <User className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-lg font-semibold">Account</h3>
             </div>
-            <Separator />
+            <Separator className="bg-emerald-100/70 dark:bg-emerald-900/30" />
             <div className="space-y-2">
               <Button variant="outline" className="w-full justify-start">
                 <Globe className="mr-2 h-4 w-4" />

@@ -74,7 +74,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 border border-emerald-100/70 dark:border-emerald-900/40 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl">Help & Support</DialogTitle>
           <DialogDescription>
@@ -134,7 +134,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
             </Button>
           </div>
 
-          <Separator />
+          <Separator className="bg-emerald-100/70 dark:bg-emerald-900/30" />
 
           {/* FAQs */}
           <div className="space-y-3">
@@ -158,7 +158,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
             )}
           </div>
 
-          <Separator />
+          <Separator className="bg-emerald-100/70 dark:bg-emerald-900/30" />
 
           {/* Resources */}
           <div className="space-y-3">
@@ -208,7 +208,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
           </div>
         </div>
 
-        <div className="flex justify-end pt-4 border-t">
+        <div className="flex justify-end pt-4 border-t border-emerald-100/70 dark:border-emerald-900/40">
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </div>
       </DialogContent>

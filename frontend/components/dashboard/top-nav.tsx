@@ -241,7 +241,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
           <DropdownMenuContent
             align="end"
             sideOffset={8}
-            className="w-[280px] sm:w-80 bg-background border-border rounded-lg shadow-lg"
+            className="w-[280px] sm:w-80 overflow-hidden rounded-2xl border border-emerald-100/70 dark:border-emerald-900/40 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl backdrop-blur"
           >
             <Profile01 />
           </DropdownMenuContent>

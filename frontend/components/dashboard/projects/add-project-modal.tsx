@@ -204,9 +204,9 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
           <span className="sm:hidden">Add</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border border-white/20 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
-          <DialogHeader className="text-center sm:text-left">
+      <DialogContent className="sm:max-w-[520px] max-h-[80vh] rounded-2xl border border-emerald-100/70 dark:border-emerald-900/40 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl backdrop-blur p-0 flex flex-col overflow-hidden min-h-0">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col min-h-0">
+          <DialogHeader className="text-center sm:text-left px-6 pt-6 shrink-0">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50">
                 <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -221,7 +221,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 py-4 overflow-y-auto pr-4">
+          <div className="flex-1 space-y-5 px-6 py-4 overflow-y-auto pr-2 min-h-0">
             {errorMessage && (
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {errorMessage}
@@ -428,7 +428,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 px-6 pb-6 pt-4 border-t border-emerald-100/70 dark:border-emerald-900/40 bg-white/60 dark:bg-slate-950/40 backdrop-blur shrink-0">
             <Button
               type="button"
               variant="outline"
