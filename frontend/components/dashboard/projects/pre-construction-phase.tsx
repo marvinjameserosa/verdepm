@@ -384,8 +384,8 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
     warehouse?: string;
   };
 
-  const handleStep1Submit = useCallback(
-    async (values: Step1FormValues) => {
+  const saveProjectSetup = useCallback(
+    async (values: Step1FormValues, goToNext: boolean) => {
       if (!userId) {
         setErrorMessage("You must be signed in to save project setup details.");
         return;
@@ -582,7 +582,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
         }
 
         setSuccessMessage("Project details saved.");
-        nextStep();
+        if (goToNext) {
+          nextStep();
+        }
       } catch (error) {
         console.error("Failed to save project setup", error);
         setErrorMessage(
@@ -595,6 +597,16 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
       }
     },
     [documentPaths, nextStep, onProjectUpdated, projectDetails, projectSetupId, resetFeedback, userId]
+  );
+
+  const handleStep1Submit = useCallback(
+    (values: Step1FormValues) => saveProjectSetup(values, true),
+    [saveProjectSetup]
+  );
+
+  const handleStep1Save = useCallback(
+    (values: Step1FormValues) => saveProjectSetup(values, false),
+    [saveProjectSetup]
   );
 
   const handleSubmitForApproval = useCallback(async () => {
@@ -977,6 +989,7 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
           {step === 1 && (
             <Step1ProjectSetup
               onSubmit={handleStep1Submit}
+              onSave={handleStep1Save}
               initialValues={step1InitialValues}
               isSubmitting={isSavingStep1}
             />
@@ -1011,5 +1024,6 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
     </div>
   );
 }
+
 
 export default PreConstructionPhase;
