@@ -43,7 +43,7 @@ import {
   Truck,
   Loader2,
 } from "lucide-react";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import type { Project, MaterialStatus } from "@/types/project";
 import type { DeliveryRouteMapProps } from "@/components/dashboard/projects/delivery-route-map";
 
@@ -91,28 +91,34 @@ type SourcedMaterial = {
 
 const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
   () =>
-    import("@/components/dashboard/projects/delivery-route-map").then((module) => {
-      // Patch the default export to add null checks for _leaflet_pos errors
-      const Original = module.default;
-      function SafeDeliveryRouteMap(props: any) {
-        try {
-          return <Original {...props} />;
-        } catch (e) {
-          if (
-            typeof window !== "undefined" &&
-            e &&
-            typeof e === "object" &&
-            "message" in e &&
-            String(e.message).includes("_leaflet_pos")
-          ) {
-            // Render fallback UI or nothing if _leaflet_pos error occurs
-            return <div className="text-red-600 text-xs">Map failed to load. Please refresh or check route data.</div>;
+    import("@/components/dashboard/projects/delivery-route-map").then(
+      (module) => {
+        // Patch the default export to add null checks for _leaflet_pos errors
+        const Original = module.default;
+        function SafeDeliveryRouteMap(props: any) {
+          try {
+            return <Original {...props} />;
+          } catch (e) {
+            if (
+              typeof window !== "undefined" &&
+              e &&
+              typeof e === "object" &&
+              "message" in e &&
+              String(e.message).includes("_leaflet_pos")
+            ) {
+              // Render fallback UI or nothing if _leaflet_pos error occurs
+              return (
+                <div className="text-red-600 text-xs">
+                  Map failed to load. Please refresh or check route data.
+                </div>
+              );
+            }
+            throw e;
           }
-          throw e;
         }
+        return SafeDeliveryRouteMap;
       }
-      return SafeDeliveryRouteMap;
-    }),
+    ),
   { ssr: false }
 );
 
@@ -123,13 +129,16 @@ const TRIR_STANDARD_HOURS = 200_000; // OSHA baseline exposure hours for TRIR
 const PH_GRID_EMISSION_FACTOR_KG_PER_KWH = 0.507; // kg CO2e emitted per kWh for Luzon-Visayas grid
 const WATER_SUPPLY_EMISSION_FACTOR_KG_PER_CUBIC_M = 0.264; // kg CO2e emitted per cubic meter of supplied water
 const WASTE_EMISSION_FACTORS_KG_PER_KG = {
-  landfill: 1.80,
-  incineration: 2.80,
+  landfill: 1.8,
+  incineration: 2.8,
   recycling: 0.12,
-  compost: 0.10,
+  compost: 0.1,
 } as const;
 
-const sampleRoutePoints = (points: LatLngTuple[], maxPoints = DEFAULT_ANIMATION_SAMPLE_SIZE) => {
+const sampleRoutePoints = (
+  points: LatLngTuple[],
+  maxPoints = DEFAULT_ANIMATION_SAMPLE_SIZE
+) => {
   if (points.length <= maxPoints) {
     return points;
   }
@@ -143,7 +152,11 @@ const sampleRoutePoints = (points: LatLngTuple[], maxPoints = DEFAULT_ANIMATION_
 
   const lastPoint = points[points.length - 1];
   const lastSampled = sampled[sampled.length - 1];
-  if (!lastSampled || lastSampled[0] !== lastPoint[0] || lastSampled[1] !== lastPoint[1]) {
+  if (
+    !lastSampled ||
+    lastSampled[0] !== lastPoint[0] ||
+    lastSampled[1] !== lastPoint[1]
+  ) {
     sampled.push(lastPoint);
   }
 
@@ -199,7 +212,8 @@ const preConstructionTargets = {
 };
 
 const MATERIAL_STATUS_BADGE: Record<MaterialStatus, string> = {
-  Vetted: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
+  Vetted:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
   Identified: "bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
   Denied: "bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300",
 };
@@ -209,7 +223,8 @@ const formatCurrencyValue = (value: string | number | null | undefined) => {
     return "—";
   }
 
-  const raw = typeof value === "string" ? Number(value.replace(/,/g, "")) : value;
+  const raw =
+    typeof value === "string" ? Number(value.replace(/,/g, "")) : value;
   if (!Number.isFinite(raw)) {
     return typeof value === "string" && value.trim().length > 0 ? value : "—";
   }
@@ -217,8 +232,18 @@ const formatCurrencyValue = (value: string | number | null | undefined) => {
   return Number(raw).toLocaleString();
 };
 
-const WASTE_TYPE_OPTIONS = ["Plastic", "Food", "Paper", "Metal", "Glass", "Other"] as const;
-const WASTE_TREATMENT_OPTIONS: { value: WasteTreatmentMethod; label: string }[] = [
+const WASTE_TYPE_OPTIONS = [
+  "Plastic",
+  "Food",
+  "Paper",
+  "Metal",
+  "Glass",
+  "Other",
+] as const;
+const WASTE_TREATMENT_OPTIONS: {
+  value: WasteTreatmentMethod;
+  label: string;
+}[] = [
   { value: "landfill", label: "Landfill" },
   { value: "incineration", label: "Incineration" },
   { value: "recycling", label: "Recycling" },
@@ -279,9 +304,7 @@ function MetricCard({
         {secondaryLabel ? (
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
             {secondaryLabel}
-            <span className="ml-1 font-semibold">
-              {secondaryValue ?? "--"}
-            </span>
+            <span className="ml-1 font-semibold">{secondaryValue ?? "--"}</span>
           </div>
         ) : null}
       </CardContent>
@@ -305,7 +328,8 @@ function DistanceFuelCard({
   computedFuelLiters,
 }: DistanceFuelCardProps) {
   // Calculate tCO2e for today's fuel
-  const todayTco2e = computedFuelLiters !== null ? computedFuelLiters * 2.68 : null;
+  const todayTco2e =
+    computedFuelLiters !== null ? computedFuelLiters * 2.68 : null;
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -313,7 +337,10 @@ function DistanceFuelCard({
           <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
             Route Fuel Summary (For Deliveries)
           </CardTitle>
-          <CardDescription className="mt-1">Capture today&apos;s travel distance and efficiency to auto-calculate fuel usage.</CardDescription>
+          <CardDescription className="mt-1">
+            Capture today&apos;s travel distance and efficiency to
+            auto-calculate fuel usage.
+          </CardDescription>
         </div>
         <div className="flex space-x-1">
           <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
@@ -327,7 +354,9 @@ function DistanceFuelCard({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="daily-total-distance">Today&apos;s Total Distance (km)</Label>
+            <Label htmlFor="daily-total-distance">
+              Today&apos;s Total Distance (km)
+            </Label>
             <Input
               id="daily-total-distance"
               type="number"
@@ -337,7 +366,9 @@ function DistanceFuelCard({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="daily-fuel-efficiency">Fuel Efficiency (L/km)</Label>
+            <Label htmlFor="daily-fuel-efficiency">
+              Fuel Efficiency (L/km)
+            </Label>
             <Input
               id="daily-fuel-efficiency"
               type="number"
@@ -350,13 +381,15 @@ function DistanceFuelCard({
         <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
           Total fuel for today:
           <span className="ml-1 font-semibold">
-            {computedFuelLiters !== null ? `${computedFuelLiters.toFixed(2)} L` : "--"}
+            {computedFuelLiters !== null
+              ? `${computedFuelLiters.toFixed(2)} L`
+              : "--"}
           </span>
         </div>
         <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
           Total tCO₂e for today:
           <span className="ml-1 font-semibold">
-            {todayTco2e !== null ? `${(todayTco2e).toFixed(2)} tCO₂e` : "--"}
+            {todayTco2e !== null ? `${todayTco2e.toFixed(2)} tCO₂e` : "--"}
           </span>
         </div>
       </CardContent>
@@ -389,7 +422,8 @@ function EquipmentEmissionsCard({
             Equipment Emissions Summary
           </CardTitle>
           <CardDescription className="mt-1">
-            Log today&apos;s operating hours and average fuel rate to estimate combustion emissions.
+            Log today&apos;s operating hours and average fuel rate to estimate
+            combustion emissions.
           </CardDescription>
         </div>
         <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
@@ -423,7 +457,9 @@ function EquipmentEmissionsCard({
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-emerald-700 dark:text-emerald-200">
             Total fuel consumed:
             <span className="ml-1 font-semibold">
-              {computedFuelLiters !== null ? `${computedFuelLiters.toFixed(2)} L` : "--"}
+              {computedFuelLiters !== null
+                ? `${computedFuelLiters.toFixed(2)} L`
+                : "--"}
             </span>
           </div>
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-emerald-700 dark:text-emerald-200">
@@ -434,7 +470,9 @@ function EquipmentEmissionsCard({
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Calculations assume an emission factor of {EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER} kg CO₂e per liter of fuel burned.
+          Calculations assume an emission factor of{" "}
+          {EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER} kg CO₂e per liter of fuel
+          burned.
         </p>
       </CardContent>
     </Card>
@@ -466,7 +504,8 @@ function SafetyTrirCard({
             Safety Performance (TRIR)
           </CardTitle>
           <CardDescription className="mt-1">
-            Track recordable incidents and exposure hours to compute today&apos;s total recordable incident rate.
+            Track recordable incidents and exposure hours to compute
+            today&apos;s total recordable incident rate.
           </CardDescription>
         </div>
         <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
@@ -511,7 +550,8 @@ function SafetyTrirCard({
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          TRIR is computed as (Incidents × 200,000) ÷ Total Hours Worked. A lower value reflects stronger site safety.
+          TRIR is computed as (Incidents × 200,000) ÷ Total Hours Worked. A
+          lower value reflects stronger site safety.
         </p>
       </CardContent>
     </Card>
@@ -539,10 +579,14 @@ function WasteEmissionsCard({
   totalInputMassKg,
   totalEmissionsKg,
 }: WasteEmissionsCardProps) {
-  const percentageTotalsByWasteType = entries.reduce<Record<string, number>>((accumulator, entry) => {
-    accumulator[entry.wasteType] = (accumulator[entry.wasteType] ?? 0) + entry.percentageValue;
-    return accumulator;
-  }, {});
+  const percentageTotalsByWasteType = entries.reduce<Record<string, number>>(
+    (accumulator, entry) => {
+      accumulator[entry.wasteType] =
+        (accumulator[entry.wasteType] ?? 0) + entry.percentageValue;
+      return accumulator;
+    },
+    {}
+  );
 
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
@@ -552,7 +596,8 @@ function WasteEmissionsCard({
             Waste Management Summary
           </CardTitle>
           <CardDescription className="mt-1">
-            Break down monthly waste streams and treatment methods to compute emissions.
+            Break down monthly waste streams and treatment methods to compute
+            emissions.
           </CardDescription>
         </div>
         <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
@@ -630,7 +675,9 @@ function WasteEmissionsCard({
               min="0"
               max="100"
               value={newEntry.treatmentPercentage}
-              onChange={(event) => onEntryChange("treatmentPercentage", event.target.value)}
+              onChange={(event) =>
+                onEntryChange("treatmentPercentage", event.target.value)
+              }
               placeholder="e.g. 25"
             />
           </div>
@@ -641,15 +688,27 @@ function WasteEmissionsCard({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-emerald-700 dark:text-emerald-200">
             Total input mass:
-            <span className="ml-1 font-semibold">{totalInputMassKg > 0 ? `${totalInputMassKg.toFixed(2)} kg` : "--"}</span>
+            <span className="ml-1 font-semibold">
+              {totalInputMassKg > 0
+                ? `${totalInputMassKg.toFixed(2)} kg`
+                : "--"}
+            </span>
           </div>
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-emerald-700 dark:text-emerald-200">
             Allocated mass (kg):
-            <span className="ml-1 font-semibold">{totalAllocatedMassKg > 0 ? `${totalAllocatedMassKg.toFixed(2)} kg` : "--"}</span>
+            <span className="ml-1 font-semibold">
+              {totalAllocatedMassKg > 0
+                ? `${totalAllocatedMassKg.toFixed(2)} kg`
+                : "--"}
+            </span>
           </div>
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-emerald-700 dark:text-emerald-200">
             Total CO₂e emitted:
-            <span className="ml-1 font-semibold">{totalEmissionsKg > 0 ? `${totalEmissionsKg.toFixed(2)} kg` : "--"}</span>
+            <span className="ml-1 font-semibold">
+              {totalEmissionsKg > 0
+                ? `${totalEmissionsKg.toFixed(2)} kg`
+                : "--"}
+            </span>
           </div>
         </div>
         <div className="border rounded-lg overflow-x-auto">
@@ -660,7 +719,9 @@ function WasteEmissionsCard({
                 <TableHead>Treatment</TableHead>
                 <TableHead className="text-right">Mass</TableHead>
                 <TableHead className="text-right">Treatment %</TableHead>
-                <TableHead className="text-right">Allocated Mass (kg)</TableHead>
+                <TableHead className="text-right">
+                  Allocated Mass (kg)
+                </TableHead>
                 <TableHead className="text-right">CO₂e (kg)</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -669,17 +730,28 @@ function WasteEmissionsCard({
               {entries.length > 0 ? (
                 entries.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="font-medium">{entry.wasteType}</TableCell>
-                    <TableCell className="capitalize">{entry.treatmentMethod}</TableCell>
+                    <TableCell className="font-medium">
+                      {entry.wasteType}
+                    </TableCell>
+                    <TableCell className="capitalize">
+                      {entry.treatmentMethod}
+                    </TableCell>
                     <TableCell className="text-right">
                       {Number(entry.mass).toLocaleString(undefined, {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 2,
-                      })} {entry.unit}
+                      })}{" "}
+                      {entry.unit}
                     </TableCell>
-                    <TableCell className="text-right">{entry.percentageValue.toFixed(2)}%</TableCell>
-                    <TableCell className="text-right">{entry.allocatedMassKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{entry.emissionKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      {entry.percentageValue.toFixed(2)}%
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {entry.allocatedMassKg.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {entry.emissionKg.toFixed(2)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button
                         type="button"
@@ -695,7 +767,10 @@ function WasteEmissionsCard({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-sm text-muted-foreground"
+                  >
                     No waste entries recorded this month.
                   </TableCell>
                 </TableRow>
@@ -705,21 +780,30 @@ function WasteEmissionsCard({
         </div>
         {entries.length > 0 ? (
           <div className="text-xs text-muted-foreground">
-            <p className="mb-1">Ensure treatment allocations for each waste type total 100%:</p>
+            <p className="mb-1">
+              Ensure treatment allocations for each waste type total 100%:
+            </p>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {Object.entries(percentageTotalsByWasteType).map(([wasteType, total]) => (
-                <span
-                  key={wasteType}
-                  className={Math.abs(total - 100) > 0.001 ? "text-red-600 dark:text-red-400" : undefined}
-                >
-                  {wasteType}: <strong>{total.toFixed(2)}%</strong>
-                </span>
-              ))}
+              {Object.entries(percentageTotalsByWasteType).map(
+                ([wasteType, total]) => (
+                  <span
+                    key={wasteType}
+                    className={
+                      Math.abs(total - 100) > 0.001
+                        ? "text-red-600 dark:text-red-400"
+                        : undefined
+                    }
+                  >
+                    {wasteType}: <strong>{total.toFixed(2)}%</strong>
+                  </span>
+                )
+              )}
             </div>
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Allocate each waste type across treatment methods. Percentages per type must add up to 100% before submission.
+            Allocate each waste type across treatment methods. Percentages per
+            type must add up to 100% before submission.
           </p>
         )}
       </CardContent>
@@ -757,11 +841,17 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     electricity: "",
     water: "",
   });
-  const [sourcingMaterials, setSourcingMaterials] = useState<SourcedMaterial[]>([]);
-  const [materialFetchError, setMaterialFetchError] = useState<string | null>(null);
+  const [sourcingMaterials, setSourcingMaterials] = useState<SourcedMaterial[]>(
+    []
+  );
+  const [materialFetchError, setMaterialFetchError] = useState<string | null>(
+    null
+  );
   const [materialLoading, setMaterialLoading] = useState(false);
   const [wasteEntries, setWasteEntries] = useState<WasteEntry[]>([]);
-  const [newWasteEntry, setNewWasteEntry] = useState<WasteFormEntry>(createDefaultWasteFormEntry());
+  const [newWasteEntry, setNewWasteEntry] = useState<WasteFormEntry>(
+    createDefaultWasteFormEntry()
+  );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -769,18 +859,24 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [routeEndQuery, setRouteEndQuery] = useState("");
   const [routeFuelLiters, setRouteFuelLiters] = useState("");
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
-  const [routeDurationMinutes, setRouteDurationMinutes] = useState<number | null>(null);
+  const [routeDurationMinutes, setRouteDurationMinutes] = useState<
+    number | null
+  >(null);
   const [startLabel, setStartLabel] = useState<string | null>(null);
   const [endLabel, setEndLabel] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLngTuple>(DEFAULT_MAP_CENTER);
-  const [startCoordinate, setStartCoordinate] = useState<LatLngTuple | null>(null);
+  const [startCoordinate, setStartCoordinate] = useState<LatLngTuple | null>(
+    null
+  );
   const [endCoordinate, setEndCoordinate] = useState<LatLngTuple | null>(null);
   const [truckPosition, setTruckPosition] = useState<LatLngTuple | null>(null);
   const [routePoints, setRoutePoints] = useState<LatLngTuple[]>([]);
   const [animationPoints, setAnimationPoints] = useState<LatLngTuple[]>([]);
   const [isAnimatingRoute, setIsAnimatingRoute] = useState(false);
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
-  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">("daily");
+  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">(
+    "daily"
+  );
 
   const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -826,7 +922,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   useEffect(() => () => clearAnimationTimer(), []);
 
-  const mapDisplayCenter = truckPosition ?? startCoordinate ?? endCoordinate ?? mapCenter;
+  const mapDisplayCenter =
+    truckPosition ?? startCoordinate ?? endCoordinate ?? mapCenter;
 
   const resetMessages = () => {
     setStatusMessage(null);
@@ -849,7 +946,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           return;
         }
 
-        const { data: authData, error: authError } = await supabase.auth.getUser();
+        const { data: authData, error: authError } =
+          await supabase.auth.getUser();
 
         if (authError) {
           throw authError;
@@ -862,7 +960,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             return;
           }
           setSourcingMaterials([]);
-          setMaterialFetchError("You must be signed in to view sourcing materials.");
+          setMaterialFetchError(
+            "You must be signed in to view sourcing materials."
+          );
           return;
         }
 
@@ -882,7 +982,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             return;
           }
           setSourcingMaterials([]);
-          setMaterialFetchError("No pre-construction setup found for this project.");
+          setMaterialFetchError(
+            "No pre-construction setup found for this project."
+          );
           return;
         }
 
@@ -910,7 +1012,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             supplier: material.planned_supplier ?? "",
             warehouse: material.warehouse_of_the_supplier ?? undefined,
             cost:
-              material.budgeted_cost !== null && material.budgeted_cost !== undefined
+              material.budgeted_cost !== null &&
+              material.budgeted_cost !== undefined
                 ? String(material.budgeted_cost)
                 : "",
             unit: material.unit ?? undefined,
@@ -946,7 +1049,10 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   }, [project?.id]);
 
   const computedFuelLiters = useMemo(() => {
-    if (dailyMetrics.distanceKm.trim() === "" || dailyMetrics.fuelEfficiency.trim() === "") {
+    if (
+      dailyMetrics.distanceKm.trim() === "" ||
+      dailyMetrics.fuelEfficiency.trim() === ""
+    ) {
       return null;
     }
 
@@ -1038,7 +1144,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         const normalizedPercentage = Number.isFinite(percentageValue)
           ? Math.max(0, percentageValue) / 100
           : 0;
-        const emissionFactor = WASTE_EMISSION_FACTORS_KG_PER_KG[entry.treatmentMethod] ?? 0;
+        const emissionFactor =
+          WASTE_EMISSION_FACTORS_KG_PER_KG[entry.treatmentMethod] ?? 0;
         const allocatedMassKg = massKg * normalizedPercentage;
         const emissionKg = allocatedMassKg * emissionFactor;
 
@@ -1047,7 +1154,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           massKg,
           allocatedMassKg,
           emissionKg,
-          percentageValue: Number.isFinite(percentageValue) ? percentageValue : 0,
+          percentageValue: Number.isFinite(percentageValue)
+            ? percentageValue
+            : 0,
         } satisfies WasteEntrySummary;
       }),
     [wasteEntries]
@@ -1072,12 +1181,17 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   }, [wasteEntrySummaries]);
 
   const totalAllocatedWasteMassKg = useMemo(
-    () => wasteEntrySummaries.reduce((total, entry) => total + entry.allocatedMassKg, 0),
+    () =>
+      wasteEntrySummaries.reduce(
+        (total, entry) => total + entry.allocatedMassKg,
+        0
+      ),
     [wasteEntrySummaries]
   );
 
   const computedMonthlyWasteEmissions = useMemo(
-    () => wasteEntrySummaries.reduce((total, entry) => total + entry.emissionKg, 0),
+    () =>
+      wasteEntrySummaries.reduce((total, entry) => total + entry.emissionKg, 0),
     [wasteEntrySummaries]
   );
 
@@ -1085,7 +1199,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     resetMessages();
 
     if (!routeStartQuery.trim() || !routeEndQuery.trim()) {
-      setErrorMessage("Enter both origin and destination before calculating the route.");
+      setErrorMessage(
+        "Enter both origin and destination before calculating the route."
+      );
       return;
     }
 
@@ -1115,8 +1231,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-        const message = payload?.message ?? "Unable to compute route for the provided locations.";
+        const payload = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        const message =
+          payload?.message ??
+          "Unable to compute route for the provided locations.";
         throw new Error(message);
       }
 
@@ -1135,7 +1255,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       const sampledPoints = sampleRoutePoints(payload.polyline);
 
       if (sampledPoints.length === 0) {
-        throw new Error("The computed route did not contain enough points to animate.");
+        throw new Error(
+          "The computed route did not contain enough points to animate."
+        );
       }
 
       setStartCoordinate([payload.start.lat, payload.start.lng]);
@@ -1156,7 +1278,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       }
     } catch (error) {
       console.error("Failed to animate route", error);
-      const message = error instanceof Error ? error.message : "Unable to animate route.";
+      const message =
+        error instanceof Error ? error.message : "Unable to animate route.";
       setErrorMessage(message);
     } finally {
       setIsFetchingRoute(false);
@@ -1170,7 +1293,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       return;
     }
     if (!routeFuelLiters) {
-      setErrorMessage("Enter the truck's fuel consumption before applying it to the log.");
+      setErrorMessage(
+        "Enter the truck's fuel consumption before applying it to the log."
+      );
       return;
     }
     const parsedFuel = Number(routeFuelLiters);
@@ -1190,11 +1315,13 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       const existingDistance = safeNumeric(prev.distanceKm);
       const existingEfficiency = safeNumeric(prev.fuelEfficiency);
-      const existingFuelLiters = existingDistance > 0 ? existingDistance * existingEfficiency : 0;
+      const existingFuelLiters =
+        existingDistance > 0 ? existingDistance * existingEfficiency : 0;
 
       const updatedDistance = existingDistance + routeDistanceKm;
       const updatedFuelLiters = existingFuelLiters + parsedFuel;
-      const updatedEfficiency = updatedDistance > 0 ? updatedFuelLiters / updatedDistance : 0;
+      const updatedEfficiency =
+        updatedDistance > 0 ? updatedFuelLiters / updatedDistance : 0;
 
       return {
         ...prev,
@@ -1203,29 +1330,40 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           updatedDistance > 0 && updatedFuelLiters > 0
             ? updatedEfficiency.toFixed(3)
             : updatedDistance > 0
-              ? "0"
-              : "",
+            ? "0"
+            : "",
       };
     });
-    setStatusMessage("Route fuel has been factored into today's distance and efficiency totals.");
+    setStatusMessage(
+      "Route fuel has been factored into today's distance and efficiency totals."
+    );
   };
 
   const handleDailyInputChange = (metric: DailyMetricKey, value: string) => {
     setDailyMetrics((prev) => ({ ...prev, [metric]: value }));
   };
 
-  const handleMonthlyInputChange = (metric: MonthlyMetricKey, value: string) => {
+  const handleMonthlyInputChange = (
+    metric: MonthlyMetricKey,
+    value: string
+  ) => {
     setMonthlyMetrics((prev) => ({ ...prev, [metric]: value }));
   };
 
-  const handleWasteEntryChange = (field: keyof WasteFormEntry, value: string) => {
+  const handleWasteEntryChange = (
+    field: keyof WasteFormEntry,
+    value: string
+  ) => {
     setNewWasteEntry((prev) => {
       if (field === "unit") {
         return { ...prev, unit: value as WasteFormEntry["unit"] };
       }
 
       if (field === "treatmentMethod") {
-        return { ...prev, treatmentMethod: value as WasteFormEntry["treatmentMethod"] };
+        return {
+          ...prev,
+          treatmentMethod: value as WasteFormEntry["treatmentMethod"],
+        };
       }
 
       return { ...prev, [field]: value };
@@ -1276,10 +1414,15 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
     const existingPercentageTotal = wasteEntries
       .filter((entry) => entry.wasteType === newWasteEntry.wasteType)
-      .reduce((total, entry) => total + Number(entry.treatmentPercentage || "0"), 0);
+      .reduce(
+        (total, entry) => total + Number(entry.treatmentPercentage || "0"),
+        0
+      );
 
     if (existingPercentageTotal + parsedPercentage > 100.0001) {
-      setErrorMessage("Treatment percentages for this waste type would exceed 100%. Adjust the allocation before adding another entry.");
+      setErrorMessage(
+        "Treatment percentages for this waste type would exceed 100%. Adjust the allocation before adding another entry."
+      );
       return;
     }
 
@@ -1297,21 +1440,29 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     setWasteEntries((prev) => [...prev, entry]);
     setNewWasteEntry(createDefaultWasteFormEntry());
     setStatusMessage(
-      `Waste entry recorded. ${entry.wasteType} allocation now ${updatedAllocation.toFixed(2)}% of 100%.`
+      `Waste entry recorded. ${
+        entry.wasteType
+      } allocation now ${updatedAllocation.toFixed(2)}% of 100%.`
     );
   };
 
   const removeWasteEntry = (id: string) => {
     resetMessages();
     setWasteEntries((prev) => prev.filter((entry) => entry.id !== id));
-    setStatusMessage("Waste entry removed. Re-check percentage totals before submitting.");
+    setStatusMessage(
+      "Waste entry removed. Re-check percentage totals before submitting."
+    );
   };
 
   const handleSubmit = async () => {
     resetMessages();
 
-    const hasDailyMetrics = Object.values(dailyMetrics).some((value) => value.trim() !== "");
-    const hasMonthlyMetrics = Object.values(monthlyMetrics).some((value) => value.trim() !== "");
+    const hasDailyMetrics = Object.values(dailyMetrics).some(
+      (value) => value.trim() !== ""
+    );
+    const hasMonthlyMetrics = Object.values(monthlyMetrics).some(
+      (value) => value.trim() !== ""
+    );
     const hasWasteEntries = wasteEntries.length > 0;
     const shouldSubmitDaily = metricsPeriod === "daily" && hasDailyMetrics;
     const shouldSubmitMonthly =
@@ -1348,7 +1499,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       const distanceValue = parseNumber(dailyMetrics.distanceKm);
       const efficiencyValue = parseNumber(dailyMetrics.fuelEfficiency);
       const equipmentHoursValue = parseNumber(dailyMetrics.equipmentHours);
-      const equipmentFuelRateValue = parseNumber(dailyMetrics.equipmentFuelRate);
+      const equipmentFuelRateValue = parseNumber(
+        dailyMetrics.equipmentFuelRate
+      );
       const incidentCountValue = parseNumber(dailyMetrics.incidentCount);
       const hoursWorkedValue = parseNumber(dailyMetrics.hoursWorked);
 
@@ -1356,21 +1509,27 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         (distanceValue !== null && efficiencyValue === null) ||
         (distanceValue === null && efficiencyValue !== null)
       ) {
-        throw new Error("Provide both total distance and fuel efficiency to compute fuel usage.");
+        throw new Error(
+          "Provide both total distance and fuel efficiency to compute fuel usage."
+        );
       }
 
       if (
         (equipmentHoursValue !== null && equipmentFuelRateValue === null) ||
         (equipmentHoursValue === null && equipmentFuelRateValue !== null)
       ) {
-        throw new Error("Provide both equipment hours and fuel rate to compute equipment emissions.");
+        throw new Error(
+          "Provide both equipment hours and fuel rate to compute equipment emissions."
+        );
       }
 
       if (
         (incidentCountValue !== null && hoursWorkedValue === null) ||
         (incidentCountValue === null && hoursWorkedValue !== null)
       ) {
-        throw new Error("Provide both number of incidents and total hours worked to compute TRIR.");
+        throw new Error(
+          "Provide both number of incidents and total hours worked to compute TRIR."
+        );
       }
 
       if (incidentCountValue !== null && incidentCountValue < 0) {
@@ -1380,7 +1539,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       if (hoursWorkedValue !== null && hoursWorkedValue <= 0) {
         throw new Error("Total hours worked must be greater than zero.");
       }
-
 
       // Calculate fuel tCO2e (route fuel summary)
       const fuelConsumptionLiters =
@@ -1399,12 +1557,18 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           : null;
       const equipmentEmissionsKg =
         equipmentFuelConsumptionLiters !== null
-          ? Number((equipmentFuelConsumptionLiters * EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER).toFixed(4))
+          ? Number(
+              (
+                equipmentFuelConsumptionLiters *
+                EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER
+              ).toFixed(4)
+            )
           : null;
 
       // Scope 1 = fuel tCO2e + equipment tCO2e
       const scope1 =
-        (fuelTco2e !== null ? fuelTco2e : 0) + (equipmentEmissionsKg !== null ? equipmentEmissionsKg : 0);
+        (fuelTco2e !== null ? fuelTco2e : 0) +
+        (equipmentEmissionsKg !== null ? equipmentEmissionsKg : 0);
 
       const safetyTrirRaw =
         incidentCountValue !== null && hoursWorkedValue !== null
@@ -1417,7 +1581,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           : null;
 
       let dailyLogId: string | undefined;
-
 
       if (shouldSubmitDaily) {
         const { data: dailyLog, error: dailyError } = await supabase
@@ -1456,7 +1619,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             throw fetchError;
           }
           if (!fallback) {
-            throw new Error("Daily report saved but could not retrieve identifier.");
+            throw new Error(
+              "Daily report saved but could not retrieve identifier."
+            );
           }
           dailyLogId = fallback.id;
         }
@@ -1483,8 +1648,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           if (safetyInsertError) {
             console.error("Failed to save safety details", safetyInsertError);
             const message =
-              typeof safetyInsertError === "object" && safetyInsertError !== null && "message" in safetyInsertError
-                ? String((safetyInsertError as { message?: string }).message ?? "")
+              typeof safetyInsertError === "object" &&
+              safetyInsertError !== null &&
+              "message" in safetyInsertError
+                ? String(
+                    (safetyInsertError as { message?: string }).message ?? ""
+                  )
                 : "";
             const warningMessage = message
               ? `Safety details were not saved (${message}).`
@@ -1505,12 +1674,19 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
         const rawElectricityKwh = parseNumber(monthlyMetrics.electricity) ?? 0;
         const rawWaterCubicM = parseNumber(monthlyMetrics.water) ?? 0;
-        const rawWaste = hasWasteEntries && wasteEntries.length > 0
-          ? wasteEntries.reduce((sum, entry) => sum + Number(entry.mass) * (entry.unit === "ton" ? 1000 : 1), 0)
-          : 0;
+        const rawWaste =
+          hasWasteEntries && wasteEntries.length > 0
+            ? wasteEntries.reduce(
+                (sum, entry) =>
+                  sum + Number(entry.mass) * (entry.unit === "ton" ? 1000 : 1),
+                0
+              )
+            : 0;
 
         // Fetch existing placeholder values for this project/month
-        let existingElec = 0, existingWater = 0, existingWaste = 0;
+        let existingElec = 0,
+          existingWater = 0,
+          existingWaste = 0;
         const { data: existingRow, error: fetchError } = await supabase
           .from("construction_monthly_log")
           .select("elec_placeholder, water_placeholder, waste_placeholder")
@@ -1533,11 +1709,18 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             ? Number((sumElec * PH_GRID_EMISSION_FACTOR_KG_PER_KWH).toFixed(4))
             : null;
         // Scope 2 = electricity emissions in tCO2e
-        const scope2 = electricityEmissionsKg !== null ? Number((electricityEmissionsKg).toFixed(4)) : null;
+        const scope2 =
+          electricityEmissionsKg !== null
+            ? Number(electricityEmissionsKg.toFixed(4))
+            : null;
 
         const waterEmissionsKg =
           sumWater !== null
-            ? Number((sumWater * WATER_SUPPLY_EMISSION_FACTOR_KG_PER_CUBIC_M).toFixed(4))
+            ? Number(
+                (
+                  sumWater * WATER_SUPPLY_EMISSION_FACTOR_KG_PER_CUBIC_M
+                ).toFixed(4)
+              )
             : null;
 
         let wasteEmissionsKg = null;
@@ -1546,13 +1729,16 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           for (const entry of wasteEntries) {
             const parsedMass = Number(entry.mass);
             const massKg = Number.isFinite(parsedMass)
-              ? (entry.unit === "ton" ? parsedMass * 1000 : parsedMass)
+              ? entry.unit === "ton"
+                ? parsedMass * 1000
+                : parsedMass
               : 0;
             const percentageValue = Number(entry.treatmentPercentage);
             const normalizedPercentage = Number.isFinite(percentageValue)
               ? Math.max(0, percentageValue) / 100
               : 0;
-            const emissionFactor = WASTE_EMISSION_FACTORS_KG_PER_KG[entry.treatmentMethod] ?? 0;
+            const emissionFactor =
+              WASTE_EMISSION_FACTORS_KG_PER_KG[entry.treatmentMethod] ?? 0;
             const allocatedMassKg = massKg * normalizedPercentage;
             const emissionKg = allocatedMassKg * emissionFactor;
             totalEmissions += emissionKg;
@@ -1566,15 +1752,21 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           (waterEmissionsKg !== null ? waterEmissionsKg : 0);
 
         if (electricityEmissionsKg !== null && sumElec !== null) {
-          electricitySummary = ` Electricity emissions: ${electricityEmissionsKg.toFixed(2)} kg CO₂e (from ${sumElec.toFixed(2)} kWh).`;
+          electricitySummary = ` Electricity emissions: ${electricityEmissionsKg.toFixed(
+            2
+          )} kg CO₂e (from ${sumElec.toFixed(2)} kWh).`;
         }
 
         if (waterEmissionsKg !== null && sumWater !== null) {
-          waterSummary = ` Water emissions: ${waterEmissionsKg.toFixed(2)} kg CO₂e (from ${sumWater.toFixed(2)} m³).`;
+          waterSummary = ` Water emissions: ${waterEmissionsKg.toFixed(
+            2
+          )} kg CO₂e (from ${sumWater.toFixed(2)} m³).`;
         }
 
         if (wasteEmissionsKg !== null && sumWaste > 0) {
-          wasteSummary = ` Waste emissions: ${wasteEmissionsKg.toFixed(2)} kg CO₂e.`;
+          wasteSummary = ` Waste emissions: ${wasteEmissionsKg.toFixed(
+            2
+          )} kg CO₂e.`;
         }
 
         // Add placeholder columns for summed values
@@ -1617,20 +1809,31 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       const safetySummary =
         safetyTrirRaw !== null
-          ? ` Safety TRIR recorded: ${safetyTrirRaw.toFixed(2)} (stored as ${safetyTrirRounded} • Incidents: ${incidentCountValue ?? 0}, Hours: ${hoursWorkedValue ?? 0}).`
+          ? ` Safety TRIR recorded: ${safetyTrirRaw.toFixed(
+              2
+            )} (stored as ${safetyTrirRounded} • Incidents: ${
+              incidentCountValue ?? 0
+            }, Hours: ${hoursWorkedValue ?? 0}).`
           : "";
 
       const combinedSummary = `${fuelSummary}${equipmentSummary}${safetySummary}${electricitySummary}${waterSummary}${wasteSummary}`;
-      const warningSummary = warnings.length > 0 ? ` ${warnings.join(" ")}` : "";
+      const warningSummary =
+        warnings.length > 0 ? ` ${warnings.join(" ")}` : "";
 
       if (shouldSubmitDaily) {
         if (shouldSubmitMonthly) {
-          setStatusMessage(`Daily report and monthly metrics saved successfully.${combinedSummary}${warningSummary}`.trim());
+          setStatusMessage(
+            `Daily report and monthly metrics saved successfully.${combinedSummary}${warningSummary}`.trim()
+          );
         } else {
-          setStatusMessage(`Daily report saved successfully.${combinedSummary}${warningSummary}`.trim());
+          setStatusMessage(
+            `Daily report saved successfully.${combinedSummary}${warningSummary}`.trim()
+          );
         }
       } else if (shouldSubmitMonthly) {
-        setStatusMessage(`Monthly metrics saved successfully.${warningSummary}`.trim());
+        setStatusMessage(
+          `Monthly metrics saved successfully.${warningSummary}`.trim()
+        );
       } else {
         setStatusMessage(`Submission completed.${warningSummary}`.trim());
       }
@@ -1659,9 +1862,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       const message =
         error instanceof Error
           ? error.message
-          : typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string"
-            ? (error as { message: string }).message
-            : "Unable to submit report.";
+          : typeof error === "object" &&
+            error !== null &&
+            "message" in error &&
+            typeof (error as { message?: unknown }).message === "string"
+          ? (error as { message: string }).message
+          : "Unable to submit report.";
       setErrorMessage(message);
     } finally {
       setIsSubmitting(false);
@@ -1706,7 +1912,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       : "Submit Full Daily Report";
 
   const submitButtonBusyLabel =
-    metricsPeriod === "monthly" ? "Submitting Monthly..." : "Submitting Daily...";
+    metricsPeriod === "monthly"
+      ? "Submitting Monthly..."
+      : "Submitting Daily...";
 
   return (
     <div className="space-y-6">
@@ -1732,7 +1940,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       <Tabs
         value={metricsPeriod}
-        onValueChange={(value) => setMetricsPeriod(value as "daily" | "monthly")}
+        onValueChange={(value) =>
+          setMetricsPeriod(value as "daily" | "monthly")
+        }
         className="space-y-4"
       >
         <TabsList>
@@ -1744,23 +1954,35 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             <DistanceFuelCard
               distanceValue={dailyMetrics.distanceKm}
               efficiencyValue={dailyMetrics.fuelEfficiency}
-              onDistanceChange={(value) => handleDailyInputChange("distanceKm", value)}
-              onEfficiencyChange={(value) => handleDailyInputChange("fuelEfficiency", value)}
+              onDistanceChange={(value) =>
+                handleDailyInputChange("distanceKm", value)
+              }
+              onEfficiencyChange={(value) =>
+                handleDailyInputChange("fuelEfficiency", value)
+              }
               computedFuelLiters={computedFuelLiters}
             />
             <EquipmentEmissionsCard
               hoursValue={dailyMetrics.equipmentHours}
               fuelRateValue={dailyMetrics.equipmentFuelRate}
-              onHoursChange={(value) => handleDailyInputChange("equipmentHours", value)}
-              onFuelRateChange={(value) => handleDailyInputChange("equipmentFuelRate", value)}
+              onHoursChange={(value) =>
+                handleDailyInputChange("equipmentHours", value)
+              }
+              onFuelRateChange={(value) =>
+                handleDailyInputChange("equipmentFuelRate", value)
+              }
               computedFuelLiters={computedEquipmentTotals.fuelLiters}
               computedCo2Kg={computedEquipmentTotals.co2Kg}
             />
             <SafetyTrirCard
               incidentsValue={dailyMetrics.incidentCount}
               hoursWorkedValue={dailyMetrics.hoursWorked}
-              onIncidentsChange={(value) => handleDailyInputChange("incidentCount", value)}
-              onHoursWorkedChange={(value) => handleDailyInputChange("hoursWorked", value)}
+              onIncidentsChange={(value) =>
+                handleDailyInputChange("incidentCount", value)
+              }
+              onHoursWorkedChange={(value) =>
+                handleDailyInputChange("hoursWorked", value)
+              }
               computedTrir={computedSafetyTrir}
               target={preConstructionTargets.safety}
             />
@@ -1791,9 +2013,16 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                     key={metric.id}
                     {...metric}
                     value={monthlyMetrics[metric.id as MonthlyMetricKey]}
-                    onChange={(value) => handleMonthlyInputChange(metric.id as MonthlyMetricKey, value)}
+                    onChange={(value) =>
+                      handleMonthlyInputChange(
+                        metric.id as MonthlyMetricKey,
+                        value
+                      )
+                    }
                     labelPrefix="This Month's"
-                    secondaryLabel={isElectricity || isWater ? "Total CO₂e (kg):" : undefined}
+                    secondaryLabel={
+                      isElectricity || isWater ? "Total CO₂e (kg):" : undefined
+                    }
                     secondaryValue={secondaryValue}
                   />
                 );
@@ -1819,7 +2048,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             Delivery Route
           </CardTitle>
           <CardDescription>
-            Visualize a material delivery, capture distance travelled, and feed the truck&apos;s fuel usage into today&apos;s log.
+            Visualize a material delivery, capture distance travelled, and feed
+            the truck&apos;s fuel usage into today&apos;s log.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1863,27 +2093,38 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                   disabled
                 />
                 <p className="text-xs text-muted-foreground">
-                  A suggested value is provided after calculating the route using an average 0.35 L/km factor.
+                  A suggested value is provided after calculating the route
+                  using an average 0.35 L/km factor.
                 </p>
               </div>
             ) : null}
             <div className="flex flex-col justify-between gap-2">
               <div className="space-y-2">
                 <div>
-                  <p className="text-sm text-muted-foreground">Distance Travelled</p>
+                  <p className="text-sm text-muted-foreground">
+                    Distance Travelled
+                  </p>
                   <p className="text-2xl font-semibold text-emerald-600">
-                    {routeDistanceKm !== null ? `${routeDistanceKm.toFixed(2)} km` : "--"}
+                    {routeDistanceKm !== null
+                      ? `${routeDistanceKm.toFixed(2)} km`
+                      : "--"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Estimated Drive Time</p>
+                  <p className="text-sm text-muted-foreground">
+                    Estimated Drive Time
+                  </p>
                   <p className="text-lg font-medium text-muted-foreground">
                     {formatDuration(routeDurationMinutes)}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={handleAnimateRoute} disabled={isFetchingRoute}>
+                <Button
+                  type="button"
+                  onClick={handleAnimateRoute}
+                  disabled={isFetchingRoute}
+                >
                   {isFetchingRoute ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1923,8 +2164,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            Enter street addresses or decimal coordinates to snap the truck along real driving roads. Use the animation to capture
-            the delivery distance and associated fuel usage for today&apos;s report.
+            Enter street addresses or decimal coordinates to snap the truck
+            along real driving roads. Use the animation to capture the delivery
+            distance and associated fuel usage for today&apos;s report.
           </p>
         </CardContent>
       </Card>
@@ -1939,13 +2181,18 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             Material Sourcing Plan Alignment
           </CardTitle>
           <CardDescription>
-            Review the sourcing commitments captured during pre-construction. Updates must be made from the pre-construction workflow.
+            Review the sourcing commitments captured during pre-construction.
+            Updates must be made from the pre-construction workflow.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            These entries mirror the <span className="font-medium text-emerald-700 dark:text-emerald-300">Material Sourcing &amp; Due Diligence</span> table completed before groundbreaking.
-            Use this list to confirm deliveries match the approved sourcing strategy.
+            These entries mirror the{" "}
+            <span className="font-medium text-emerald-700 dark:text-emerald-300">
+              Material Sourcing &amp; Due Diligence
+            </span>{" "}
+            table completed before groundbreaking. Use this list to confirm
+            deliveries match the approved sourcing strategy.
           </p>
           <div className="border rounded-lg overflow-x-auto">
             <Table>
@@ -1955,7 +2202,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                   <TableHead>Category</TableHead>
                   <TableHead>Planned Supplier</TableHead>
                   <TableHead>Warehouse</TableHead>
-                  <TableHead className="text-right">Budgeted Cost ($)</TableHead>
+                  <TableHead className="text-right">
+                    Budgeted Cost ($)
+                  </TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -1987,7 +2236,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                         <Badge
                           variant="outline"
                           className={`border-transparent ${
-                            MATERIAL_STATUS_BADGE[material.status] ?? "bg-muted text-muted-foreground"
+                            MATERIAL_STATUS_BADGE[material.status] ??
+                            "bg-muted text-muted-foreground"
                           }`}
                         >
                           {material.status}
@@ -1997,7 +2247,10 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={7}
+                      className="text-center text-sm text-muted-foreground"
+                    >
                       {materialFetchError ??
                         "No sourcing records found. Capture materials in the pre-construction workflow to populate this table."}
                     </TableCell>
@@ -2011,7 +2264,11 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       <Card>
         <CardContent className="pt-6">
-          <Button onClick={handleSubmit} className="w-full" disabled={isSubmitting}>
+          <Button
+            onClick={handleSubmit}
+            className="w-full"
+            disabled={isSubmitting}
+          >
             <Send className="mr-2 h-4 w-4" />
             {isSubmitting ? submitButtonBusyLabel : submitButtonLabel}
           </Button>

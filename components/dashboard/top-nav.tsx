@@ -17,9 +17,9 @@ import Profile01 from "./profile";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { usePathname } from "next/navigation";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import NotificationModalContainer from "./notification-modal-container";
-import { useUserNotifications } from "@/lib/hooks/useUserNotifications";
+import { useUserNotifications } from "@/hooks/useUserNotifications";
 
 interface BreadcrumbItem {
   label: string;
@@ -81,7 +81,8 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
     let isMounted = true;
 
     const loadAvatar = async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
 
       if (!isMounted) {
         return;

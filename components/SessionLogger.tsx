@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import { supabase } from "@/utils/supabase/client"; // adjust path if needed
+import { supabase } from "@/lib/supabase/client"; // adjust path if needed
 
 export function SessionLogger() {
   useEffect(() => {

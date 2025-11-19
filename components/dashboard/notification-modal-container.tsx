@@ -1,4 +1,4 @@
-import { useUserNotifications } from "@/lib/hooks/useUserNotifications";
+import { useUserNotifications } from "@/hooks/useUserNotifications";
 import { NotificationModal } from "@/components/dashboard/notification-modal";
 
 type NotificationType = "info" | "success" | "warning" | "error";

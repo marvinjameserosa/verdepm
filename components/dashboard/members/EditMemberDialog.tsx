@@ -235,11 +235,7 @@ export const EditMemberDialog = ({
           </div>
         </div>
         <DialogFooter className="px-6 pb-6 pt-4 border-t border-emerald-100/70 dark:border-emerald-900/40 bg-white/60 dark:bg-slate-950/40 backdrop-blur">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="rounded-xl"
-          >
+          <Button variant="outline" onClick={onClose} className="rounded-xl">
             Cancel
           </Button>
           <Button

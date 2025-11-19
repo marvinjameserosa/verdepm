@@ -9,7 +9,7 @@ import {
   type Material,
   type MaterialStatus,
 } from "./preconstruction/types";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import type { Project } from "@/types/project";
 import { mapProjectFromSupabase } from "./project-helpers";
 
@@ -36,7 +36,12 @@ const generateSlug = (input: string) =>
     .replace(/^-+|-+$/g, "");
 
 const buildSlugFallback = (identifier: string) =>
-  `project-${identifier.replace(/[^a-z0-9]+/gi, "").slice(0, 12).toLowerCase() || crypto.randomUUID().slice(0, 12)}`;
+  `project-${
+    identifier
+      .replace(/[^a-z0-9]+/gi, "")
+      .slice(0, 12)
+      .toLowerCase() || crypto.randomUUID().slice(0, 12)
+  }`;
 
 const getDefaultStep1Values = (project?: Project): Step1InitialValues => ({
   projectName: project?.name ?? DEFAULT_STEP1_VALUES.projectName,
@@ -132,8 +137,13 @@ type PreConstructionPhaseProps = {
   onProjectUpdated?: (project: Project) => void;
 };
 
-export function PreConstructionPhase({ project, onProjectUpdated }: PreConstructionPhaseProps) {
-  const [projectDetails, setProjectDetails] = useState<Project | null>(project ?? null);
+export function PreConstructionPhase({
+  project,
+  onProjectUpdated,
+}: PreConstructionPhaseProps) {
+  const [projectDetails, setProjectDetails] = useState<Project | null>(
+    project ?? null
+  );
   const [step, setStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
   const [projectSetupId, setProjectSetupId] = useState<string | null>(null);
@@ -150,11 +160,17 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
   const [isSavingTarget, setIsSavingTarget] = useState(false);
   const [isSavingMaterial, setIsSavingMaterial] = useState(false);
   const [deletingTargetId, setDeletingTargetId] = useState<string | null>(null);
-  const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(null);
+  const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(
+    null
+  );
   const [isSubmittingForApproval, setIsSubmittingForApproval] = useState(false);
-  const [submittedForApprovalAt, setSubmittedForApprovalAt] = useState<string | null>(null);
-  const [supportsSubmittedAtColumn, setSupportsSubmittedAtColumn] = useState(false);
-  const [supportsApprovalStatusColumn, setSupportsApprovalStatusColumn] = useState(false);
+  const [submittedForApprovalAt, setSubmittedForApprovalAt] = useState<
+    string | null
+  >(null);
+  const [supportsSubmittedAtColumn, setSupportsSubmittedAtColumn] =
+    useState(false);
+  const [supportsApprovalStatusColumn, setSupportsApprovalStatusColumn] =
+    useState(false);
 
   useEffect(() => {
     setProjectDetails(project ?? null);
@@ -418,7 +434,10 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
           }
 
           const conflictingSlugs = (data ?? [])
-            .filter((row) => row.id !== projectDetails.id && typeof row.slug === "string")
+            .filter(
+              (row) =>
+                row.id !== projectDetails.id && typeof row.slug === "string"
+            )
             .map((row) => row.slug);
 
           if (!conflictingSlugs.includes(baseSlug)) {
@@ -473,7 +492,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
         const projectIdForSetup = projectDetails?.id ?? project?.id;
 
         if (!projectIdForSetup) {
-          throw new Error("Project context is missing. Reload the page and try again.");
+          throw new Error(
+            "Project context is missing. Reload the page and try again."
+          );
         }
 
         const payload = {
@@ -533,17 +554,15 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
           }
 
           if (Object.keys(updates).length > 0) {
-            const {
-              data: updatedProjectRow,
-              error: projectUpdateError,
-            } = await supabase
-              .from("projects")
-              .update(updates)
-              .eq("id", projectDetails.id)
-              .select(
-                "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
-              )
-              .maybeSingle();
+            const { data: updatedProjectRow, error: projectUpdateError } =
+              await supabase
+                .from("projects")
+                .update(updates)
+                .eq("id", projectDetails.id)
+                .select(
+                  "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
+                )
+                .maybeSingle();
 
             if (projectUpdateError) {
               throw projectUpdateError;
@@ -596,7 +615,15 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
         setIsSavingStep1(false);
       }
     },
-    [documentPaths, nextStep, onProjectUpdated, projectDetails, projectSetupId, resetFeedback, userId]
+    [
+      documentPaths,
+      nextStep,
+      onProjectUpdated,
+      projectDetails,
+      projectSetupId,
+      resetFeedback,
+      userId,
+    ]
   );
 
   const handleStep1Submit = useCallback(
@@ -615,7 +642,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
     }
 
     if (!projectSetupId) {
-      throw new Error("Save project setup details before submitting for approval.");
+      throw new Error(
+        "Save project setup details before submitting for approval."
+      );
     }
 
     resetFeedback();
@@ -646,7 +675,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
       }
 
       setSubmittedForApprovalAt(
-        supportsSubmittedAtColumn ? (updates.submitted_for_approval_at as string) : new Date().toISOString()
+        supportsSubmittedAtColumn
+          ? (updates.submitted_for_approval_at as string)
+          : new Date().toISOString()
       );
       setSuccessMessage("Submitted for approval.");
     } catch (error) {
@@ -656,11 +687,19 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
           ? error.message
           : "Unable to submit for approval right now."
       );
-      throw error instanceof Error ? error : new Error("Unable to submit for approval right now.");
+      throw error instanceof Error
+        ? error
+        : new Error("Unable to submit for approval right now.");
     } finally {
       setIsSubmittingForApproval(false);
     }
-  }, [projectSetupId, resetFeedback, supportsApprovalStatusColumn, supportsSubmittedAtColumn, userId]);
+  }, [
+    projectSetupId,
+    resetFeedback,
+    supportsApprovalStatusColumn,
+    supportsSubmittedAtColumn,
+    userId,
+  ]);
 
   const handleSaveTarget = useCallback(
     async (target: TargetFormInput) => {
@@ -851,7 +890,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
       } catch (error) {
         console.error("Failed to delete ESG target", error);
         setErrorMessage(
-          error instanceof Error ? error.message : "Unable to delete ESG target."
+          error instanceof Error
+            ? error.message
+            : "Unable to delete ESG target."
         );
       } finally {
         setDeletingTargetId(null);
@@ -863,7 +904,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
   const handleDeleteMaterial = useCallback(
     async (materialId: string) => {
       if (!projectSetupId) {
-        setErrorMessage("Save project setup before modifying sourcing materials.");
+        setErrorMessage(
+          "Save project setup before modifying sourcing materials."
+        );
         return;
       }
 
@@ -881,7 +924,9 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
           throw error;
         }
 
-        setMaterials((prev) => prev.filter((material) => material.id !== materialId));
+        setMaterials((prev) =>
+          prev.filter((material) => material.id !== materialId)
+        );
       } catch (error) {
         console.error("Failed to delete material", error);
         setErrorMessage(
@@ -1024,6 +1069,5 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
     </div>
   );
 }
-
 
 export default PreConstructionPhase;

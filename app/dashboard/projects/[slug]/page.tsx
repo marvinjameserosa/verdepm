@@ -1,7 +1,7 @@
 import ProjectPageContent from "@/components/dashboard/projects/project-page-content";
 import { Background } from "@/components/ui/background";
 import { notFound } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { mapProjectFromSupabase } from "@/components/dashboard/projects/project-helpers";
 import type { Project } from "@/types/project";
 

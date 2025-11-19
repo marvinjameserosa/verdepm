@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { mapProjectFromSupabase } from "@/components/dashboard/projects/project-helpers";
 import type { Project } from "@/types/project";
 import {
@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
-import { Tabs, TabsContent} from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   BarChart,
   Bar,
@@ -39,16 +39,24 @@ import {
 } from "lucide-react";
 import { Background } from "@/components/ui/background";
 
-
 function getDummyEsgScores(project: Project) {
-
-  const hash = project.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const hash = project.name
+    .split("")
+    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
   return {
     environmental: 75 + (hash % 20),
     social: 70 + (hash % 25),
     governance: 80 + (hash % 15),
-    overall: Math.round((75 + (hash % 20) + 70 + (hash % 25) + 80 + (hash % 15)) / 3 * 10) / 10,
-    status: project.status === 'completed' ? 'Completed' : (project.status === 'in-progress' ? 'On Track' : 'Delayed'),
+    overall:
+      Math.round(
+        ((75 + (hash % 20) + 70 + (hash % 25) + 80 + (hash % 15)) / 3) * 10
+      ) / 10,
+    status:
+      project.status === "completed"
+        ? "Completed"
+        : project.status === "in-progress"
+        ? "On Track"
+        : "Delayed",
   };
 }
 type EmissionsScopeDatum = {
@@ -158,7 +166,6 @@ const projectBreakdownData = [
   },
 ];
 
-
 // Dynamically generate ESG breakdown for fetched projects
 const getProjectEsgBreakdown = (projects: Project[]) =>
   projects.map((project) => ({
@@ -166,15 +173,19 @@ const getProjectEsgBreakdown = (projects: Project[]) =>
     ...getDummyEsgScores(project),
   }));
 
-
 // Dynamically generate ESG detailed breakdown for fetched projects
 const getEsgDetailedBreakdown = (projects: Project[]) => {
   const projectEsgBreakdown = getProjectEsgBreakdown(projects);
   return {
     environmental: {
-      totalScore: 87, 
+      totalScore: 87,
       metrics: [
-        { name: "Carbon Footprint Reduction", score: 89, target: 95, trend: "up" },
+        {
+          name: "Carbon Footprint Reduction",
+          score: 89,
+          target: 95,
+          trend: "up",
+        },
         { name: "Energy Efficiency", score: 85, target: 90, trend: "up" },
         { name: "Waste Management", score: 91, target: 85, trend: "up" },
         { name: "Water Conservation", score: 83, target: 88, trend: "stable" },
@@ -192,7 +203,12 @@ const getEsgDetailedBreakdown = (projects: Project[]) => {
         { name: "Worker Safety", score: 95, target: 98, trend: "up" },
         { name: "Community Engagement", score: 78, target: 85, trend: "up" },
         { name: "Local Employment", score: 82, target: 80, trend: "up" },
-        { name: "Training & Development", score: 85, target: 90, trend: "stable" },
+        {
+          name: "Training & Development",
+          score: 85,
+          target: 90,
+          trend: "stable",
+        },
         { name: "Diversity & Inclusion", score: 74, target: 85, trend: "up" },
       ],
       projects: projectEsgBreakdown.map((p) => ({
@@ -206,8 +222,18 @@ const getEsgDetailedBreakdown = (projects: Project[]) => {
       metrics: [
         { name: "Ethics & Compliance", score: 96, target: 95, trend: "up" },
         { name: "Risk Management", score: 89, target: 92, trend: "up" },
-        { name: "Transparency & Reporting", score: 93, target: 90, trend: "up" },
-        { name: "Stakeholder Engagement", score: 88, target: 90, trend: "stable" },
+        {
+          name: "Transparency & Reporting",
+          score: 93,
+          target: 90,
+          trend: "up",
+        },
+        {
+          name: "Stakeholder Engagement",
+          score: 88,
+          target: 90,
+          trend: "stable",
+        },
         { name: "Board Oversight", score: 91, target: 95, trend: "up" },
       ],
       projects: projectEsgBreakdown.map((p) => ({
@@ -225,23 +251,29 @@ const supplierData = {
   incomplete: 38,
 };
 
-
 export default function Dashboard() {
   const [isProjectEmissionsOpen, setIsProjectEmissionsOpen] = useState(true);
-  const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] = useState(true);
+  const [isEmissionsBreakdownOpen, setIsEmissionsBreakdownOpen] =
+    useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
-  const [emissionsView, setEmissionsView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'>('monthly');
-  const [customDateRange, setCustomDateRange] = useState<{ start: string; end: string } | null>(null);
-  const [emissionsScopeData, setEmissionsScopeData] = useState<EmissionsScopeDatum[]>(DEFAULT_SCOPE_DATA);
+  const [emissionsView, setEmissionsView] = useState<
+    "daily" | "weekly" | "monthly" | "yearly" | "custom"
+  >("monthly");
+  const [customDateRange, setCustomDateRange] = useState<{
+    start: string;
+    end: string;
+  } | null>(null);
+  const [emissionsScopeData, setEmissionsScopeData] =
+    useState<EmissionsScopeDatum[]>(DEFAULT_SCOPE_DATA);
   const totalEmissions = React.useMemo(
     () => emissionsScopeData.reduce((sum, scope) => sum + scope.value, 0),
     [emissionsScopeData]
   );
-  const [totalElectricityEmissionsKg, setTotalElectricityEmissionsKg] = useState(0);
+  const [totalElectricityEmissionsKg, setTotalElectricityEmissionsKg] =
+    useState(0);
   const [totalWaterConsumption, setTotalWaterConsumption] = useState(0);
   const [totalWasteGeneratedKg, setTotalWasteGeneratedKg] = useState(0);
-
 
   // Fetch projects from Supabase
   useEffect(() => {
@@ -268,7 +300,9 @@ export default function Dashboard() {
           .select("fuel_consumption_liters, equipment_usage_tco2e, scope1"),
         supabase
           .from("construction_monthly_log")
-          .select("elec_placeholder, water_placeholder, waste_placeholder, electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, scope2, scope3"),
+          .select(
+            "elec_placeholder, water_placeholder, waste_placeholder, electricity_usage_kwh, water_consumption_cubic_m, waste_generated_kg, scope2, scope3"
+          ),
       ]);
 
       if (!isMounted) {
@@ -284,7 +318,10 @@ export default function Dashboard() {
           ? []
           : (monthlyResult.data as any[]);
 
-      if ((dailyResult.error && monthlyResult.error) || (dailyLogs.length === 0 && monthlyLogs.length === 0)) {
+      if (
+        (dailyResult.error && monthlyResult.error) ||
+        (dailyLogs.length === 0 && monthlyLogs.length === 0)
+      ) {
         setEmissionsScopeData(DEFAULT_SCOPE_DATA);
         setTotalElectricityEmissionsKg(0);
         setTotalWaterConsumption(0);
@@ -301,7 +338,7 @@ export default function Dashboard() {
 
       // Use the stored scope1 column if available (already tCO2e), otherwise fallback to calculation (kg -> tCO2e)
       for (const log of dailyLogs) {
-        if (typeof log.scope1 === 'number' && Number.isFinite(log.scope1)) {
+        if (typeof log.scope1 === "number" && Number.isFinite(log.scope1)) {
           scope1_tco2e += log.scope1;
         } else {
           // fallback for legacy rows (kg -> tCO2e)
@@ -313,7 +350,8 @@ export default function Dashboard() {
       }
 
       // Use the most recent monthly log for dashboard cards
-      const latestMonthly = monthlyLogs.length > 0 ? monthlyLogs[monthlyLogs.length - 1] : null;
+      const latestMonthly =
+        monthlyLogs.length > 0 ? monthlyLogs[monthlyLogs.length - 1] : null;
       const elecPlaceholder = latestMonthly?.elec_placeholder ?? 0;
       const waterPlaceholder = latestMonthly?.water_placeholder ?? 0;
       const wastePlaceholder = latestMonthly?.waste_placeholder ?? 0;
@@ -328,12 +366,12 @@ export default function Dashboard() {
         const water = toNumber(log.water_consumption_cubic_m);
         const wasteKg = toNumber(log.waste_generated_kg);
 
-        if (typeof log.scope2 === 'number' && Number.isFinite(log.scope2)) {
+        if (typeof log.scope2 === "number" && Number.isFinite(log.scope2)) {
           scope2_tco2e += log.scope2;
         } else {
           scope2_tco2e += electricity;
         }
-        if (typeof log.scope3 === 'number' && Number.isFinite(log.scope3)) {
+        if (typeof log.scope3 === "number" && Number.isFinite(log.scope3)) {
           scope3_tco2e += log.scope3;
         }
       }
@@ -343,9 +381,21 @@ export default function Dashboard() {
         total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0;
 
       setEmissionsScopeData([
-        { name: "Scope 1", value: scope1_tco2e, percentage: percentage(scope1_tco2e) },
-        { name: "Scope 2", value: scope2_tco2e, percentage: percentage(scope2_tco2e) },
-        { name: "Scope 3", value: scope3_tco2e, percentage: percentage(scope3_tco2e) },
+        {
+          name: "Scope 1",
+          value: scope1_tco2e,
+          percentage: percentage(scope1_tco2e),
+        },
+        {
+          name: "Scope 2",
+          value: scope2_tco2e,
+          percentage: percentage(scope2_tco2e),
+        },
+        {
+          name: "Scope 3",
+          value: scope3_tco2e,
+          percentage: percentage(scope3_tco2e),
+        },
       ]);
     };
 
@@ -355,7 +405,6 @@ export default function Dashboard() {
       isMounted = false;
     };
   }, []);
-
 
   const esgDetailedBreakdown = getEsgDetailedBreakdown(projects);
 
@@ -377,7 +426,7 @@ export default function Dashboard() {
   };
 
   const formatWasteKilograms = (value: number) => {
-    if (value >= 1_000_000) { 
+    if (value >= 1_000_000) {
       return `${(value / 1_000_000).toFixed(1)}M`;
     }
     if (value >= 1_000) {
@@ -387,11 +436,17 @@ export default function Dashboard() {
   };
 
   // --- Project selection state for Project Rankings ---
-  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
+  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(
+    null
+  );
 
-  const projectKeyMetrics: Record<string, { metrics: { name: string; score: number; target: number; trend: string }[] }> = {};
+  const projectKeyMetrics: Record<
+    string,
+    {
+      metrics: { name: string; score: number; target: number; trend: string }[];
+    }
+  > = {};
   esgDetailedBreakdown.environmental.projects.forEach((proj, idx) => {
-    
     projectKeyMetrics[proj.name] = {
       metrics: esgDetailedBreakdown.environmental.metrics.map((m, i) => ({
         ...m,
@@ -402,9 +457,10 @@ export default function Dashboard() {
   });
 
   // Get metrics for selected project, or default
-  const selectedMetrics = selectedProjectName && projectKeyMetrics[selectedProjectName]
-    ? projectKeyMetrics[selectedProjectName].metrics
-    : esgDetailedBreakdown.environmental.metrics;
+  const selectedMetrics =
+    selectedProjectName && projectKeyMetrics[selectedProjectName]
+      ? projectKeyMetrics[selectedProjectName].metrics
+      : esgDetailedBreakdown.environmental.metrics;
 
   return (
     <Background variant="subtle" className="min-h-screen">
@@ -442,9 +498,13 @@ export default function Dashboard() {
               <CardContent>
                 <div className="text-2xl font-bold text-emerald-700">
                   {totalEmissions.toFixed(1)}
-                  <span className="text-base font-normal text-muted-foreground ml-1">tCO₂e</span>
+                  <span className="text-base font-normal text-muted-foreground ml-1">
+                    tCO₂e
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">Combined Scope 1, 2 & 3</p>
+                <p className="text-xs text-muted-foreground">
+                  Combined Scope 1, 2 & 3
+                </p>
                 <div className="flex items-center mt-2">
                   {/*<TrendingDown className="h-3 w-3 text-emerald-500 mr-1" />
                   <span className="text-xs text-emerald-600">
@@ -468,7 +528,9 @@ export default function Dashboard() {
                 <div className="text-2xl font-bold text-blue-700">
                   {formatEmissionValue(totalElectricityEmissionsKg)}
                 </div>
-                <p className="text-xs text-muted-foreground">kg CO₂e from grid electricity</p>
+                <p className="text-xs text-muted-foreground">
+                  kg CO₂e from grid electricity
+                </p>
                 <div className="flex items-center mt-2">
                   {/*<TrendingUp className="h-3 w-3 text-red-500 mr-1" />
                   <span className="text-xs text-red-600">
@@ -529,63 +591,65 @@ export default function Dashboard() {
             {/* Emissions Breakdown */}
             <div className="col-span-1 lg:col-span-2">
               <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-              <CardHeader
-                className="flex flex-row items-center justify-between cursor-pointer"
-                onClick={() =>
-                  setIsEmissionsBreakdownOpen(!isEmissionsBreakdownOpen)
-                }
-              >
-                <div>
-                  <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                    Scope 1, 2 & 3 Emissions
-                  </CardTitle>
-                  <CardDescription>
-                    Total: {(totalEmissions / 1000).toFixed(1)}k tCO₂e
-                  </CardDescription>
-                </div>
-                <ChevronDown
-                  className={`h-5 w-5 text-emerald-700 dark:text-emerald-300 transform transition-transform ${
-                    isEmissionsBreakdownOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </CardHeader>
-              {isEmissionsBreakdownOpen && (
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={emissionsScopeData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [`${value} tCO₂e`, ""]} />
-                      <Bar
-                        dataKey="value"
-                        fill="#10b981"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {emissionsScopeData.map((scope, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50"
-                      >
-                        <span className="font-medium">{scope.name}</span>
-                        <div className="text-right">
-                          <div className="font-bold">
-                            {scope.value.toLocaleString()} tCO₂e
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {scope.percentage}%
+                <CardHeader
+                  className="flex flex-row items-center justify-between cursor-pointer"
+                  onClick={() =>
+                    setIsEmissionsBreakdownOpen(!isEmissionsBreakdownOpen)
+                  }
+                >
+                  <div>
+                    <CardTitle className="text-emerald-700 dark:text-emerald-300">
+                      Scope 1, 2 & 3 Emissions
+                    </CardTitle>
+                    <CardDescription>
+                      Total: {(totalEmissions / 1000).toFixed(1)}k tCO₂e
+                    </CardDescription>
+                  </div>
+                  <ChevronDown
+                    className={`h-5 w-5 text-emerald-700 dark:text-emerald-300 transform transition-transform ${
+                      isEmissionsBreakdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </CardHeader>
+                {isEmissionsBreakdownOpen && (
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={emissionsScopeData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value) => [`${value} tCO₂e`, ""]}
+                        />
+                        <Bar
+                          dataKey="value"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 space-y-2">
+                      {emissionsScopeData.map((scope, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                        >
+                          <span className="font-medium">{scope.name}</span>
+                          <div className="text-right">
+                            <div className="font-bold">
+                              {scope.value.toLocaleString()} tCO₂e
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {scope.percentage}%
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            </div>
 
             {/* ESG Score Overview */}
             {/* <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
@@ -701,8 +765,8 @@ export default function Dashboard() {
 
           {/* ESG Summary Cards */}
           {/*<div className="grid grid-cols-1 md:grid-cols-3 gap-6"> */}
-            {/* Environmental Card */}
-            {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+          {/* Environmental Card */}
+          {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -751,8 +815,8 @@ export default function Dashboard() {
               </CardContent>
             </Card> */}
 
-            {/* Social Card */}
-            {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+          {/* Social Card */}
+          {/*<Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -801,8 +865,8 @@ export default function Dashboard() {
               </CardContent>
             </Card> */}
 
-            {/* Governance Card */}
-            {/* <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+          {/* Governance Card */}
+          {/* <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -886,7 +950,7 @@ export default function Dashboard() {
                   </TabsTrigger>
                 </TabsList> */}
 
-                {/*<TabsContent value="environmental" className="space-y-4 mt-6">
+          {/*<TabsContent value="environmental" className="space-y-4 mt-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
                       <h4 className="font-semibold mb-3 text-emerald-700 dark:text-emerald-300">
@@ -1246,11 +1310,16 @@ export default function Dashboard() {
                       const esg = getDummyEsgScores(project);
                       // Placeholder: Replace with real emissions data per project if available
                       // For now, use dummy breakdown logic
-                      const scope1 = Math.round(1000 + (index * 100));
-                      const scope2 = Math.round(800 + (index * 80));
-                      const scope3 = Math.round(1200 + (index * 120));
+                      const scope1 = Math.round(1000 + index * 100);
+                      const scope2 = Math.round(800 + index * 80);
+                      const scope3 = Math.round(1200 + index * 120);
                       const total = scope1 + scope2 + scope3;
-                      const progress = esg.status === 'Completed' ? 100 : esg.status === 'On Track' ? 75 : 40;
+                      const progress =
+                        esg.status === "Completed"
+                          ? 100
+                          : esg.status === "On Track"
+                          ? 75
+                          : 40;
                       return (
                         <div
                           key={project.id}
@@ -1274,8 +1343,7 @@ export default function Dashboard() {
                                 >
                                   {esg.status}
                                 </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                </span>
+                                <span className="text-xs text-muted-foreground"></span>
                               </div>
                             </div>
                             <div className="text-right">

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { createClient as createServerClient } from "@/utils/supabase/server";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   const { email, password, firstname, lastname, phone, role } =
@@ -8,7 +8,10 @@ export async function POST(request: Request) {
 
   // Get the current authenticated user
   const supabase = await createServerClient();
-  const { data: { user: currentUser }, error: authCheckError } = await supabase.auth.getUser();
+  const {
+    data: { user: currentUser },
+    error: authCheckError,
+  } = await supabase.auth.getUser();
 
   if (authCheckError || !currentUser) {
     return NextResponse.json(

@@ -2,15 +2,9 @@
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  ListFilter,
-  Search,
-} from "lucide-react";
+import { ListFilter, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -20,12 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddProjectModal } from "./add-project-modal";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import type { Project, ProjectStatus } from "@/types/project";
-import {
-  mapProjectFromSupabase,
-  projectStatusLabels,
-} from "./project-helpers";
+import { mapProjectFromSupabase, projectStatusLabels } from "./project-helpers";
 import { ProjectCard } from "./project-card";
 
 const STATUS_FILTER_ORDER: ProjectStatus[] = [
@@ -40,9 +31,8 @@ export default function ProjectsTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatuses, setSelectedStatuses] = useState<ProjectStatus[]>(
-    STATUS_FILTER_ORDER
-  );
+  const [selectedStatuses, setSelectedStatuses] =
+    useState<ProjectStatus[]>(STATUS_FILTER_ORDER);
 
   useEffect(() => {
     let isMounted = true;

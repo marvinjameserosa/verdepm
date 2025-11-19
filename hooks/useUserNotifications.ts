@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 export type NotificationType = "info" | "success" | "warning" | "error";
 
@@ -39,7 +39,9 @@ export function useUserNotifications(userId: string) {
         setNotifications(
           (data || []).map((n: any) => ({
             ...n,
-            type: (["info", "success", "warning", "error"].includes(n.type) ? n.type : "info") as NotificationType,
+            type: (["info", "success", "warning", "error"].includes(n.type)
+              ? n.type
+              : "info") as NotificationType,
             timestamp: n.timestamp ? new Date(n.timestamp) : new Date(),
           }))
         );
