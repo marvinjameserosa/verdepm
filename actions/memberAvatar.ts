@@ -1,4 +1,4 @@
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 const AVATAR_BUCKET =
   process.env.NEXT_PUBLIC_SUPABASE_AVATARS_BUCKET ?? "avatars";
