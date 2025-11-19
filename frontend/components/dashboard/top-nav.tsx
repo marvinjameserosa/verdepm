@@ -25,6 +25,21 @@ interface BreadcrumbItem {
   href?: string;
 }
 
+const isValidUrl = (value?: string | null) => {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const createAvatarUrl = (seed: string) =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    seed || "Verde User"
+  )}&background=0D8ABC&color=ffffff&size=128`;
+
 interface TopNavProps {
   toggleSidebar: () => void;
   isSidebarOpen: boolean;
@@ -34,6 +49,8 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   const pathname = usePathname();
   const [projectName, setProjectName] = useState<string | null>(null);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [notifications, setNotifications] = useState([
     {
       id: "1",
@@ -80,6 +97,78 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   const handleClearNotification = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAvatar = async () => {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (authError || !authData?.user) {
+        setProfileAvatarUrl(null);
+        return;
+      }
+
+      const authUser = authData.user;
+
+      const { data: userProfile, error: profileError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("user_id", authUser.id)
+        .maybeSingle();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (profileError) {
+        console.error("Failed to load user avatar", profileError);
+      }
+
+      const fullName = [
+        userProfile?.first_name?.trim(),
+        userProfile?.last_name?.trim(),
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      const displayName =
+        fullName || authUser.user_metadata?.display_name || authUser.email;
+
+      const profileAvatarCandidate = [
+        userProfile?.avatar_url,
+        userProfile?.avatar,
+        userProfile?.profile_image_url,
+        userProfile?.image_url,
+      ].find((value) => isValidUrl(value));
+
+      const metadataAvatarCandidate = [
+        authUser.user_metadata?.avatar_url,
+        authUser.user_metadata?.avatar,
+        authUser.user_metadata?.picture,
+        authUser.user_metadata?.image_url,
+        authUser.user_metadata?.profile_image_url,
+      ].find((value) => isValidUrl(value));
+
+      const avatarUrl =
+        profileAvatarCandidate ||
+        metadataAvatarCandidate ||
+        createAvatarUrl(displayName || authUser.id);
+
+      setProfileName(displayName ?? null);
+      setProfileAvatarUrl(avatarUrl);
+    };
+
+    loadAvatar();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (mainCategory !== "projects" || !slug) {
@@ -230,13 +319,20 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger className="focus:outline-none">
-            <Image
-              src="https://ferf1mheo22r9ira.public.blob.vercel-storage.com/avatar-01-n0x8HFv8EUetf9z6ht0wScJKoTHqf8.png"
-              alt="User avatar"
-              width={28}
-              height={28}
-              className="rounded-full ring-2 ring-border sm:w-8 sm:h-8 cursor-pointer"
-            />
+            <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-border cursor-pointer">
+              {profileAvatarUrl ? (
+                <Image
+                  src={profileAvatarUrl}
+                  alt={profileName ? `${profileName} avatar` : "User avatar"}
+                  fill
+                  sizes="36px"
+                  className="object-cover"
+                  priority
+                />
+              ) : (
+                <div className="absolute inset-0 bg-muted" />
+              )}
+            </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"

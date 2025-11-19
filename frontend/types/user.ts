@@ -24,6 +24,7 @@ export type User = {
   lastActive?: string;
   projects?: string[];
   avatar?: string;
+  avatar_url?: string;
   permissions?: string[];
 };
 

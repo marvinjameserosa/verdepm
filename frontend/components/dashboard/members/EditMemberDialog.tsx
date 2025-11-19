@@ -79,14 +79,16 @@ export const EditMemberDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-background">
-        <DialogHeader>
-          <DialogTitle>Edit Member</DialogTitle>
+      <DialogContent className="sm:max-w-xl max-h-[80vh] overflow-hidden rounded-2xl border border-emerald-100/70 dark:border-emerald-900/40 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl backdrop-blur p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
+            Edit Member
+          </DialogTitle>
           <DialogDescription>
             Update the details for {member.first_name} {member.last_name}.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="flex-1 space-y-4 px-6 py-4 overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="first_name">First Name</Label>
@@ -140,11 +142,20 @@ export const EditMemberDialog = ({
             </Select>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="px-6 pb-6 pt-4 border-t border-emerald-100/70 dark:border-emerald-900/40 bg-white/60 dark:bg-slate-950/40 backdrop-blur">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="rounded-xl"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>Save Changes</Button>
+          <Button
+            onClick={handleSubmit}
+            className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-md"
+          >
+            Save Changes
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

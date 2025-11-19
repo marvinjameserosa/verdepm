@@ -5,6 +5,7 @@ import { LogOut, MoveUpRight, Settings, FileText } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
+import Image from "next/image";
 
 interface MenuItem {
   label: string;
@@ -14,12 +15,32 @@ interface MenuItem {
   external?: boolean;
 }
 
-const defaultProfile = {
-  name: "Eugene An",
-  role: "Prompt Engineer",
+const isValidUrl = (value?: string | null) => {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 };
 
-type ProfileState = typeof defaultProfile;
+const createAvatarUrl = (seed: string) =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    seed || "Verde User"
+  )}&background=0D8ABC&color=ffffff&size=128`;
+
+interface ProfileState {
+  name: string;
+  role: string;
+  avatarUrl: string;
+}
+
+const defaultProfile: ProfileState = {
+  name: "Eugene An",
+  role: "Prompt Engineer",
+  avatarUrl: createAvatarUrl("Eugene An"),
+};
 
 export default function Profile01() {
   const router = useRouter();
@@ -49,7 +70,7 @@ export default function Profile01() {
       const authUser = userResponse.user;
       const { data: userProfile, error: profileError } = await supabase
         .from("users")
-        .select("first_name, last_name, role")
+        .select("*")
         .eq("user_id", authUser.id)
         .maybeSingle();
 
@@ -64,16 +85,38 @@ export default function Profile01() {
       const lastName = userProfile?.last_name?.trim();
       const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
 
+      const resolvedName =
+        fullName ||
+        authUser.user_metadata?.display_name ||
+        authUser.email ||
+        defaultProfile.name;
+
+      const profileAvatarCandidate = isValidUrl(userProfile?.avatar_url)
+        ? userProfile?.avatar_url
+        : isValidUrl(userProfile?.avatar)
+        ? userProfile?.avatar
+        : null;
+
+      const metadataAvatarCandidate = [
+        authUser.user_metadata?.avatar_url,
+        authUser.user_metadata?.avatar,
+        authUser.user_metadata?.picture,
+        authUser.user_metadata?.image_url,
+        authUser.user_metadata?.profile_image_url,
+      ].find((value) => isValidUrl(value));
+
+      const avatarUrl =
+        profileAvatarCandidate ||
+        metadataAvatarCandidate ||
+        createAvatarUrl(resolvedName || authUser.email || "Verde User");
+
       setProfile({
-        name:
-          fullName ||
-          authUser.user_metadata?.display_name ||
-          authUser.email ||
-          defaultProfile.name,
+        name: resolvedName,
         role:
           userProfile?.role ||
           authUser.user_metadata?.role ||
           defaultProfile.role,
+        avatarUrl,
       });
 
       setIsLoading(false);
@@ -119,21 +162,37 @@ export default function Profile01() {
     <div className="w-full">
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl">
         <div className="relative px-6 pt-12 pb-6">
-          <div className="flex-1 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
+          <div className="flex flex-col items-center text-center mb-8 gap-3">
+            <div className="relative w-20 h-20 rounded-full overflow-hidden border border-emerald-100/70 dark:border-emerald-900/40 bg-white shadow-sm">
               {isLoading ? (
-                <span className="inline-block h-4 w-32 animate-pulse rounded bg-muted" />
+                <div className="absolute inset-0 animate-pulse bg-muted" />
               ) : (
-                profile.name
+                <Image
+                  src={profile.avatarUrl}
+                  alt={`${profile.name}'s avatar`}
+                  fill
+                  sizes="80px"
+                  className="object-cover"
+                  priority
+                />
               )}
-            </h2>
-            <p className="text-gray-600 dark:text-slate-400">
-              {isLoading ? (
-                <span className="inline-block h-3 w-24 animate-pulse rounded bg-muted" />
-              ) : (
-                profile.role
-              )}
-            </p>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
+                {isLoading ? (
+                  <span className="inline-block h-4 w-32 animate-pulse rounded bg-muted" />
+                ) : (
+                  profile.name
+                )}
+              </h2>
+              <p className="text-gray-600 dark:text-slate-400">
+                {isLoading ? (
+                  <span className="inline-block h-3 w-24 animate-pulse rounded bg-muted" />
+                ) : (
+                  profile.role
+                )}
+              </p>
+            </div>
           </div>
 
           {errorMessage && (

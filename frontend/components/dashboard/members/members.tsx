@@ -46,6 +46,7 @@ import { USER_ROLE_OPTIONS, type User } from "@/types/user";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { supabase } from "@/utils/supabase/client";
 import { ConfirmationDialog } from "./ConfirmationDialog";
+import Image from "next/image";
 
 // Subscription tiers with limits
 const subscriptionTiers = {
@@ -53,6 +54,34 @@ const subscriptionTiers = {
   professional: { name: "Professional", maxMembers: 25, color: "blue" },
   enterprise: { name: "Enterprise", maxMembers: 100, color: "emerald" },
   unlimited: { name: "Enterprise Plus", maxMembers: -1, color: "purple" },
+};
+
+const isValidUrl = (value?: string | null) => {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const buildAvatarUrl = (member: User) => {
+  const displayName = `${member.first_name ?? ""} ${member.last_name ?? ""}`
+    .trim()
+    .replace(/\s+/g, " ");
+  const seed = displayName || member.email || "Verde Member";
+  const candidate = [member.avatar_url, member.avatar].find((value) =>
+    isValidUrl(value)
+  );
+
+  if (candidate) {
+    return candidate;
+  }
+
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    seed
+  )}&background=0D8ABC&color=ffffff&size=128`;
 };
 
 const MembersTab = () => {
@@ -180,20 +209,24 @@ const MembersTab = () => {
         <div className="flex items-center space-x-4">
           <Dialog>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-md">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Invite Member
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-background">
-              <DialogHeader>
-                <DialogTitle>Invite a new member</DialogTitle>
+            <DialogContent className="max-w-lg sm:max-w-xl overflow-hidden rounded-2xl border border-emerald-100/70 dark:border-emerald-900/40 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl backdrop-blur p-0">
+              <DialogHeader className="px-6 pt-6">
+                <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
+                  Invite a new member
+                </DialogTitle>
                 <DialogDescription>
                   Enter the email of the person you want to invite. They will
                   receive an email with instructions to join your organization.
                 </DialogDescription>
               </DialogHeader>
-              <InviteMemberForm onSuccess={fetchMembers} />
+              <div className="px-6 pb-6">
+                <InviteMemberForm onSuccess={fetchMembers} />
+              </div>
             </DialogContent>
           </Dialog>
         </div>
@@ -230,70 +263,89 @@ const MembersTab = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {filteredMembers.map((member) => (
-              <div
-                key={member.user_id}
-                className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                        {member.avatar}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{`${member.first_name} ${member.last_name}`}</h3>
-                        <Badge
-                          variant="outline"
-                          className={getStatusBadge(member.status ?? "")}
-                        >
-                          {member.status}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {member.email} • {member.department}
-                      </div>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Joined {member.joinDate}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+            {filteredMembers.map((member) => {
+              const displayName = `${member.first_name ?? ""} ${
+                member.last_name ?? ""
+              }`
+                .trim()
+                .replace(/\s+/g, " ");
+              const avatarSrc = buildAvatarUrl(member);
 
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {member.role}
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setEditingMember(member)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Account
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => setDeletingMember(member)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Remove Access
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              return (
+                <div
+                  key={member.user_id}
+                  className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden border border-emerald-100/70 dark:border-emerald-900/40 bg-white shadow-sm flex-shrink-0">
+                        <Image
+                          src={avatarSrc}
+                          alt={displayName || member.email || "Team member"}
+                          fill
+                          sizes="48px"
+                          className="object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold">
+                            {displayName || member.email}
+                          </h3>
+                          <Badge
+                            variant="outline"
+                            className={getStatusBadge(member.status ?? "")}
+                          >
+                            {member.status}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {member.email}
+                          {member.department ? ` • ${member.department}` : ""}
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          {member.joinDate && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Joined {member.joinDate}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {member.role}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => setEditingMember(member)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Account
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => setDeletingMember(member)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Remove Access
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {filteredMembers.length === 0 && (

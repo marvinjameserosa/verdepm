@@ -81,9 +81,10 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 p-4 border rounded-lg bg-background"
+      className="space-y-5"
     >
-      <h3 className="text-lg font-semibold">Create User</h3>
+      <div>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="firstname">First Name</Label>
@@ -199,11 +200,17 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
           </p>
         )}
       </div>
-      <Button type="submit" disabled={loading} className="w-full">
+      <Button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-md"
+      >
         {loading ? "Creating User..." : "Create User"}
       </Button>
       {successMessage && (
-        <p className="text-sm text-green-600">{successMessage}</p>
+        <p className="text-sm text-emerald-600 dark:text-emerald-300">
+          {successMessage}
+        </p>
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
