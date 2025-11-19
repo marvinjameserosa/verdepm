@@ -5,7 +5,7 @@ import type { User } from "@/types/user";
 import {
   removeMemberAvatar,
   uploadMemberAvatar,
-} from "@/actions/memberAvatar";
+} from "@/actions/members/memberAvatar";
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 
