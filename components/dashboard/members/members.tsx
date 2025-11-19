@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -24,18 +23,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Users,
   UserPlus,
-  Crown,
-  Shield,
-  Eye,
   Trash2,
-  Mail,
   Calendar,
   Search,
   MoreHorizontal,
@@ -44,17 +37,9 @@ import {
 import { InviteMemberForm } from "./InviteMemberForm";
 import { USER_ROLE_OPTIONS, type User } from "@/types/user";
 import { EditMemberDialog } from "./EditMemberDialog";
-import { supabase } from "@/lib/supabase/client";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 import Image from "next/image";
-
-// Subscription tiers with limits
-const subscriptionTiers = {
-  starter: { name: "Starter", maxMembers: 5, color: "gray" },
-  professional: { name: "Professional", maxMembers: 25, color: "blue" },
-  enterprise: { name: "Enterprise", maxMembers: 100, color: "emerald" },
-  unlimited: { name: "Enterprise Plus", maxMembers: -1, color: "purple" },
-};
+import { useMembers } from "@/hooks/useMembers";
 
 const isValidUrl = (value?: string | null) => {
   if (!value) return false;
@@ -85,8 +70,7 @@ const buildAvatarUrl = (member: User) => {
 };
 
 const MembersTab = () => {
-  const [currentTier] = useState(subscriptionTiers.professional);
-  const [members, setMembers] = useState<User[]>([]);
+  const { members, setMembers, refreshMembers } = useMembers();
   const [searchTerm, setSearchTerm] = useState("");
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [deletingMember, setDeletingMember] = useState<User | null>(null);
@@ -99,19 +83,6 @@ const MembersTab = () => {
     });
     return unique.size ? Array.from(unique) : USER_ROLE_OPTIONS;
   }, [members]);
-
-  const fetchMembers = async () => {
-    const { data, error } = await supabase.from("users").select("*");
-    if (error) {
-      console.error("Error fetching members:", error);
-    } else {
-      setMembers(data as User[]);
-    }
-  };
-
-  useEffect(() => {
-    fetchMembers();
-  }, []);
 
   const handleUpdateMember = async (updatedMember: User) => {
     try {
@@ -227,7 +198,7 @@ const MembersTab = () => {
                 </DialogDescription>
               </DialogHeader>
               <div className="px-6 pb-6">
-                <InviteMemberForm onSuccess={fetchMembers} />
+                <InviteMemberForm onSuccess={refreshMembers} />
               </div>
             </DialogContent>
           </Dialog>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
+import type { InviteMemberPayload } from "@/types/actions";
 
 import {
   Select,
@@ -22,7 +23,7 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState<InviteMemberPayload["role"] | "">("");
   const [showPassword, setShowPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{
     email?: string[];
@@ -58,14 +59,14 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
 
-    const inviteResult = await inviteMember(
+    const inviteResult = await inviteMember({
       email,
       password,
       firstname,
       lastname,
       phone,
-      role
-    );
+      role: role as InviteMemberPayload["role"],
+    });
 
     if (inviteResult && !error) {
       setEmail("");
@@ -186,7 +187,12 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
       <div>
         <Label htmlFor="role">Role</Label>
-        <Select onValueChange={setRole} value={role}>
+        <Select
+          onValueChange={(value) =>
+            setRole(value as InviteMemberPayload["role"])
+          }
+          value={role}
+        >
           <SelectTrigger
             className={validationErrors.role ? "border-red-500" : ""}
           >

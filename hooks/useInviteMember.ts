@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  inviteMember as inviteMemberAction,
+} from "@/actions/inviteMember";
+import type { InviteMemberPayload } from "@/types/actions";
 
 export function useInviteMember() {
   const router = useRouter();
@@ -9,53 +13,30 @@ export function useInviteMember() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<unknown | null>(null);
 
-  const inviteMember = async (
-    email: string,
-    password: string,
-    firstname: string,
-    lastname: string,
-    phone: string,
-    role: string
-  ) => {
-    setLoading(true);
-    setError(null);
-    setData(null);
+  const inviteMember = useCallback(
+    async (payload: InviteMemberPayload) => {
+      setLoading(true);
+      setError(null);
+      setData(null);
 
-    try {
-      const response = await fetch("/api/admin/create-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          firstname,
-          lastname,
-          phone,
-          role,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to create user.");
+      try {
+        const result = await inviteMemberAction(payload);
+        setData(result);
+        await router.refresh();
+        return result;
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Failed to create user.");
+        }
+        return null;
+      } finally {
+        setLoading(false);
       }
+    },
+    [router]
+  );
 
-      setData(result);
-      await router.refresh();
-      return result;
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to create user.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { inviteMember, loading, error, data };
+  return { inviteMember, loading, error, data } as const;
 }
