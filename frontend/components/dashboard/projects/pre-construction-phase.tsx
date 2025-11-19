@@ -597,6 +597,59 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
     [documentPaths, nextStep, onProjectUpdated, projectDetails, projectSetupId, resetFeedback, userId]
   );
 
+  const handleSubmitForApproval = useCallback(async () => {
+    if (!userId) {
+      throw new Error("You must be signed in to submit for approval.");
+    }
+
+    if (!projectSetupId) {
+      throw new Error("Save project setup details before submitting for approval.");
+    }
+
+    resetFeedback();
+    setIsSubmittingForApproval(true);
+
+    try {
+      const updates: Record<string, unknown> = {
+        submitted_for_approval_at: new Date().toISOString(),
+        approval_status: "pending",
+      };
+
+      if (!supportsSubmittedAtColumn) {
+        delete updates.submitted_for_approval_at;
+      }
+
+      if (!supportsApprovalStatusColumn) {
+        delete updates.approval_status;
+      }
+
+      const { error } = await supabase
+        .from("preconstruction_project_setup")
+        .update(updates)
+        .eq("id", projectSetupId)
+        .eq("user_id", userId);
+
+      if (error) {
+        throw error;
+      }
+
+      setSubmittedForApprovalAt(
+        supportsSubmittedAtColumn ? (updates.submitted_for_approval_at as string) : new Date().toISOString()
+      );
+      setSuccessMessage("Submitted for approval.");
+    } catch (error) {
+      console.error("Failed to submit for approval", error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit for approval right now."
+      );
+      throw error instanceof Error ? error : new Error("Unable to submit for approval right now.");
+    } finally {
+      setIsSubmittingForApproval(false);
+    }
+  }, [projectSetupId, resetFeedback, supportsApprovalStatusColumn, supportsSubmittedAtColumn, userId]);
+
   const handleSaveTarget = useCallback(
     async (target: TargetFormInput) => {
       if (!projectSetupId) {
@@ -947,6 +1000,8 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
           {step === 3 && (
             <Step3ReviewPlans
               onBack={prevStep}
+              onSubmitApproval={handleSubmitForApproval}
+              isSubmitting={isSubmittingForApproval}
               materials={materials}
               targets={targets}
             />
