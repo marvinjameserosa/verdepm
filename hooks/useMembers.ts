@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@/types/user";
-import { fetchMembers } from "@/actions/members";
+import { fetchMembers } from "@/actions/members/members";
 
 export const useMembers = () => {
   const [members, setMembers] = useState<User[]>([]);
