@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useInviteMember } from "@/lib/hooks/useInviteMember";
+import { useInviteMember } from "@/hooks/useInviteMember";
 import { inviteMemberSchema } from "@/types/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,14 +58,14 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
 
-    const inviteResult = await inviteMember(
+    const inviteResult = await inviteMember({
       email,
       password,
       firstname,
       lastname,
       phone,
-      role
-    );
+      role,
+    });
 
     if (inviteResult && !error) {
       setEmail("");
