@@ -1,31 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, ClipboardList, FileCheck2 } from "lucide-react";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 const DOCUMENT_REQUIREMENTS = [
   {
     id: "sec-dti",
     label: "SEC or DTI Certificate",
-    description: "Provide a scanned copy of the organization’s latest registration document (PDF, max 5 MB).",
+    description:
+      "Provide a scanned copy of the organization’s latest registration document (PDF, max 5 MB).",
     status: "Pending",
   },
   {
     id: "mayors-permit",
     label: "Mayor’s Permit",
-    description: "Upload the most recent business permit for headquarters or principal place of business.",
+    description:
+      "Upload the most recent business permit for headquarters or principal place of business.",
     status: "In Review",
   },
   {
     id: "bir",
     label: "BIR Certificate of Registration",
-    description: "Ensure the BIR Form 2303 is up to date and clearly legible for audit purposes.",
+    description:
+      "Ensure the BIR Form 2303 is up to date and clearly legible for audit purposes.",
     status: "Approved",
   },
 ];
@@ -66,7 +75,9 @@ export function OrganizationTab() {
         if (isMounted) {
           console.error("Failed to load organization profile", error);
           setErrorMessage(
-            error instanceof Error ? error.message : "Unable to load organization details."
+            error instanceof Error
+              ? error.message
+              : "Unable to load organization details."
           );
         }
       } finally {
@@ -120,7 +131,9 @@ export function OrganizationTab() {
       setStatusMessage("Organization details saved.");
     } catch (error) {
       console.error("Failed to save organization profile", error);
-      setErrorMessage(error instanceof Error ? error.message : "Failed to save details.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to save details."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -132,7 +145,8 @@ export function OrganizationTab() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Organization</h2>
           <p className="text-muted-foreground">
-            Centralize compliance requirements, legal entities, and ESG oversight in one view.
+            Centralize compliance requirements, legal entities, and ESG
+            oversight in one view.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -148,7 +162,8 @@ export function OrganizationTab() {
             Company Overview
           </CardTitle>
           <CardDescription>
-            Capture the organization parent entity and the primary region it governs.
+            Capture the organization parent entity and the primary region it
+            governs.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -180,7 +195,9 @@ export function OrganizationTab() {
           </div>
           <div className="space-y-2 text-sm">
             {statusMessage && (
-              <p className="text-emerald-600 dark:text-emerald-400">{statusMessage}</p>
+              <p className="text-emerald-600 dark:text-emerald-400">
+                {statusMessage}
+              </p>
             )}
             {errorMessage && (
               <p className="text-red-600 dark:text-red-400">{errorMessage}</p>
@@ -201,14 +218,19 @@ export function OrganizationTab() {
               <ClipboardList className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
             </div>
             <div>
-              <CardTitle className="text-lg">Minimum Document Requirements</CardTitle>
+              <CardTitle className="text-lg">
+                Minimum Document Requirements
+              </CardTitle>
               <CardDescription>
-                Track the baseline compliance files every project must have on record before pre-construction kickoff.
+                Track the baseline compliance files every project must have on
+                record before pre-construction kickoff.
               </CardDescription>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm">Download Checklist</Button>
+            <Button variant="outline" size="sm">
+              Download Checklist
+            </Button>
             <Button size="sm">Assign Owners</Button>
           </div>
         </CardHeader>
@@ -224,14 +246,17 @@ export function OrganizationTab() {
                     <FileCheck2 className="h-4 w-4 text-emerald-600" />
                     {item.label}
                   </h3>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {item.description}
+                  </p>
                 </div>
                 <Badge variant="outline" className="self-start text-xs">
                   {item.status}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Placeholder: integrate document storage from project setup to surface live upload status here.
+                Placeholder: integrate document storage from project setup to
+                surface live upload status here.
               </p>
             </div>
           ))}

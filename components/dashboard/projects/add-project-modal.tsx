@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from "react";
+import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Building2 } from "lucide-react";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import {
   type Project,
   type ProjectPriority,
@@ -133,7 +128,9 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
 
     const slug = slugify(formState.name);
     if (!slug) {
-      setErrorMessage("Project name must contain at least one alphanumeric character.");
+      setErrorMessage(
+        "Project name must contain at least one alphanumeric character."
+      );
       setIsSubmitting(false);
       return;
     }
@@ -217,8 +214,8 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
               </DialogTitle>
             </div>
             <DialogDescription className="text-muted-foreground">
-              Start a new construction project with essential details and tracking
-              capabilities.
+              Start a new construction project with essential details and
+              tracking capabilities.
             </DialogDescription>
           </DialogHeader>
 
@@ -230,7 +227,10 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="name"
+                className="text-sm font-medium text-foreground"
+              >
                 Project Name *
               </Label>
               <Input
@@ -261,7 +261,10 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="status" className="text-sm font-medium text-foreground">
+                <Label
+                  htmlFor="status"
+                  className="text-sm font-medium text-foreground"
+                >
                   Initial Status
                 </Label>
                 <Select
@@ -360,7 +363,10 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="clientName" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="clientName"
+                className="text-sm font-medium text-foreground"
+              >
                 Client / Customer
               </Label>
               <Input
@@ -399,7 +405,10 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="budget" className="text-sm font-medium text-foreground">
+                <Label
+                  htmlFor="budget"
+                  className="text-sm font-medium text-foreground"
+                >
                   Total Budget
                 </Label>
                 <Input
@@ -416,7 +425,10 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="location" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="location"
+                className="text-sm font-medium text-foreground"
+              >
                 Location / Address
               </Label>
               <LocationPicker

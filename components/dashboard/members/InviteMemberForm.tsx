@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useInviteMember } from "@/lib/hooks/useInviteMember";
+import { useInviteMember } from "@/hooks/useInviteMember";
 import { inviteMemberSchema } from "@/types/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,16 +79,14 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-5"
-    >
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
           Create User
         </h3>
         <p className="text-sm text-muted-foreground">
-          Send an invitation with temporary credentials the member can update later.
+          Send an invitation with temporary credentials the member can update
+          later.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-4">

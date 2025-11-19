@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { LogOut, MoveUpRight, Settings, FileText } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 

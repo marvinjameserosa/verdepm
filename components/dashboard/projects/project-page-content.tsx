@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import ProjectPhases from "./project-phases";
 import type { Project } from "@/types/project";
 import { mapProjectFromSupabase } from "./project-helpers";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 type ProjectPageContentProps = {
   initialProject: Project;
@@ -50,12 +50,16 @@ export default function ProjectPageContent({
                 ((payload.new as Record<string, unknown>).description as
                   | string
                   | null
-                  | undefined) ?? prev.description ?? null,
+                  | undefined) ??
+                prev.description ??
+                null,
               location:
                 ((payload.new as Record<string, unknown>).location as
                   | string
                   | null
-                  | undefined) ?? prev.location ?? null,
+                  | undefined) ??
+                prev.location ??
+                null,
             }));
           }
         }
@@ -91,7 +95,10 @@ export default function ProjectPageContent({
               </p>
             </div>
           </div>
-          <ProjectPhases project={project} onProjectUpdated={handleProjectUpdated} />
+          <ProjectPhases
+            project={project}
+            onProjectUpdated={handleProjectUpdated}
+          />
         </main>
       </div>
     </div>

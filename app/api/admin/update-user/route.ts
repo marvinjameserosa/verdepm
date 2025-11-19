@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   createClient as createServerClient,
   createAdminClient,
-} from "@/utils/supabase/server";
+} from "@/lib/supabase/server";
 
 export async function PUT(request: Request) {
   const body = await request.json();

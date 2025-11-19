@@ -44,7 +44,7 @@ import {
 import { InviteMemberForm } from "./InviteMemberForm";
 import { USER_ROLE_OPTIONS, type User } from "@/types/user";
 import { EditMemberDialog } from "./EditMemberDialog";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 import Image from "next/image";
 
