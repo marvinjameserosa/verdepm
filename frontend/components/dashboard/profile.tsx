@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { LogOut, MoveUpRight, Settings, FileText } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
 interface MenuItem {
   label: string;
@@ -25,29 +26,46 @@ const isValidUrl = (value?: string | null) => {
   }
 };
 
+const AVATAR_BUCKET =
+  process.env.NEXT_PUBLIC_SUPABASE_AVATARS_BUCKET ?? "avatars";
+
 const createAvatarUrl = (seed: string) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(
     seed || "Verde User"
   )}&background=0D8ABC&color=ffffff&size=128`;
 
 interface ProfileState {
+  userId: string | null;
+  email: string | null;
   name: string;
   role: string;
   avatarUrl: string;
+  avatarStoragePath: string | null;
 }
 
 const defaultProfile: ProfileState = {
+  userId: null,
+  email: null,
   name: "Eugene An",
   role: "Prompt Engineer",
   avatarUrl: createAvatarUrl("Eugene An"),
+  avatarStoragePath: null,
 };
 
-export default function Profile01() {
+interface Profile01Props {
+  onAvatarChange?: (url: string) => void;
+}
+
+export default function Profile01({ onAvatarChange }: Profile01Props) {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileState>(defaultProfile);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarVersion, setAvatarVersion] = useState<number>(Date.now());
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -111,13 +129,17 @@ export default function Profile01() {
         createAvatarUrl(resolvedName || authUser.email || "Verde User");
 
       setProfile({
+        userId: authUser.id,
+        email: authUser.email ?? null,
         name: resolvedName,
         role:
           userProfile?.role ||
           authUser.user_metadata?.role ||
           defaultProfile.role,
         avatarUrl,
+        avatarStoragePath: userProfile?.avatar_storage_path ?? null,
       });
+      setAvatarVersion(Date.now());
 
       setIsLoading(false);
     };
@@ -157,6 +179,189 @@ export default function Profile01() {
       external: true,
     },
   ];
+  const handleChooseAvatar = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file || !profile.userId) {
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Please choose an image smaller than 5MB.");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    const extension = file.name.split(".").pop();
+    const uniqueId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}`;
+    const filePath = `${profile.userId}/${uniqueId}.${extension ?? "png"}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      console.error("Failed to upload avatar", uploadError);
+      setAvatarError(
+        uploadError.message || "Unable to upload image. Please try again."
+      );
+      setIsUploadingAvatar(false);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(AVATAR_BUCKET)
+      .getPublicUrl(filePath);
+
+    if (!publicUrlData?.publicUrl) {
+      console.error("Failed to obtain public avatar URL");
+      setAvatarError("Unable to load uploaded image. Please try again.");
+      setIsUploadingAvatar(false);
+      return;
+    }
+
+    const publicUrl = publicUrlData.publicUrl;
+
+    try {
+      const response = await fetch("/api/admin/update-user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: profile.userId,
+          avatarUrl: publicUrl,
+          avatarStoragePath: filePath,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const message = payload?.error ?? "Failed to update profile image.";
+        throw new Error(message);
+      }
+
+      const previousPath = profile.avatarStoragePath;
+      if (previousPath && previousPath !== filePath) {
+        try {
+          await supabase.storage.from(AVATAR_BUCKET).remove([previousPath]);
+        } catch (removalError) {
+          console.warn("Failed to remove previous avatar", removalError);
+        }
+      }
+
+      setProfile((prev) => ({
+        ...prev,
+        avatarUrl: publicUrl,
+        avatarStoragePath: filePath,
+      }));
+      setAvatarVersion(Date.now());
+      onAvatarChange?.(publicUrl);
+    } catch (error) {
+      console.error("Failed to set profile avatar", error);
+      try {
+        await supabase.storage.from(AVATAR_BUCKET).remove([filePath]);
+      } catch (removalError) {
+        console.warn("Failed to roll back uploaded avatar", removalError);
+      }
+      setAvatarError(
+        error instanceof Error
+          ? error.message
+          : "Unable to update profile image."
+      );
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!profile.userId) {
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    const fallbackAvatar = createAvatarUrl(
+      profile.name || profile.email || "Verde User"
+    );
+
+    try {
+      const response = await fetch("/api/admin/update-user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: profile.userId,
+          avatarUrl: null,
+          avatarStoragePath: null,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const message = payload?.error ?? "Failed to remove profile image.";
+        throw new Error(message);
+      }
+
+      if (profile.avatarStoragePath) {
+        try {
+          await supabase.storage
+            .from(AVATAR_BUCKET)
+            .remove([profile.avatarStoragePath]);
+        } catch (removalError) {
+          console.warn("Failed to remove stored avatar", removalError);
+        }
+      }
+
+      setProfile((prev) => ({
+        ...prev,
+        avatarUrl: fallbackAvatar,
+        avatarStoragePath: null,
+      }));
+      setAvatarVersion(Date.now());
+      onAvatarChange?.(fallbackAvatar);
+    } catch (error) {
+      console.error("Failed to clear avatar", error);
+      setAvatarError(
+        error instanceof Error
+          ? error.message
+          : "Unable to remove profile image."
+      );
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const resolvedAvatarUrl =
+    profile.avatarUrl ||
+    createAvatarUrl(profile.name || profile.email || "Verde User");
+  const displayAvatarUrl = `${resolvedAvatarUrl}${
+    resolvedAvatarUrl.includes("?") ? "&" : "?"
+  }v=${avatarVersion}`;
 
   return (
     <div className="w-full">
@@ -168,13 +373,50 @@ export default function Profile01() {
                 <div className="absolute inset-0 animate-pulse bg-muted" />
               ) : (
                 <Image
-                  src={profile.avatarUrl}
+                  src={displayAvatarUrl}
                   alt={`${profile.name}'s avatar`}
                   fill
                   sizes="80px"
                   className="object-cover"
                   priority
                 />
+              )}
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleChooseAvatar}
+                  disabled={isUploadingAvatar || isLoading}
+                  className="rounded-lg bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 text-white shadow-sm"
+                >
+                  {isUploadingAvatar ? "Uploading..." : "Change photo"}
+                </Button>
+                {profile.avatarStoragePath && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAvatarRemove}
+                    disabled={isUploadingAvatar || isLoading}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+              {avatarError && (
+                <p className="text-xs text-red-600 max-w-[220px]">
+                  {avatarError}
+                </p>
               )}
             </div>
             <div>

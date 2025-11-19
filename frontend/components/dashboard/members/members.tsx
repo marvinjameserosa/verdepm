@@ -127,6 +127,8 @@ const MembersTab = () => {
           lastname: updatedMember.last_name,
           phone: updatedMember.phone,
           role: updatedMember.role,
+          avatarUrl: updatedMember.avatar_url ?? null,
+          avatarStoragePath: updatedMember.avatar_storage_path ?? null,
         }),
       });
 

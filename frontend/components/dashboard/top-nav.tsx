@@ -51,6 +51,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [avatarVersion, setAvatarVersion] = useState<number>(Date.now());
   const [notifications, setNotifications] = useState([
     {
       id: "1",
@@ -161,6 +162,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
 
       setProfileName(displayName ?? null);
       setProfileAvatarUrl(avatarUrl);
+      setAvatarVersion(Date.now());
     };
 
     loadAvatar();
@@ -255,6 +257,12 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
     breadcrumbs[breadcrumbs.length - 1].href = undefined;
   }
 
+  const fallbackAvatar = createAvatarUrl(profileName ?? "Verde User");
+  const resolvedAvatar = profileAvatarUrl ?? fallbackAvatar;
+  const displayAvatarSrc = `${resolvedAvatar}${
+    resolvedAvatar.includes("?") ? "&" : "?"
+  }v=${avatarVersion}`;
+
   return (
     <nav className="px-3 sm:px-6 flex items-center justify-between bg-background dark:bg-gray-900 h-full">
       <div className="flex items-center gap-4">
@@ -320,9 +328,9 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
         <DropdownMenu>
           <DropdownMenuTrigger className="focus:outline-none">
             <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-border cursor-pointer">
-              {profileAvatarUrl ? (
+              {profileAvatarUrl || profileName ? (
                 <Image
-                  src={profileAvatarUrl}
+                  src={displayAvatarSrc}
                   alt={profileName ? `${profileName} avatar` : "User avatar"}
                   fill
                   sizes="36px"
@@ -339,7 +347,12 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
             sideOffset={8}
             className="w-[280px] sm:w-80 overflow-hidden rounded-2xl border border-emerald-100/70 dark:border-emerald-900/40 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl backdrop-blur"
           >
-            <Profile01 />
+            <Profile01
+              onAvatarChange={(url) => {
+                setProfileAvatarUrl(url);
+                setAvatarVersion(Date.now());
+              }}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

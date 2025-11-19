@@ -25,6 +25,7 @@ export type User = {
   projects?: string[];
   avatar?: string;
   avatar_url?: string;
+  avatar_storage_path?: string;
   permissions?: string[];
 };
 

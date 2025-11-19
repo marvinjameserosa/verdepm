@@ -5,8 +5,33 @@ import {
 } from "@/utils/supabase/server";
 
 export async function PUT(request: Request) {
-  const { userId, email, firstname, lastname, phone, role } =
-    await request.json();
+  const body = await request.json();
+
+  const {
+    userId,
+    email,
+    firstname,
+    lastname,
+    phone,
+    role,
+    avatarUrl,
+    avatarStoragePath,
+  } = body as {
+    userId?: string;
+    email?: string;
+    firstname?: string;
+    lastname?: string;
+    phone?: string;
+    role?: string;
+    avatarUrl?: string | null;
+    avatarStoragePath?: string | null;
+  };
+
+  const hasAvatarUrl = Object.prototype.hasOwnProperty.call(body, "avatarUrl");
+  const hasAvatarStoragePath = Object.prototype.hasOwnProperty.call(
+    body,
+    "avatarStoragePath"
+  );
 
   if (!userId) {
     return NextResponse.json(
@@ -56,17 +81,32 @@ export async function PUT(request: Request) {
   }
 
   // Update the corresponding row in public.users
+  const updatePayload: Record<string, unknown> = {
+    modified_by: currentUser.id,
+    modified_at: new Date().toISOString(),
+  };
+
+  const assignIfProvided = (key: string, value: unknown) => {
+    if (typeof value !== "undefined") {
+      updatePayload[key] = value;
+    }
+  };
+
+  assignIfProvided("first_name", firstname);
+  assignIfProvided("last_name", lastname);
+  assignIfProvided("phone", phone);
+  assignIfProvided("email", email);
+  assignIfProvided("role", role);
+  if (hasAvatarUrl) {
+    assignIfProvided("avatar_url", avatarUrl ?? null);
+  }
+  if (hasAvatarStoragePath) {
+    assignIfProvided("avatar_storage_path", avatarStoragePath ?? null);
+  }
+
   const { data: updatedUser, error: profileError } = await supabaseAdmin
     .from("users")
-    .update({
-      first_name: firstname,
-      last_name: lastname,
-      phone,
-      email,
-      role,
-      modified_by: currentUser.id, // Track who modified the user
-      modified_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("user_id", userId)
     .select("*")
     .single();
