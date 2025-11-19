@@ -34,6 +34,7 @@ import {
   type ProjectStatus,
 } from "@/types/project";
 import { mapProjectFromSupabase } from "./project-helpers";
+import LocationPicker from "@/components/ui/location-picker";
 
 type FormState = {
   name: string;
@@ -418,12 +419,11 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
               <Label htmlFor="location" className="text-sm font-medium text-foreground">
                 Location / Address
               </Label>
-              <Input
-                id="location"
+              <LocationPicker
                 value={formState.location}
-                onChange={handleInputChange}
-                placeholder="Enter project address..."
-                className="rounded-xl"
+                onChange={(value) =>
+                  setFormState((prev) => ({ ...prev, location: value }))
+                }
               />
             </div>
           </div>
