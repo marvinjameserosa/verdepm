@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { inviteMember } from "@/actions/inviteMember";
-import type { InviteMemberPayload } from "@/actions/inviteMember";
 
 export function useInviteMember() {
   const router = useRouter();
@@ -11,30 +9,53 @@ export function useInviteMember() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<unknown | null>(null);
 
-  const handleInviteMember = useCallback(
-    async (payload: InviteMemberPayload) => {
-      setLoading(true);
-      setError(null);
-      setData(null);
+  const inviteMember = async (
+    email: string,
+    password: string,
+    firstname: string,
+    lastname: string,
+    phone: string,
+    role: string
+  ) => {
+    setLoading(true);
+    setError(null);
+    setData(null);
 
-      try {
-        const result = await inviteMember(payload);
-        setData(result);
-        await router.refresh();
-        return result;
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Failed to create user.");
-        }
-        return null;
-      } finally {
-        setLoading(false);
+    try {
+      const response = await fetch("/api/admin/create-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          firstname,
+          lastname,
+          phone,
+          role,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create user.");
       }
-    },
-    [router]
-  );
 
-  return { inviteMember: handleInviteMember, loading, error, data } as const;
+      setData(result);
+      await router.refresh();
+      return result;
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to create user.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { inviteMember, loading, error, data };
 }
