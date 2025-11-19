@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { exchangeCodeForSession } from "@/app/login/actions";
+import { exchangeCode } from "@/actions/auth/exchangeCode";
 
 export function AuthCodeHandler() {
   const searchParams = useSearchParams();
@@ -13,7 +13,7 @@ export function AuthCodeHandler() {
 
     async function handleCode() {
       if (code) {
-        const result = await exchangeCodeForSession(code);
+        const result = await exchangeCode(code);
         if (result.success) {
           // Redirect to the password reset page on success
           router.replace("/reset-password");

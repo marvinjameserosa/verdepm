@@ -1,11 +1,10 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { Login } from "@/app/login/actions";
-import { loginSchema } from "@/types/auth";
+import { useLogin } from "@/hooks/auth/useLogin";
+import { usePasswordVisibility } from "@/hooks/auth/usePasswordVisibility";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,70 +12,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
 
 export function LoginForm() {
-  const searchParams = useSearchParams();
-  const queryMessage = searchParams.get("message");
-  const [authError, setAuthError] = useState<string | null>(queryMessage);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [errors, setErrors] = useState<{
-    email?: string[];
-    password?: string[];
-  }>({});
-  const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    setAuthError(queryMessage);
-  }, [queryMessage]);
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsLoading(true);
-    setErrors({});
-    setAuthError(null);
-
-    const formData = new FormData(event.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-
-    const result = loginSchema.safeParse({ email, password });
-    if (!result.success) {
-      setIsLoading(false);
-      setErrors(result.error.flatten().fieldErrors);
-      return;
-    }
-
-    try {
-      const result = await Login(formData);
-
-      if (result && "error" in result && result.error) {
-        if (isMountedRef.current) {
-          setAuthError(result.error);
-        }
-        return;
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === "NEXT_REDIRECT") {
-        throw error;
-      }
-      console.error("Login failed", error);
-      if (isMountedRef.current) {
-        setAuthError("Unexpected error. Please try again.");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }
+  // Custom hooks for login logic and password visibility
+  const { authError, isLoading, errors, handleSubmit } = useLogin();
+  const { showPassword, togglePassword } = usePasswordVisibility();
   return (
-    <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
       {/* Error Message Alert */}
       {authError && (
         <div
@@ -105,11 +47,10 @@ export function LoginForm() {
             placeholder="Enter your email"
             required
             disabled={isLoading}
-            className={`pl-9 sm:pl-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${
-              errors.email
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                : ""
-            }`}
+            className={`pl-9 sm:pl-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${errors.email
+              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+              : ""
+              }`}
           />
         </div>
         {errors.email && (
@@ -139,15 +80,14 @@ export function LoginForm() {
             placeholder="Enter your password"
             required
             disabled={isLoading}
-            className={`pl-9 sm:pl-11 pr-9 sm:pr-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${
-              errors.password
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                : ""
-            }`}
+            className={`pl-9 sm:pl-11 pr-9 sm:pr-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${errors.password
+              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+              : ""
+              }`}
           />
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={togglePassword}
             className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none"
             disabled={isLoading}
             aria-label={showPassword ? "Hide password" : "Show password"}

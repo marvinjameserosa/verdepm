@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Mail, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import {
   Dialog,
@@ -12,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { resetPassword } from "@/app/login/actions";
+import { useForgotPassword } from "@/hooks/auth/useForgotPassword";
 
 interface ForgotPasswordModalProps {
   open: boolean;
@@ -23,45 +22,25 @@ export function ForgotPasswordModal({
   open,
   onOpenChange,
 }: ForgotPasswordModalProps) {
-  const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setStatus("idle");
-    setMessage("");
-
-    const result = await resetPassword(email);
-
-    setIsLoading(false);
-
-    if (result.success) {
-      setStatus("success");
-      setMessage(result.message);
-      setEmail("");
-      // Close modal after 3 seconds
-      setTimeout(() => {
-        onOpenChange(false);
-        setStatus("idle");
-        setMessage("");
-      }, 3000);
-    } else {
-      setStatus("error");
-      setMessage(result.message);
-    }
-  };
+  // Custom hook for password reset logic
+  const {
+    email,
+    setEmail,
+    isLoading,
+    status,
+    message,
+    handleSubmit,
+    reset,
+  } = useForgotPassword(() => {
+    onOpenChange(false);
+  });
 
   const handleClose = () => {
     if (!isLoading) {
       onOpenChange(false);
       // Reset state when closing
       setTimeout(() => {
-        setEmail("");
-        setStatus("idle");
-        setMessage("");
+        reset();
       }, 200);
     }
   };
