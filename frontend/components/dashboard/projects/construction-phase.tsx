@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Card,
@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -43,20 +44,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/utils/supabase/client";
-import type { Project } from "@/types/project";
+import type { Project, MaterialStatus } from "@/types/project";
 import type { DeliveryRouteMapProps } from "@/components/dashboard/projects/delivery-route-map";
-
-interface MaterialLogEntry {
-  id: string;
-  materialName: string;
-  supplier: string;
-  quantity: string;
-  unit: string;
-  cost: string;
-  fuel: string;
-  receiptFile?: File | null;
-  receiptPath?: string | null;
-}
 
 type LatLngTuple = [number, number];
 
@@ -84,6 +73,20 @@ type WasteEntrySummary = WasteEntry & {
   allocatedMassKg: number;
   emissionKg: number;
   percentageValue: number;
+};
+
+type SourcedMaterial = {
+  id: string;
+  category: string;
+  name: string;
+  supplier: string;
+  cost: string;
+  unit?: string;
+  notes: string;
+  credentials?: string;
+  warehouse?: string;
+  status: MaterialStatus;
+  specSheetPath?: string;
 };
 
 const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
@@ -178,29 +181,40 @@ const createDefaultWasteFormEntry = (): WasteFormEntry => ({
   treatmentPercentage: "",
 });
 
-// --- Mock Data from Pre-Construction Phase (Passed as props or fetched) ---
-const preConstructionData = {
-  targets: {
-    emissions: {
-      goal: "Reduce Embodied & Operational Carbon",
-      metric: "< 500 kgCO2e/m²",
-    },
-    water: {
-      goal: "Achieve Net-Zero Water",
-      metric: "100% rainwater harvesting",
-    },
-    waste: {
-      goal: "Divert 90% of Waste from Landfill",
-      metric: "90% by weight",
-    },
-    safety: { goal: "Maintain a Zero-Incident Site", metric: "0 LTI" },
+// --- Default Targets from Pre-Construction Phase ---
+const preConstructionTargets = {
+  emissions: {
+    goal: "Reduce Embodied & Operational Carbon",
+    metric: "< 500 kgCO2e/m²",
   },
-  materials: [
-    { name: "Cross-Laminated Timber (CLT)", plannedSupplier: "KLH Massivholz" },
-    { name: "Recycled Steel Beams", plannedSupplier: "Gerdau" },
-    { name: "Low-E Glass Panels", plannedSupplier: "Guardian Glass" },
-    { name: "Rainwater Harvesting System", plannedSupplier: "WaterHarv Co." },
-  ],
+  water: {
+    goal: "Achieve Net-Zero Water",
+    metric: "100% rainwater harvesting",
+  },
+  waste: {
+    goal: "Divert 90% of Waste from Landfill",
+    metric: "90% by weight",
+  },
+  safety: { goal: "Maintain a Zero-Incident Site", metric: "0 LTI" },
+};
+
+const MATERIAL_STATUS_BADGE: Record<MaterialStatus, string> = {
+  Vetted: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
+  Identified: "bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
+  Denied: "bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300",
+};
+
+const formatCurrencyValue = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  const raw = typeof value === "string" ? Number(value.replace(/,/g, "")) : value;
+  if (!Number.isFinite(raw)) {
+    return typeof value === "string" && value.trim().length > 0 ? value : "—";
+  }
+
+  return Number(raw).toLocaleString();
 };
 
 const WASTE_TYPE_OPTIONS = ["Plastic", "Food", "Paper", "Metal", "Glass", "Other"] as const;
@@ -743,12 +757,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     electricity: "",
     water: "",
   });
-  const [loggedMaterials, setLoggedMaterials] = useState<MaterialLogEntry[]>(
-    []
-  );
-  const [newMaterialEntry, setNewMaterialEntry] = useState<
-    Partial<MaterialLogEntry>
-  >({});
+  const [sourcingMaterials, setSourcingMaterials] = useState<SourcedMaterial[]>([]);
+  const [materialFetchError, setMaterialFetchError] = useState<string | null>(null);
+  const [materialLoading, setMaterialLoading] = useState(false);
   const [wasteEntries, setWasteEntries] = useState<WasteEntry[]>([]);
   const [newWasteEntry, setNewWasteEntry] = useState<WasteFormEntry>(createDefaultWasteFormEntry());
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -821,6 +832,118 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     setStatusMessage(null);
     setErrorMessage(null);
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSourcingMaterials = async () => {
+      setMaterialLoading(true);
+      setMaterialFetchError(null);
+
+      try {
+        if (!project?.id) {
+          if (!isMounted) {
+            return;
+          }
+          setSourcingMaterials([]);
+          return;
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+
+        if (authError) {
+          throw authError;
+        }
+
+        const userId = authData?.user?.id;
+
+        if (!userId) {
+          if (!isMounted) {
+            return;
+          }
+          setSourcingMaterials([]);
+          setMaterialFetchError("You must be signed in to view sourcing materials.");
+          return;
+        }
+
+        const { data: setupRecord, error: setupError } = await supabase
+          .from("preconstruction_project_setup")
+          .select("id")
+          .eq("project_id", project.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (setupError) {
+          throw setupError;
+        }
+
+        if (!setupRecord) {
+          if (!isMounted) {
+            return;
+          }
+          setSourcingMaterials([]);
+          setMaterialFetchError("No pre-construction setup found for this project.");
+          return;
+        }
+
+        const { data: materials, error: materialsError } = await supabase
+          .from("preconstruction_material")
+          .select(
+            "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, vetting_status, spec_sheet_path"
+          )
+          .eq("project_setup_id", setupRecord.id)
+          .order("created_at", { ascending: true });
+
+        if (materialsError) {
+          throw materialsError;
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSourcingMaterials(
+          (materials ?? []).map((material) => ({
+            id: material.id,
+            category: material.material_category ?? "",
+            name: material.material_name ?? "",
+            supplier: material.planned_supplier ?? "",
+            warehouse: material.warehouse_of_the_supplier ?? undefined,
+            cost:
+              material.budgeted_cost !== null && material.budgeted_cost !== undefined
+                ? String(material.budgeted_cost)
+                : "",
+            unit: material.unit ?? undefined,
+            credentials: material.sustainability_credentials ?? undefined,
+            notes: material.supplier_vetting_notes ?? "",
+            status: material.vetting_status ?? "Identified",
+            specSheetPath: material.spec_sheet_path ?? undefined,
+          }))
+        );
+      } catch (error) {
+        console.error("Failed to load sourcing materials", error);
+        if (!isMounted) {
+          return;
+        }
+        setMaterialFetchError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load sourcing materials."
+        );
+        setSourcingMaterials([]);
+      } finally {
+        if (isMounted) {
+          setMaterialLoading(false);
+        }
+      }
+    };
+
+    void loadSourcingMaterials();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [project?.id]);
 
   const computedFuelLiters = useMemo(() => {
     if (dailyMetrics.distanceKm.trim() === "" || dailyMetrics.fuelEfficiency.trim() === "") {
@@ -1095,18 +1218,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     setMonthlyMetrics((prev) => ({ ...prev, [metric]: value }));
   };
 
-  const handleMaterialEntryChange = (
-    field: keyof MaterialLogEntry,
-    value: string
-  ) => {
-    setNewMaterialEntry((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleReceiptChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    setNewMaterialEntry((prev) => ({ ...prev, receiptFile: file }));
-  };
-
   const handleWasteEntryChange = (field: keyof WasteFormEntry, value: string) => {
     setNewWasteEntry((prev) => {
       if (field === "unit") {
@@ -1196,43 +1307,13 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     setStatusMessage("Waste entry removed. Re-check percentage totals before submitting.");
   };
 
-  const addMaterialToLog = () => {
-    if (!newMaterialEntry.materialName) {
-      setErrorMessage("Select a material from the plan before adding.");
-      return;
-    }
-    if (!newMaterialEntry.quantity) {
-      setErrorMessage("Enter the delivered quantity before adding.");
-      return;
-    }
-    if (!newMaterialEntry.unit) {
-      setErrorMessage("Provide the unit for the delivered quantity.");
-      return;
-    }
-    if (!newMaterialEntry.supplier || newMaterialEntry.supplier.trim().length === 0) {
-      setErrorMessage("Enter the actual supplier for this delivery.");
-      return;
-    }
-    setLoggedMaterials([
-      ...loggedMaterials,
-      {
-        ...newMaterialEntry,
-        id: crypto.randomUUID(),
-      } as MaterialLogEntry,
-    ]);
-    setNewMaterialEntry({}); // Reset form
-    setErrorMessage(null);
-  };
-
   const handleSubmit = async () => {
     resetMessages();
 
     const hasDailyMetrics = Object.values(dailyMetrics).some((value) => value.trim() !== "");
     const hasMonthlyMetrics = Object.values(monthlyMetrics).some((value) => value.trim() !== "");
-    const hasMaterialEntries = loggedMaterials.length > 0;
     const hasWasteEntries = wasteEntries.length > 0;
-    const shouldSubmitDaily =
-      metricsPeriod === "daily" && (hasDailyMetrics || hasMaterialEntries);
+    const shouldSubmitDaily = metricsPeriod === "daily" && hasDailyMetrics;
     const shouldSubmitMonthly =
       metricsPeriod === "monthly" && (hasMonthlyMetrics || hasWasteEntries);
 
@@ -1240,7 +1321,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       const message =
         metricsPeriod === "monthly"
           ? "Enter at least one monthly metric or waste record before submitting."
-          : "Enter at least one daily metric or material record before submitting.";
+          : "Enter at least one daily metric before submitting.";
       setErrorMessage(message);
       return;
     }
@@ -1260,21 +1341,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         const parsed = Number(trimmed);
         if (Number.isNaN(parsed)) {
           throw new Error("One of the numeric fields contains invalid data.");
-        }
-        return parsed;
-      };
-
-      const parseOptionalNumber = (value?: string) => {
-        if (!value) {
-          return null;
-        }
-        const trimmed = value.trim();
-        if (!trimmed) {
-          return null;
-        }
-        const parsed = Number(trimmed);
-        if (Number.isNaN(parsed)) {
-          throw new Error("Material entries contain an invalid number.");
         }
         return parsed;
       };
@@ -1539,58 +1605,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         }
       }
 
-      if (hasMaterialEntries) {
-        if (!dailyLogId) {
-          throw new Error("Material entries require a daily log reference.");
-        }
-
-        const bucket = supabase.storage.from("construction-docs");
-
-        const materialPayload = await Promise.all(
-          loggedMaterials.map(async (entry) => {
-            let receiptPath: string | null = null;
-
-            if (entry.receiptFile) {
-              const extension = entry.receiptFile.name.split(".").pop() || "pdf";
-              const storagePath = `project/${project.id}/daily/${dailyLogId}/receipts/${crypto.randomUUID()}.${extension}`;
-              const { error: uploadError } = await bucket.upload(
-                storagePath,
-                entry.receiptFile,
-                {
-                  contentType: entry.receiptFile.type || "application/pdf",
-                  upsert: true,
-                }
-              );
-
-              if (uploadError) {
-                throw uploadError;
-              }
-
-              receiptPath = storagePath;
-            }
-
-            return {
-              project_id: project.id,
-              daily_log_id: dailyLogId,
-              material_plan: entry.materialName,
-              actual_supplier: entry.supplier,
-              quantity_and_unit: `${entry.quantity ?? ""} ${entry.unit ?? ""}`.trim(),
-              total_cost: parseOptionalNumber(entry.cost),
-              delivery_fuel_used_liters: parseOptionalNumber(entry.fuel),
-              receipt_path: receiptPath,
-            };
-          })
-        );
-
-        const { error: materialError } = await supabase
-          .from("construction_material_log")
-          .insert(materialPayload);
-
-        if (materialError) {
-          throw materialError;
-        }
-      }
-
       const fuelSummary =
         fuelConsumptionLiters !== null
           ? ` Calculated fuel usage: ${fuelConsumptionLiters.toFixed(2)} L.`
@@ -1630,7 +1644,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           incidentCount: "",
           hoursWorked: "",
         });
-        setLoggedMaterials([]);
       }
 
       if (shouldSubmitMonthly) {
@@ -1661,14 +1674,14 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       icon: <Zap className="h-4 w-4 text-muted-foreground" />,
       title: "Electricity Usage",
       unit: "kWh",
-      relatedTarget: preConstructionData.targets.emissions,
+      relatedTarget: preConstructionTargets.emissions,
     },
     {
       id: "water",
       icon: <Droplets className="h-4 w-4 text-muted-foreground" />,
       title: "Water Consumption",
       unit: "m³",
-      relatedTarget: preConstructionData.targets.water,
+      relatedTarget: preConstructionTargets.water,
     },
   ] as const;
 
@@ -1679,8 +1692,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   const monitoringDescription =
     metricsPeriod === "daily"
-      ? "Log daily metrics and material deliveries to track performance against pre-construction targets."
-      : "Review monthly resource usage and material deliveries to stay aligned with pre-construction targets.";
+      ? "Log daily metrics to track performance against pre-construction targets."
+      : "Review monthly resource usage to stay aligned with pre-construction targets.";
 
   const routeMetricsGridClass =
     metricsPeriod === "monthly"
@@ -1749,7 +1762,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               onIncidentsChange={(value) => handleDailyInputChange("incidentCount", value)}
               onHoursWorkedChange={(value) => handleDailyInputChange("hoursWorked", value)}
               computedTrir={computedSafetyTrir}
-              target={preConstructionData.targets.safety}
+              target={preConstructionTargets.safety}
             />
           </div>
         </TabsContent>
@@ -1916,145 +1929,82 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         </CardContent>
       </Card>
 
-      {/* --- NEW MATERIAL SOURCING LOG --- */}
+      {/* --- MATERIAL SOURCING REFERENCE --- */}
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
             <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
               <PackageCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            Material Sourcing Log
+            Material Sourcing Plan Alignment
           </CardTitle>
           <CardDescription>
-            Log all material deliveries as they arrive on-site. This data will
-            be compared against the pre-construction plan for post-project
-            analysis.
+            Review the sourcing commitments captured during pre-construction. Updates must be made from the pre-construction workflow.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="p-4 border rounded-lg space-y-4">
-            <h4 className="font-semibold">Add New Material Delivery</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Material (from plan)</Label>
-                <Select
-                  value={newMaterialEntry.materialName || ""}
-                  onValueChange={(value) =>
-                    handleMaterialEntryChange("materialName", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Material" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {preConstructionData.materials.map((mat) => (
-                      <SelectItem key={mat.name} value={mat.name}>
-                        {mat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Actual Supplier</Label>
-                <Input
-                  placeholder="e.g., 'Local Timber Yard'"
-                  value={newMaterialEntry.supplier || ""}
-                  onChange={(e) =>
-                    handleMaterialEntryChange("supplier", e.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Quantity & Unit</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder="e.g., 50"
-                    value={newMaterialEntry.quantity || ""}
-                    onChange={(e) =>
-                      handleMaterialEntryChange("quantity", e.target.value)
-                    }
-                  />
-                  <Input
-                    placeholder="m³"
-                    value={newMaterialEntry.unit || ""}
-                    onChange={(e) =>
-                      handleMaterialEntryChange("unit", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Total Cost ($)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 15000"
-                  value={newMaterialEntry.cost || ""}
-                  onChange={(e) =>
-                    handleMaterialEntryChange("cost", e.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Delivery Fuel Used (Liters)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 25"
-                  value={newMaterialEntry.fuel || ""}
-                  onChange={(e) =>
-                    handleMaterialEntryChange("fuel", e.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Upload Receipt</Label>
-                <Input type="file" onChange={handleReceiptChange} />
-              </div>
-            </div>
-            <Button onClick={addMaterialToLog} className="w-full md:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add to Daily Log
-            </Button>
-          </div>
-
-          <div className="mt-6">
-            <h4 className="font-semibold mb-2">Today&apos;s Material Log</h4>
-            <div className="border rounded-lg overflow-x-auto">
-              <Table>
-                <TableHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            These entries mirror the <span className="font-medium text-emerald-700 dark:text-emerald-300">Material Sourcing &amp; Due Diligence</span> table completed before groundbreaking.
+            Use this list to confirm deliveries match the approved sourcing strategy.
+          </p>
+          <div className="border rounded-lg overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Material</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Planned Supplier</TableHead>
+                  <TableHead>Warehouse</TableHead>
+                  <TableHead className="text-right">Budgeted Cost ($)</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {materialLoading ? (
                   <TableRow>
-                    <TableHead>Material</TableHead>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
+                    <TableCell colSpan={7} className="text-center">
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading sourcing plan…
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loggedMaterials.length > 0 ? (
-                    loggedMaterials.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium">
-                          {entry.materialName}
-                        </TableCell>
-                        <TableCell>{entry.supplier}</TableCell>
-                        <TableCell>
-                          {entry.quantity} {entry.unit}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          ${parseFloat(entry.cost || "0").toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center">
-                        No materials logged for today.
+                ) : sourcingMaterials.length > 0 ? (
+                  sourcingMaterials.map((material) => (
+                    <TableRow key={material.id}>
+                      <TableCell className="font-medium">
+                        {material.name}
+                      </TableCell>
+                      <TableCell>{material.category}</TableCell>
+                      <TableCell>{material.supplier}</TableCell>
+                      <TableCell>{material.warehouse ?? "—"}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrencyValue(material.cost)}
+                      </TableCell>
+                      <TableCell>{material.unit ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`border-transparent ${
+                            MATERIAL_STATUS_BADGE[material.status] ?? "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {material.status}
+                        </Badge>
                       </TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                      {materialFetchError ??
+                        "No sourcing records found. Capture materials in the pre-construction workflow to populate this table."}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
