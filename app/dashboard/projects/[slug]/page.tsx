@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProjectBySlug } from "@/actions/getProjectBySlug";
+import { getProjectBySlug } from "@/actions/projects/getProjectBySlug";
 import ProjectPageContent from "@/components/dashboard/projects/project-page-content";
 import { Background } from "@/components/ui/background";
 import { ErrorDisplay } from "@/components/ui/error-display";

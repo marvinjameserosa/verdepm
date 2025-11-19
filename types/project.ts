@@ -1,4 +1,8 @@
-export type ProjectStatus = "planning" | "in-progress" | "on-hold" | "completed";
+export type ProjectStatus =
+  | "planning"
+  | "in-progress"
+  | "on-hold"
+  | "completed";
 
 export type ProjectPriority = "low" | "medium" | "high";
 
@@ -19,6 +23,25 @@ export interface Project {
   endDate?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SupabaseProject {
+  id: string;
+  owner_id?: string | null;
+  name: string;
+  slug: string;
+  description?: string | null;
+  status: ProjectStatus;
+  priority: ProjectPriority;
+  category?: string | null;
+  project_manager?: string | null;
+  client_name?: string | null;
+  location?: string | null;
+  budget?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type MaterialStatus = "Identified" | "Vetted" | "Denied";

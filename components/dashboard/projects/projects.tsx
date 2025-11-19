@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ErrorDisplay } from "@/components/ui/error-display";
 import { AddProjectModal } from "./add-project-modal";
-import { supabase } from "@/lib/supabase/client";
 import type { Project, ProjectStatus } from "@/types/project";
-import { mapProjectFromSupabase, projectStatusLabels } from "./project-helpers";
+import { projectStatusLabels } from "@/lib/projects";
 import { ProjectCard } from "./project-card";
+import { useProjects } from "@/hooks/useProjects";
 
 const STATUS_FILTER_ORDER: ProjectStatus[] = [
   "planning",
@@ -27,51 +28,10 @@ const STATUS_FILTER_ORDER: ProjectStatus[] = [
 ];
 
 export default function ProjectsTab() {
-  const [projectList, setProjectList] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { projectList, isLoading, errorMessage, addProject } = useProjects();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatuses, setSelectedStatuses] =
     useState<ProjectStatus[]>(STATUS_FILTER_ORDER);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchProjects = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      const { data, error } = await supabase
-        .from("projects")
-        .select(
-          "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
-        )
-        .order("created_at", { ascending: false });
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        console.error("Failed to load projects", error);
-        setErrorMessage(
-          error.message || "Unable to load projects. Please try again."
-        );
-        setProjectList([]);
-      } else {
-        const nextProjects = (data ?? []).map(mapProjectFromSupabase);
-        setProjectList(nextProjects);
-      }
-
-      setIsLoading(false);
-    };
-
-    fetchProjects();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const filteredProjects = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -118,10 +78,6 @@ export default function ProjectsTab() {
       const next = current.filter((value) => value !== status);
       return next.length > 0 ? next : STATUS_FILTER_ORDER;
     });
-  };
-
-  const handleProjectCreated = (project: Project) => {
-    setProjectList((current) => [project, ...current]);
   };
 
   return (
@@ -176,7 +132,7 @@ export default function ProjectsTab() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <AddProjectModal onProjectCreated={handleProjectCreated} />
+              <AddProjectModal onProjectCreated={addProject} />
             </div>
           </div>
         </div>
@@ -191,11 +147,11 @@ export default function ProjectsTab() {
             </CardContent>
           </Card>
         ) : errorMessage ? (
-          <Card className="sm:col-span-2 lg:col-span-3 border border-red-200 bg-red-50 dark:bg-red-950/40">
-            <CardContent className="py-6 text-center text-sm text-red-700 dark:text-red-300">
-              {errorMessage}
-            </CardContent>
-          </Card>
+          <ErrorDisplay
+            title="Failed to load projects"
+            message={errorMessage}
+            className="sm:col-span-2 lg:col-span-3"
+          />
         ) : filteredProjects.length === 0 ? (
           <Card className="sm:col-span-2 lg:col-span-3 border border-dashed">
             <CardContent className="py-12 text-center text-muted-foreground">
