@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,176 +21,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Building2 } from "lucide-react";
-import { supabase } from "@/lib/supabase/client";
 import {
   type Project,
   type ProjectPriority,
   type ProjectStatus,
 } from "@/types/project";
-import { mapProjectFromSupabase } from "./project-helpers";
 import LocationPicker from "@/components/ui/location-picker";
-
-type FormState = {
-  name: string;
-  description: string;
-  status: ProjectStatus;
-  priority: ProjectPriority;
-  projectManager: string;
-  startDate: string;
-  endDate: string;
-  clientName: string;
-  category: string;
-  budget: string;
-  location: string;
-};
-
-const defaultFormState: FormState = {
-  name: "",
-  description: "",
-  status: "planning",
-  priority: "medium",
-  projectManager: "",
-  startDate: "",
-  endDate: "",
-  clientName: "",
-  category: "",
-  budget: "",
-  location: "",
-};
-
-type AddProjectModalProps = {
-  onProjectCreated?: (project: Project) => void;
-};
-
-const statusOptions: Array<{ value: ProjectStatus; label: string }> = [
-  { value: "planning", label: "Planning" },
-  { value: "in-progress", label: "In Progress" },
-  { value: "on-hold", label: "On Hold" },
-  { value: "completed", label: "Completed" },
-];
-
-const priorityOptions: Array<{ value: ProjectPriority; label: string }> = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-];
-
-const categoryOptions = [
-  { value: "commercial", label: "Commercial" },
-  { value: "residential", label: "Residential" },
-  { value: "infrastructure", label: "Infrastructure" },
-  { value: "renovation", label: "Renovation" },
-];
-
-const slugify = (input: string) =>
-  input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+import { useAddProjectForm } from "@/hooks/useAddProjectForm";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { type AddProjectModalProps } from "@/types/components";
+import {
+  categoryOptions,
+  priorityOptions,
+  statusOptions,
+} from "@/lib/project-options";
 
 export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
-  const [open, setOpen] = useState(false);
-  const [formState, setFormState] = useState<FormState>(defaultFormState);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const isSubmitDisabled = useMemo(() => {
-    return (
-      isSubmitting ||
-      !formState.name.trim() ||
-      !formState.status ||
-      !formState.priority
-    );
-  }, [formState.name, formState.priority, formState.status, isSubmitting]);
-
-  const handleInputChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { id, value } = event.target;
-    setFormState((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const resetForm = () => {
-    setFormState(defaultFormState);
-    setErrorMessage(null);
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (isSubmitDisabled) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    const slug = slugify(formState.name);
-    if (!slug) {
-      setErrorMessage(
-        "Project name must contain at least one alphanumeric character."
-      );
-      setIsSubmitting(false);
-      return;
-    }
-
-    const budgetValue = formState.budget ? Number(formState.budget) : null;
-    if (budgetValue !== null && Number.isNaN(budgetValue)) {
-      setErrorMessage("Budget must be a number.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .insert([
-          {
-            name: formState.name.trim(),
-            slug,
-            description: formState.description.trim() || null,
-            status: formState.status,
-            priority: formState.priority,
-            project_manager: formState.projectManager.trim() || null,
-            start_date: formState.startDate || null,
-            end_date: formState.endDate || null,
-            client_name: formState.clientName.trim() || null,
-            category: formState.category || null,
-            budget: budgetValue,
-            location: formState.location.trim() || null,
-          },
-        ])
-        .select(
-          "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
-        )
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      const createdProject = mapProjectFromSupabase(data);
-      onProjectCreated?.(createdProject);
-      resetForm();
-      setOpen(false);
-    } catch (error) {
-      console.error("Failed to create project", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to create project. Please try again.";
-      setErrorMessage(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (!nextOpen) {
-      resetForm();
-    }
-  };
+  const {
+    open,
+    formState,
+    isSubmitting,
+    errorMessage,
+    isSubmitDisabled,
+    handleInputChange,
+    handleSelectChange,
+    handleSubmit,
+    handleOpenChange,
+  } = useAddProjectForm(onProjectCreated);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -221,9 +77,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
 
           <div className="flex-1 space-y-5 px-6 py-4 overflow-y-auto pr-2 min-h-0">
             {errorMessage && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                {errorMessage}
-              </div>
+              <ErrorDisplay title="Error" message={errorMessage} />
             )}
 
             <div className="space-y-2">
@@ -270,7 +124,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                 <Select
                   value={formState.status}
                   onValueChange={(value: ProjectStatus) =>
-                    setFormState((prev) => ({ ...prev, status: value }))
+                    handleSelectChange("status", value)
                   }
                 >
                   <SelectTrigger className="rounded-xl">
@@ -296,7 +150,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                 <Select
                   value={formState.priority}
                   onValueChange={(value: ProjectPriority) =>
-                    setFormState((prev) => ({ ...prev, priority: value }))
+                    handleSelectChange("priority", value)
                   }
                 >
                   <SelectTrigger className="rounded-xl">
@@ -389,7 +243,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                 <Select
                   value={formState.category || undefined}
                   onValueChange={(value: string) =>
-                    setFormState((prev) => ({ ...prev, category: value }))
+                    handleSelectChange("category", value)
                   }
                 >
                   <SelectTrigger className="rounded-xl">
@@ -409,7 +263,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                   htmlFor="budget"
                   className="text-sm font-medium text-foreground"
                 >
-                  Total Budget
+                  Estimated Budget
                 </Label>
                 <Input
                   id="budget"
@@ -429,13 +283,11 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                 htmlFor="location"
                 className="text-sm font-medium text-foreground"
               >
-                Location / Address
+                Site Location
               </Label>
               <LocationPicker
-                value={formState.location}
-                onChange={(value) =>
-                  setFormState((prev) => ({ ...prev, location: value }))
-                }
+                value={formState.location || ""}
+                onChange={(value) => handleSelectChange("location", value)}
               />
             </div>
           </div>

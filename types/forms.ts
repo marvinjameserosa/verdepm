@@ -14,3 +14,19 @@ export const careersFormSchema = z.object({
 });
 
 export type CareersFormData = z.infer<typeof careersFormSchema>;
+
+export const addProjectSchema = z.object({
+  name: z.string().min(3, "Project name must be at least 3 characters"),
+  description: z.string().optional(),
+  status: z.enum(["planning", "in-progress", "on-hold", "completed"]),
+  priority: z.enum(["low", "medium", "high"]),
+  projectManager: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  clientName: z.string().optional(),
+  category: z.string().optional(),
+  budget: z.string().optional(),
+  location: z.string().optional(),
+});
+
+export type AddProjectData = z.infer<typeof addProjectSchema>;
