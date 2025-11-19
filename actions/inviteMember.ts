@@ -1,21 +1,42 @@
-export interface InviteMemberPayload {
-  email: string;
-  password: string;
-  firstname: string;
-  lastname: string;
-  phone: string;
-  role: string;
-}
+import {
+  normalizeInviteMemberPayload,
+  type InviteMemberPayload,
+} from "@/types/actions";
+import { inviteMemberSchema } from "@/types/auth";
+import { ZodError } from "zod";
 
 export async function inviteMember(
   payload: InviteMemberPayload
 ): Promise<unknown> {
+  const normalizedPayload = normalizeInviteMemberPayload(payload);
+
+  let validatedPayload: InviteMemberPayload;
+
+  try {
+    validatedPayload = inviteMemberSchema.parse(normalizedPayload);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0];
+      throw new Error(firstIssue?.message ?? "Invalid invite payload.");
+    }
+    throw error;
+  }
+
+  const requestBody = {
+    ...validatedPayload,
+    phone:
+      validatedPayload.phone && validatedPayload.phone.length > 0
+        ? validatedPayload.phone
+        : undefined,
+  } satisfies Partial<InviteMemberPayload> &
+    Pick<InviteMemberPayload, "email" | "password" | "firstname" | "lastname" | "role">;
+
   const response = await fetch("/api/admin/create-user", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(requestBody),
   });
 
   const result = await response.json().catch(() => null);

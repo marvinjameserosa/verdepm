@@ -4,8 +4,8 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   inviteMember as inviteMemberAction,
-  type InviteMemberPayload,
 } from "@/actions/inviteMember";
+import type { InviteMemberPayload } from "@/types/actions";
 
 export function useInviteMember() {
   const router = useRouter();

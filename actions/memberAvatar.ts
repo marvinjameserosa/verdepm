@@ -1,18 +1,11 @@
 import { supabase } from "@/lib/supabase/client";
+import type {
+  UploadMemberAvatarParams,
+  UploadMemberAvatarResult,
+} from "@/types/actions";
 
 const AVATAR_BUCKET =
   process.env.NEXT_PUBLIC_SUPABASE_AVATARS_BUCKET ?? "avatars";
-
-export interface UploadMemberAvatarParams {
-  userId: string;
-  file: File;
-  previousPath?: string | null;
-}
-
-export interface UploadMemberAvatarResult {
-  publicUrl: string;
-  filePath: string;
-}
 
 export async function uploadMemberAvatar({
   userId,
