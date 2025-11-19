@@ -12,13 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  ClipboardList,
-  FileCheck,
-  GanttChartSquare,
-  Upload,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { GanttChartSquare } from "lucide-react";
+import { useEffect, useState } from "react";
 import LocationPicker from "@/components/ui/location-picker";
 
 type DocumentKey = "sec-dti" | "mayors-permit" | "bir";
@@ -40,6 +35,8 @@ type InitialValues = {
   projectDescription?: string;
   documentPaths?: ExistingFileState;
 };
+
+const EMPTY_FILE_STATE: FileState = {};
 
 type Props = {
   onSubmit: (values: Step1FormValues) => Promise<void>;
@@ -63,10 +60,6 @@ export default function Step1ProjectSetup({
   const [projectDescription, setProjectDescription] = useState(
     initialValues?.projectDescription ?? ""
   );
-  const [files, setFiles] = useState<FileState>({});
-  const [existingFiles, setExistingFiles] = useState<ExistingFileState>(
-    initialValues?.documentPaths ?? {}
-  );
 
   useEffect(() => {
     if (!initialValues) {
@@ -75,45 +68,7 @@ export default function Step1ProjectSetup({
     setProjectName(initialValues.projectName ?? "");
     setProjectAddress(initialValues.projectAddress ?? "");
     setProjectDescription(initialValues.projectDescription ?? "");
-    setExistingFiles(initialValues.documentPaths ?? {});
-    setFiles({});
   }, [initialValues]);
-
-  const fileRows = useMemo(
-    () => [
-      {
-        key: "sec-dti" as DocumentKey,
-        label: "SEC or DTI",
-        description: "Scanned copy (PDF, max 5 MB)",
-      },
-      {
-        key: "mayors-permit" as DocumentKey,
-        label: "Latest Mayor’s Permit",
-        description: "Scanned copy (PDF, max 5 MB)",
-      },
-      {
-        key: "bir" as DocumentKey,
-        label: "BIR Certificate of Registration",
-        description: "Scanned copy (PDF, max 5 MB)",
-      },
-    ],
-    []
-  );
-
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    key: DocumentKey
-  ) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const selectedFile = e.target.files[0];
-      setFiles((prev) => ({ ...prev, [key]: selectedFile }));
-      setExistingFiles((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-    }
-  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -122,7 +77,7 @@ export default function Step1ProjectSetup({
         projectName,
         projectAddress,
         projectDescription,
-        files,
+        files: EMPTY_FILE_STATE,
       });
     } catch (error) {
       console.error("Failed to save project setup", error);
@@ -136,19 +91,11 @@ export default function Step1ProjectSetup({
         projectName,
         projectAddress,
         projectDescription,
-        files,
+        files: EMPTY_FILE_STATE,
       });
     } catch (error) {
       console.error("Failed to save project setup", error);
     }
-  };
-
-  const getExistingFileLabel = (path?: string) => {
-    if (!path) {
-      return null;
-    }
-    const segments = path.split("/");
-    return segments[segments.length - 1];
   };
 
   return (
@@ -165,8 +112,8 @@ export default function Step1ProjectSetup({
                   Step 1 · Project Setup & Due Diligence
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Capture the basics and attach compliance docs. Everything
-                  auto-saves when you continue.
+                  Capture the project basics. Compliance documentation now
+                  lives in the Organization tab.
                 </CardDescription>
               </div>
             </div>
@@ -205,7 +152,7 @@ export default function Step1ProjectSetup({
                             projectName,
                             projectAddress,
                             projectDescription,
-                            files,
+                            files: EMPTY_FILE_STATE,
                           });
                         }}
                       />
@@ -229,98 +176,6 @@ export default function Step1ProjectSetup({
                 </CardContent>
               </Card>
 
-              <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full space-y-4">
-                <CardHeader className="pb-0 px-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
-                      <ClipboardList className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Minimum Document Requirement
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        Upload clearly labeled PDFs so compliance reviews move
-                        faster.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-6 pb-6 space-y-4">
-                  {fileRows.map(({ key, label, description }) => (
-                    <div
-                      key={key}
-                      className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 p-4 space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label
-                            htmlFor={`${key}-file`}
-                            className="text-sm font-semibold"
-                          >
-                            {label}
-                          </Label>
-                          <p className="text-xs text-muted-foreground">
-                            {description}
-                          </p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Max 5 MB
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-3">
-                        {files[key] ? (
-                          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md w-full">
-                            <FileCheck className="h-4 w-4" />
-                            <span className="truncate">{files[key]?.name}</span>
-                          </div>
-                        ) : existingFiles[key] ? (
-                          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md w-full">
-                            <FileCheck className="h-4 w-4" />
-                            <span className="truncate">
-                              {getExistingFileLabel(existingFiles[key])}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex h-12 items-center justify-center rounded-md border border-dashed border-gray-200 text-xs text-muted-foreground">
-                            No file uploaded yet
-                          </div>
-                        )}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            asChild
-                            variant="outline"
-                            className="flex-shrink-0"
-                          >
-                            <label
-                              htmlFor={`${key}-file`}
-                              className="cursor-pointer flex items-center justify-center gap-2"
-                            >
-                              <Upload className="h-4 w-4" />
-                              <span>
-                                {files[key] || existingFiles[key]
-                                  ? "Change file"
-                                  : "Upload file"}
-                              </span>
-                              <input
-                                id={`${key}-file`}
-                                type="file"
-                                className="hidden"
-                                accept=".pdf"
-                                onChange={(e) => handleFileChange(e, key)}
-                              />
-                            </label>
-                          </Button>
-                          <p className="text-xs text-muted-foreground">
-                            Rename files before uploading for cleaner audit
-                            trails.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3 border-t border-gray-100 dark:border-gray-800 p-6 lg:flex-row lg:items-center lg:justify-between">

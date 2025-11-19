@@ -1,55 +1,138 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users2, ClipboardList } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Building2, ClipboardList, FileCheck2 } from "lucide-react";
+import { supabase } from "@/utils/supabase/client";
 
-const placeholderTeams = [
+const DOCUMENT_REQUIREMENTS = [
   {
-    id: "department-1",
-    name: "Sustainability Office",
-    description: "Central ESG steering committee with cross-functional leads.",
+    id: "sec-dti",
+    label: "SEC or DTI Certificate",
+    description: "Provide a scanned copy of the organization’s latest registration document (PDF, max 5 MB).",
+    status: "Pending",
   },
   {
-    id: "department-2",
-    name: "Field Operations",
-    description: "Site supervisors and regional coordinators.",
+    id: "mayors-permit",
+    label: "Mayor’s Permit",
+    description: "Upload the most recent business permit for headquarters or principal place of business.",
+    status: "In Review",
   },
   {
-    id: "department-3",
-    name: "Executive Council",
-    description: "Leadership group tracking ESG adoption milestones.",
-  },
-];
-
-const placeholderPolicies = [
-  {
-    id: "policy-1",
-    title: "Code of Conduct",
-    status: "Draft",
-  },
-  {
-    id: "policy-2",
-    title: "Data Retention",
-    status: "Review",
-  },
-  {
-    id: "policy-3",
-    title: "Supplier Ethics",
-    status: "Published",
+    id: "bir",
+    label: "BIR Certificate of Registration",
+    description: "Ensure the BIR Form 2303 is up to date and clearly legible for audit purposes.",
+    status: "Approved",
   },
 ];
 
 export function OrganizationTab() {
+  const [recordId, setRecordId] = useState<string | null>(null);
+  const [parentEntity, setParentEntity] = useState("");
+  const [primaryRegion, setPrimaryRegion] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOrganizationProfile = async () => {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const { data, error } = await supabase
+          .from("organization_profile")
+          .select("id, parent_entity, primary_region")
+          .limit(1)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        if (data && isMounted) {
+          setRecordId(data.id ?? null);
+          setParentEntity(data.parent_entity ?? "");
+          setPrimaryRegion(data.primary_region ?? "");
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Failed to load organization profile", error);
+          setErrorMessage(
+            error instanceof Error ? error.message : "Unable to load organization details."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadOrganizationProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const payload = {
+        parent_entity: parentEntity.trim() || null,
+        primary_region: primaryRegion.trim() || null,
+      } as const;
+
+      if (recordId) {
+        const { error } = await supabase
+          .from("organization_profile")
+          .update(payload)
+          .eq("id", recordId);
+
+        if (error) {
+          throw error;
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("organization_profile")
+          .insert([{ ...payload }])
+          .select("id")
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        setRecordId(data?.id ?? null);
+      }
+
+      setStatusMessage("Organization details saved.");
+    } catch (error) {
+      console.error("Failed to save organization profile", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to save details.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Organization</h2>
           <p className="text-muted-foreground">
-            High-level directory for business units, policies, and reporting structure.
+            Centralize compliance requirements, legal entities, and ESG oversight in one view.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -65,84 +148,95 @@ export function OrganizationTab() {
             Company Overview
           </CardTitle>
           <CardDescription>
-            Placeholders for legal entity and reporting lines.
+            Capture the organization parent entity and the primary region it governs.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Card className="border-dashed">
-            <CardHeader>
-              <CardTitle className="text-base">Parent Entity</CardTitle>
-              <CardDescription>VerdePM Holdings, Inc.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="border-dashed">
-            <CardHeader>
-              <CardTitle className="text-base">Primary Region</CardTitle>
-              <CardDescription>Philippines &amp; Southeast Asia</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="border-dashed">
-            <CardHeader>
-              <CardTitle className="text-base">Reporting Cycle</CardTitle>
-              <CardDescription>Quarterly ESG &amp; governance reviews</CardDescription>
-            </CardHeader>
-          </Card>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="parent-entity">Parent Entity</Label>
+            <Input
+              id="parent-entity"
+              placeholder="e.g., VerdePM Holdings, Inc."
+              value={parentEntity}
+              onChange={(event) => setParentEntity(event.target.value)}
+              disabled={isLoading || isSaving}
+            />
+            <p className="text-xs text-muted-foreground">
+              This name appears across project setup and compliance reports.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="primary-region">Primary Region</Label>
+            <Input
+              id="primary-region"
+              placeholder="e.g., Philippines & Southeast Asia"
+              value={primaryRegion}
+              onChange={(event) => setPrimaryRegion(event.target.value)}
+              disabled={isLoading || isSaving}
+            />
+            <p className="text-xs text-muted-foreground">
+              Used to contextualize ESG benchmarks and regulatory references.
+            </p>
+          </div>
+          <div className="space-y-2 text-sm">
+            {statusMessage && (
+              <p className="text-emerald-600 dark:text-emerald-400">{statusMessage}</p>
+            )}
+            {errorMessage && (
+              <p className="text-red-600 dark:text-red-400">{errorMessage}</p>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={isSaving || isLoading}>
+              {isSaving ? "Saving..." : "Save Details"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="teams" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 rounded-xl p-1">
-          <TabsTrigger value="teams" className="data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">
-            Teams
-          </TabsTrigger>
-          <TabsTrigger value="policies" className="data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">
-            Policies
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="teams" className="mt-6">
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users2 className="h-5 w-5 text-emerald-600" />
-                Team Directory
-              </CardTitle>
-              <CardDescription>Placeholder groups until linked to live data.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {placeholderTeams.map((team) => (
-                <div key={team.id} className="rounded-lg border border-dashed border-emerald-200 dark:border-emerald-900/40 p-4">
-                  <h3 className="font-semibold">{team.name}</h3>
-                  <p className="text-sm text-muted-foreground">{team.description}</p>
+      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
+              <ClipboardList className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Minimum Document Requirements</CardTitle>
+              <CardDescription>
+                Track the baseline compliance files every project must have on record before pre-construction kickoff.
+              </CardDescription>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm">Download Checklist</Button>
+            <Button size="sm">Assign Owners</Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {DOCUMENT_REQUIREMENTS.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-2xl border border-dashed border-emerald-200 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/40 p-4 space-y-3"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <FileCheck2 className="h-4 w-4 text-emerald-600" />
+                    {item.label}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="policies" className="mt-6">
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-emerald-600" />
-                Governance Policies
-              </CardTitle>
-              <CardDescription>Draft placeholders for policy management.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {placeholderPolicies.map((policy) => (
-                <div key={policy.id} className="flex items-center justify-between rounded-lg border border-dashed border-emerald-200 dark:border-emerald-900/40 p-4">
-                  <div>
-                    <h3 className="font-semibold">{policy.title}</h3>
-                    <p className="text-sm text-muted-foreground">Metadata and links to be added.</p>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {policy.status}
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                <Badge variant="outline" className="self-start text-xs">
+                  {item.status}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Placeholder: integrate document storage from project setup to surface live upload status here.
+              </p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

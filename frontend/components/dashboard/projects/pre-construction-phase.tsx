@@ -958,8 +958,8 @@ export function PreConstructionPhase({ project, onProjectUpdated }: PreConstruct
             </p>
             {step === 1 && (
               <p className="text-emerald-900/80 dark:text-emerald-100/80">
-                Keep names short and upload clearly labeled files to speed up
-                compliance checks.
+                Keep names short and confirm compliance files in the
+                Organization tab so reviews move faster.
               </p>
             )}
             {step === 2 && (
