@@ -1,8 +1,9 @@
-import ProjectPageContent from "@/components/dashboard/projects/project-page-content";
-import { Background } from "@/components/ui/background";
 import { notFound } from "next/navigation";
 import { getProjectBySlug } from "@/actions/getProjectBySlug";
-import type { Project } from "@/types/project";
+import ProjectPageContent from "@/components/dashboard/projects/project-page-content";
+import { Background } from "@/components/ui/background";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { safeAsyncOperation } from "@/lib/errors";
 import type { ProjectPageProps } from "@/types/pages";
 
 export const dynamic = "force-dynamic";
@@ -10,13 +11,16 @@ export const dynamic = "force-dynamic";
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { slug } = await params;
 
-  let project: Project | null = null;
+  const { data: project, error } = await safeAsyncOperation(() =>
+    getProjectBySlug(slug)
+  );
 
-  try {
-    project = await getProjectBySlug(slug);
-  } catch (error) {
-    console.error("Failed to load project", error);
-    notFound();
+  if (error) {
+    return (
+      <Background variant="subtle" className="min-h-screen p-4">
+        <ErrorDisplay title="Failed to load project" message={error} />
+      </Background>
+    );
   }
 
   if (!project) {
