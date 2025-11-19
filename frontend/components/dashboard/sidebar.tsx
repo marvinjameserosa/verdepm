@@ -8,6 +8,7 @@ import {
   Settings,
   HelpCircle,
   Home,
+  Flag,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -19,6 +20,7 @@ import { useState } from "react";
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
   { href: "/dashboard/projects", icon: Folder, label: "Projects" },
+  { href: "/dashboard/approval", icon: Flag, label: "Approval" },
   { href: "/dashboard/members", icon: Users2, label: "Members" },
   { href: "/dashboard/reports", icon: BarChart2, label: "Reports" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
@@ -96,6 +98,9 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
                 </NavItem>
                 <NavItem href="/dashboard/projects" icon={Folder}>
                   Projects
+                </NavItem>
+                <NavItem href="/dashboard/approval" icon={Flag}>
+                  Approval
                 </NavItem>
                 <NavItem href="/dashboard/reports" icon={BarChart2}>
                   Reports

@@ -1166,103 +1166,53 @@ This report template is ready for customization. Please add your content here.
 
               {/* Report Templates */}
               {!selectedReport && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                        <BarChart3 className="h-5 w-5" />
-                        Report Templates
-                      </CardTitle>
-                      <CardDescription>
-                        Create comprehensive reports from dashboard data
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 gap-4">
-                        {reportTemplates.map((template) => {
-                          const IconComponent = template.icon;
-                          return (
-                            <div
-                              key={template.id}
-                              className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
-                              onClick={() => {
-                                setSelectedReport(template);
-                                setReportTitle(template.title);
-                                setReportContent(
-                                  generateReportContent(template)
-                                );
-                              }}
-                            >
-                              <div className="flex items-center gap-3 mb-2">
-                                <div
-                                  className={`p-2 rounded-lg bg-${template.color}-100 dark:bg-${template.color}-900/40`}
-                                >
-                                  <IconComponent
-                                    className={`h-4 w-4 text-${template.color}-600 dark:text-${template.color}-400`}
-                                  />
-                                </div>
-                                <div className="font-semibold">
-                                  {template.title}
-                                </div>
+                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                      <BarChart3 className="h-5 w-5" />
+                      Report Templates
+                    </CardTitle>
+                    <CardDescription>
+                      Create comprehensive reports from dashboard data
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-4">
+                      {reportTemplates.map((template) => {
+                        const IconComponent = template.icon;
+                        return (
+                          <div
+                            key={template.id}
+                            className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              setSelectedReport(template);
+                              setReportTitle(template.title);
+                              setReportContent(
+                                generateReportContent(template)
+                              );
+                            }}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <div
+                                className={`p-2 rounded-lg bg-${template.color}-100 dark:bg-${template.color}-900/40`}
+                              >
+                                <IconComponent
+                                  className={`h-4 w-4 text-${template.color}-600 dark:text-${template.color}-400`}
+                                />
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                {template.description}
+                              <div className="font-semibold">
+                                {template.title}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Report Statistics */}
-                  <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-                    <CardHeader>
-                      <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                        Report Statistics
-                      </CardTitle>
-                      <CardDescription>
-                        Overview of available data for reporting
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">ESG Data Points</span>
-                          <Badge variant="outline" className="text-emerald-600">
-                            156
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Carbon Metrics</span>
-                          <Badge variant="outline" className="text-blue-600">
-                            24
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Certifications</span>
-                          <Badge variant="outline" className="text-purple-600">
-                            {certifications.length}
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Monthly Tracking</span>
-                          <Badge variant="outline" className="text-amber-600">
-                            6 months
-                          </Badge>
-                        </div>
-                        <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                          <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                            Data Quality Score: 94%
+                            <div className="text-sm text-muted-foreground">
+                              {template.description}
+                            </div>
                           </div>
-                          <div className="text-xs text-emerald-600 dark:text-emerald-400">
-                            All data sources verified and up-to-date
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               {/* Document Editor */}

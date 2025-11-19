@@ -227,6 +227,10 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
           });
         }
         break;
+      case "approval":
+        breadcrumbs.push({ label: "Overview" });
+        breadcrumbs.push({ label: "Approval", href: "/dashboard/approval" });
+        break;
       case "reports":
         breadcrumbs.push({ label: "Overview" });
         breadcrumbs.push({ label: "Reports", href: "/dashboard/reports" });
