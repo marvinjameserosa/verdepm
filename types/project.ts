@@ -9,6 +9,7 @@ export type ProjectPriority = "low" | "medium" | "high";
 export interface Project {
   id: string;
   ownerId?: string | null;
+  organizationId?: string | null;
   name: string;
   slug: string;
   description?: string | null;
@@ -26,10 +27,13 @@ export interface Project {
 }
 
 export interface SupabaseProject {
-  id: string;
+  id?: string;
+  project_id?: string | null;
   owner_id?: string | null;
-  name: string;
-  slug: string;
+  organization_id?: string | null;
+  project_name?: string | null;
+  name?: string | null;
+  slug?: string | null;
   description?: string | null;
   status: ProjectStatus;
   priority: ProjectPriority;
@@ -37,7 +41,7 @@ export interface SupabaseProject {
   project_manager?: string | null;
   client_name?: string | null;
   location?: string | null;
-  budget?: number | null;
+  budget?: number | string | null;
   start_date?: string | null;
   end_date?: string | null;
   created_at: string;

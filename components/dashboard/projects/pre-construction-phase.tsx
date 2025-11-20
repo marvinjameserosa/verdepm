@@ -426,7 +426,7 @@ export function PreConstructionPhase({
 
           const { data, error } = await supabase
             .from("projects")
-            .select("id, slug")
+            .select("project_id, slug")
             .ilike("slug", `${baseSlug}%`);
 
           if (error) {
@@ -436,7 +436,8 @@ export function PreConstructionPhase({
           const conflictingSlugs = (data ?? [])
             .filter(
               (row) =>
-                row.id !== projectDetails.id && typeof row.slug === "string"
+                row.project_id !== projectDetails.id &&
+                typeof row.slug === "string"
             )
             .map((row) => row.slug);
 
@@ -537,7 +538,7 @@ export function PreConstructionPhase({
           const updates: Record<string, string | null> = {};
 
           if (projectDetails.name !== trimmedProjectName) {
-            updates.name = trimmedProjectName;
+            updates.project_name = trimmedProjectName;
           }
 
           if (projectDetails.location !== trimmedProjectAddress) {
@@ -558,9 +559,9 @@ export function PreConstructionPhase({
               await supabase
                 .from("projects")
                 .update(updates)
-                .eq("id", projectDetails.id)
+                .eq("project_id", projectDetails.id)
                 .select(
-                  "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
+                  "project_id, organization_id, project_name, slug, description, status, priority, category, client_name, location, budget, created_at, updated_at"
                 )
                 .maybeSingle();
 

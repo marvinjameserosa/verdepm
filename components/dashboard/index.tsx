@@ -279,7 +279,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("projects")
         .select(
-          "id, owner_id, name, slug, description, status, priority, category, project_manager, client_name, location, budget, start_date, end_date, created_at, updated_at"
+          "project_id, organization_id, project_name, slug, description, status, priority, category, client_name, location, budget, created_at, updated_at"
         );
       if (!error && data) {
         setProjects(data.map(mapProjectFromSupabase));

@@ -32,8 +32,8 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
   const {
     id,
     project_id: projectId,
-    owner_id: ownerId,
-    name,
+    organization_id: organizationId,
+    project_name: projectName,
     slug,
     description,
     status,
@@ -45,6 +45,7 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     budget,
     start_date: startDate,
     end_date: endDate,
+    owner_id,
     created_at: createdAt,
     updated_at: updatedAt,
   } = record as Record<string, unknown>;
@@ -57,19 +58,30 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     throw new Error("Project record is missing an id or project_id field");
   }
 
+  const parsedBudget =
+    typeof budget === "string"
+      ? Number.isFinite(Number(budget))
+        ? Number(budget)
+        : null
+      : ((budget as number | null | undefined) ?? null);
+
   return {
     id: normalizedId,
-    ownerId: (ownerId as string | null | undefined) ?? null,
-    name: name as string,
-    slug: slug as string,
+    ownerId: (owner_id as string | null | undefined) ?? null,
+    organizationId:
+      (organizationId as string | null | undefined) ?? null,
+    name:
+      (projectName as string | null | undefined) ??
+      "Untitled Project",
+    slug: (slug as string | null | undefined) ?? normalizedId,
     description: (description as string | null | undefined) ?? null,
     status: status as ProjectStatus,
     priority: priority as ProjectPriority,
-    category: category as string,
+    category: (category as string | null | undefined) ?? null,
     projectManager: (projectManager as string | null | undefined) ?? null,
     clientName: (clientName as string | null | undefined) ?? null,
     location: (location as string | null | undefined) ?? null,
-    budget: (budget as number | null | undefined) ?? null,
+    budget: parsedBudget,
     startDate: (startDate as string | null | undefined) ?? null,
     endDate: (endDate as string | null | undefined) ?? null,
     createdAt:
