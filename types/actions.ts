@@ -24,3 +24,17 @@ export interface UploadMemberAvatarResult {
   publicUrl: string;
   filePath: string;
 }
+
+export interface UploadOrganizationDocumentParams {
+  organizationId: string;
+  documentType: 'sec-dti' | 'mayors-permit' | 'bir';
+  file: File;
+  previousPath?: string | null;
+}
+
+export interface UploadOrganizationDocumentResult {
+  publicUrl: string;
+  filePath: string;
+}
+
+

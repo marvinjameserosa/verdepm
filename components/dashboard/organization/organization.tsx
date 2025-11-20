@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, ClipboardList, FileCheck2 } from "lucide-react";
+import { Building2, ClipboardList, FileCheck2, Upload, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { useOrganizationDocuments, type DocumentType } from "@/hooks/useOrganizationDocuments";
 
 const DOCUMENT_REQUIREMENTS = [
   {
@@ -40,13 +41,27 @@ const DOCUMENT_REQUIREMENTS = [
 ];
 
 export function OrganizationTab() {
+  // Hardcoded organization ID - Carl's permanent org
+  const ORGANIZATION_ID = "d4f2bb4d-6bea-4d34-9790-7d7ff000e78a";
+
   const [recordId, setRecordId] = useState<string | null>(null);
   const [parentEntity, setParentEntity] = useState("");
   const [primaryRegion, setPrimaryRegion] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Document upload hook
+  const {
+    isUploading,
+    uploadError,
+    handleDocumentUpload,
+    handleDocumentRemove,
+    getDocumentByType,
+  } = useOrganizationDocuments(ORGANIZATION_ID);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,19 +72,20 @@ export function OrganizationTab() {
 
       try {
         const { data, error } = await supabase
-          .from("organization_profile")
-          .select("id, parent_entity, primary_region")
-          .limit(1)
-          .maybeSingle();
+          .from("organizations")
+          .select("organization_id, organization_name, registration_number, contact_email, primary_region")
+          .eq("organization_id", ORGANIZATION_ID)
+          .single();
 
         if (error) {
           throw error;
         }
 
         if (data && isMounted) {
-          setRecordId(data.id ?? null);
-          setParentEntity(data.parent_entity ?? "");
+          setParentEntity(data.organization_name ?? "");
           setPrimaryRegion(data.primary_region ?? "");
+          setRegistrationNumber(data.registration_number ?? "");
+          setContactEmail(data.contact_email ?? "");
         }
       } catch (error) {
         if (isMounted) {
@@ -101,31 +117,19 @@ export function OrganizationTab() {
 
     try {
       const payload = {
-        parent_entity: parentEntity.trim() || null,
+        organization_name: parentEntity.trim() || null,
         primary_region: primaryRegion.trim() || null,
-      } as const;
+        registration_number: registrationNumber.trim() || null,
+        contact_email: contactEmail.trim() || null,
+      };
 
-      if (recordId) {
-        const { error } = await supabase
-          .from("organization_profile")
-          .update(payload)
-          .eq("id", recordId);
+      const { error } = await supabase
+        .from("organizations")
+        .update(payload)
+        .eq("organization_id", ORGANIZATION_ID);
 
-        if (error) {
-          throw error;
-        }
-      } else {
-        const { data, error } = await supabase
-          .from("organization_profile")
-          .insert([{ ...payload }])
-          .select("id")
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        setRecordId(data?.id ?? null);
+      if (error) {
+        throw error;
       }
 
       setStatusMessage("Organization details saved.");
@@ -193,6 +197,37 @@ export function OrganizationTab() {
               Used to contextualize ESG benchmarks and regulatory references.
             </p>
           </div>
+
+          {/* Registration Number and Contact Email */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="registration-number">Registration Number</Label>
+              <Input
+                id="registration-number"
+                placeholder="e.g., SEC-12345678"
+                value={registrationNumber}
+                onChange={(event) => setRegistrationNumber(event.target.value)}
+                disabled={isLoading || isSaving}
+              />
+              <p className="text-xs text-muted-foreground">
+                SEC or DTI registration number.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact-email">Contact Email</Label>
+              <Input
+                id="contact-email"
+                type="email"
+                placeholder="e.g., contact@verdepm.com"
+                value={contactEmail}
+                onChange={(event) => setContactEmail(event.target.value)}
+                disabled={isLoading || isSaving}
+              />
+              <p className="text-xs text-muted-foreground">
+                Primary organizational contact email.
+              </p>
+            </div>
+          </div>
           <div className="space-y-2 text-sm">
             {statusMessage && (
               <p className="text-emerald-600 dark:text-emerald-400">
@@ -235,31 +270,106 @@ export function OrganizationTab() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {DOCUMENT_REQUIREMENTS.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-2xl border border-dashed border-emerald-200 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/40 p-4 space-y-3"
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <FileCheck2 className="h-4 w-4 text-emerald-600" />
-                    {item.label}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-                <Badge variant="outline" className="self-start text-xs">
-                  {item.status}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Placeholder: integrate document storage from project setup to
-                surface live upload status here.
-              </p>
+          {uploadError && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-600 dark:text-red-400">{uploadError}</p>
             </div>
-          ))}
+          )}
+          {DOCUMENT_REQUIREMENTS.map((item) => {
+            const documentType = item.id as DocumentType;
+            const uploadedDoc = getDocumentByType(documentType);
+            const isUploadingThis = isUploading[documentType];
+            const hasDocument = uploadedDoc?.fileUrl;
+
+            return (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-dashed border-emerald-200 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/40 p-4 space-y-3"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <FileCheck2 className="h-4 w-4 text-emerald-600" />
+                      {item.label}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {item.description}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="self-start text-xs"
+                  >
+                    {hasDocument ? 'Uploaded' : item.status}
+                  </Badge>
+                </div>
+
+                {hasDocument ? (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FileCheck2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100 truncate">
+                          Document uploaded
+                        </p>
+                        {uploadedDoc.uploadedAt && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                            Uploaded {new Date(uploadedDoc.uploadedAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(uploadedDoc.fileUrl!, '_blank')}
+                        className="text-emerald-600 hover:text-emerald-700"
+                      >
+                        View
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDocumentRemove(documentType)}
+                        disabled={isUploadingThis}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      id={`file-${item.id}`}
+                      accept=".pdf,image/jpeg,image/png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleDocumentUpload(documentType, file);
+                          e.target.value = '';
+                        }
+                      }}
+                      disabled={isUploadingThis}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById(`file-${item.id}`)?.click()}
+                      disabled={isUploadingThis}
+                      className="w-full sm:w-auto"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {isUploadingThis ? 'Uploading...' : 'Upload Document'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
     </div>
