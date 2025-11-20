@@ -28,12 +28,12 @@ type LocationPickerMapProps = {
   onChange: (value: string) => void;
 };
 
-function LocationMarker({ 
-  position, 
+function LocationMarker({
+  position,
   setPosition,
-  onLocationFound 
-}: { 
-  position: L.LatLng | null, 
+  onLocationFound
+}: {
+  position: L.LatLng | null,
   setPosition: (pos: L.LatLng) => void,
   onLocationFound: (lat: number, lng: number) => void
 }) {
@@ -56,11 +56,11 @@ function LocationMarker({
   );
 }
 
-function SearchOverlay({ 
-  onSelect, 
+function SearchOverlay({
+  onSelect,
   initialQuery,
   onSave
-}: { 
+}: {
   onSelect: (lat: number, lng: number, displayName: string) => void,
   initialQuery: string,
   onSave?: () => void
@@ -77,10 +77,22 @@ function SearchOverlay({
     }
   }, [initialQuery]);
 
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (query.trim().length > 2 && !isSearching) {
+        handleSearch();
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const handleSearch = async () => {
     if (!query.trim()) return;
     setIsSearching(true);
-    setShowResults(false);
+    // Don't hide results immediately when searching automatically
+    // setShowResults(false); 
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
       const data = await response.json();
@@ -110,30 +122,32 @@ function SearchOverlay({
   };
 
   return (
-    <div className="absolute top-3 left-3 right-3 z-[1000] flex items-start gap-2 pointer-events-none">
-      <div className="flex-1 max-w-sm pointer-events-auto relative flex flex-col gap-1">
-        <div className="flex gap-2 shadow-md rounded-md bg-white dark:bg-gray-900 p-1 border border-gray-200 dark:border-gray-800">
-          <Input
-            placeholder="Search location..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="h-9 border-none focus-visible:ring-0 bg-transparent shadow-none"
-          />
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            className="h-9 w-9" 
-            onClick={handleSearch}
-            disabled={isSearching}
-            type="button"
-          >
-            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          </Button>
+    <div className="relative flex items-start gap-2 w-full z-[10]">
+      <div className="flex-1 relative flex flex-col gap-1">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Input
+              placeholder="Search location..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="pr-10"
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+              onClick={handleSearch}
+              disabled={isSearching}
+              type="button"
+            >
+              {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
-        
+
         {showResults && results.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden max-h-60 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden max-h-60 overflow-y-auto z-[1000]">
             {results.map((result, i) => (
               <button
                 key={i}
@@ -149,10 +163,9 @@ function SearchOverlay({
         )}
       </div>
       {onSave && (
-        <Button 
-          onClick={onSave} 
-          className="pointer-events-auto shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
-          size="sm"
+        <Button
+          onClick={onSave}
+          className="shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
           type="button"
         >
           Save
@@ -221,22 +234,24 @@ export default function LocationPickerMap({ value, onChange, onSave }: LocationP
   }, [handleReverseGeocode]);
 
   // Default to Manila if no position
-  const center = position || { lat: 14.5995, lng: 120.9842 }; 
+  const center = position || { lat: 14.5995, lng: 120.9842 };
 
   return (
-    <div className="h-[300px] w-full rounded-md overflow-hidden border border-input z-0 relative group">
+    <div className="flex flex-col gap-3 w-full">
       <SearchOverlay onSelect={handleSearchResult} initialQuery={addressName} onSave={onSave} />
-      <MapContainer center={center} zoom={13} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <LocationMarker 
-          position={position} 
-          setPosition={setPosition} 
-          onLocationFound={handleMapClick}
-        />
-      </MapContainer>
+      <div className="h-[300px] w-full rounded-md overflow-hidden border border-input z-0 relative">
+        <MapContainer center={center} zoom={13} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <LocationMarker
+            position={position}
+            setPosition={setPosition}
+            onLocationFound={handleMapClick}
+          />
+        </MapContainer>
+      </div>
     </div>
   );
 }

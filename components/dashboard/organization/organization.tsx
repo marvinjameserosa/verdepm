@@ -55,6 +55,9 @@ export function OrganizationTab() {
   const [primaryRegion, setPrimaryRegion] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerPhone, setOwnerPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -79,7 +82,7 @@ export function OrganizationTab() {
       try {
         const { data, error } = await supabase
           .from("organizations")
-          .select("organization_id, organization_name, registration_number, contact_email, primary_region")
+          .select("organization_id, organization_name, registration_number, contact_email, primary_region, owner_name, owner_email, owner_phone")
           .eq("organization_id", ORGANIZATION_ID)
           .single();
 
@@ -92,6 +95,9 @@ export function OrganizationTab() {
           setPrimaryRegion(data.primary_region ?? "");
           setRegistrationNumber(data.registration_number ?? "");
           setContactEmail(data.contact_email ?? "");
+          setOwnerName(data.owner_name ?? "");
+          setOwnerEmail(data.owner_email ?? "");
+          setOwnerPhone(data.owner_phone ?? "");
         }
       } catch (error) {
         if (isMounted) {
@@ -127,6 +133,9 @@ export function OrganizationTab() {
         primary_region: primaryRegion.trim() || null,
         registration_number: registrationNumber.trim() || null,
         contact_email: contactEmail.trim() || null,
+        owner_name: ownerName.trim() || null,
+        owner_email: ownerEmail.trim() || null,
+        owner_phone: ownerPhone.trim() || null,
       };
 
       const { error } = await supabase
@@ -227,6 +236,45 @@ export function OrganizationTab() {
               </p>
             </div>
           </div>
+
+          {/* Owner Details Section */}
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold mb-4">Owner Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="owner-name">Owner Name</Label>
+                <Input
+                  id="owner-name"
+                  placeholder="Full Name"
+                  value={ownerName}
+                  onChange={(event) => setOwnerName(event.target.value)}
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="owner-email">Owner Email</Label>
+                <Input
+                  id="owner-email"
+                  type="email"
+                  placeholder="Email Address"
+                  value={ownerEmail}
+                  onChange={(event) => setOwnerEmail(event.target.value)}
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="owner-phone">Owner Phone</Label>
+                <Input
+                  id="owner-phone"
+                  placeholder="Phone Number"
+                  value={ownerPhone}
+                  onChange={(event) => setOwnerPhone(event.target.value)}
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2 text-sm">
             {statusMessage && (
               <p className="text-emerald-600 dark:text-emerald-400">
