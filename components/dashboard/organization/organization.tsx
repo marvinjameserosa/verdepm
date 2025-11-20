@@ -15,6 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Building2, ClipboardList, FileCheck2, Upload, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useOrganizationDocuments, type DocumentType } from "@/hooks/useOrganizationDocuments";
+import dynamic from "next/dynamic";
+
+const LocationPickerMap = dynamic(() => import("@/components/ui/location-picker-map"), {
+  ssr: false,
+  loading: () => <div className="h-[300px] w-full bg-muted animate-pulse rounded-md" />
+});
 
 const DOCUMENT_REQUIREMENTS = [
   {
@@ -153,10 +159,6 @@ export function OrganizationTab() {
             oversight in one view.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline">Export Snapshot</Button>
-          <Button>Add Structure</Button>
-        </div>
       </div>
 
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
@@ -185,13 +187,10 @@ export function OrganizationTab() {
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="primary-region">Primary Region</Label>
-            <Input
-              id="primary-region"
-              placeholder="e.g., Philippines & Southeast Asia"
+            <Label>Primary Region</Label>
+            <LocationPickerMap
               value={primaryRegion}
-              onChange={(event) => setPrimaryRegion(event.target.value)}
-              disabled={isLoading || isSaving}
+              onChange={setPrimaryRegion}
             />
             <p className="text-xs text-muted-foreground">
               Used to contextualize ESG benchmarks and regulatory references.
@@ -261,12 +260,6 @@ export function OrganizationTab() {
                 record before pre-construction kickoff.
               </CardDescription>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm">
-              Download Checklist
-            </Button>
-            <Button size="sm">Assign Owners</Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
