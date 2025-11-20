@@ -56,7 +56,7 @@ export const EditMemberDialog = ({
   const roleOptions =
     availableRoles && availableRoles.length > 0
       ? availableRoles
-      : (["owner", "manager", "member"] as User["role"][]);
+      : (["owner", "manager", "member", "supplier"] as User["role"][]);
 
   const handleAvatarFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;

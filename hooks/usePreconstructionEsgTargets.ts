@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { isMissingRelationError } from "@/lib/supabase/errors";
-import type { EsgTarget } from "@/types/project";
+import type { EsgTarget, SupplierApprovalStatus } from "@/types/project";
 
 export type TargetCategory = "Environmental" | "Social" | "Governance";
 
@@ -16,6 +16,7 @@ type UsePreconstructionEsgTargetsArgs = {
   initialTargets?: EsgTarget[];
   onError?: (message: string) => void;
   onResetFeedback?: () => void;
+  currentUserId?: string | null;
 };
 
 export function usePreconstructionEsgTargets({
@@ -23,11 +24,13 @@ export function usePreconstructionEsgTargets({
   initialTargets,
   onError,
   onResetFeedback,
+  currentUserId,
 }: UsePreconstructionEsgTargetsArgs) {
   const [targets, setTargets] = useState<EsgTarget[]>(initialTargets ?? []);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingTargetId, setDeletingTargetId] = useState<string | null>(null);
+  const [updatingTargetId, setUpdatingTargetId] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialTargets) {
@@ -46,7 +49,9 @@ export function usePreconstructionEsgTargets({
     try {
       const { data, error } = await supabase
         .from("preconstruction_esg_target")
-        .select("id, category, goal, metric_kpi")
+        .select(
+          "id, category, goal, metric_kpi, approval_status, submitted_by, approved_by, approved_at"
+        )
         .eq("project_setup_id", projectSetupId)
         .order("created_at", { ascending: true });
 
@@ -66,6 +71,10 @@ export function usePreconstructionEsgTargets({
         category: EsgTarget["category"];
         goal: string;
         metric_kpi: string;
+        approval_status: SupplierApprovalStatus | null;
+        submitted_by: string | null;
+        approved_by: string | null;
+        approved_at: string | null;
       };
 
       const mappedTargets: EsgTarget[] = ((data ?? []) as TargetRow[]).map(
@@ -74,6 +83,10 @@ export function usePreconstructionEsgTargets({
           category: row.category,
           goal: row.goal,
           metric: row.metric_kpi,
+          approvalStatus: row.approval_status ?? "pending",
+          submittedBy: row.submitted_by,
+          approvedBy: row.approved_by,
+          approvedAt: row.approved_at,
         })
       );
 
@@ -109,9 +122,13 @@ export function usePreconstructionEsgTargets({
               category: draft.category,
               goal: draft.goal,
               metric_kpi: draft.metric,
+              approval_status: "pending",
+              submitted_by: currentUserId ?? null,
             },
           ])
-          .select("id, category, goal, metric_kpi")
+          .select(
+            "id, category, goal, metric_kpi, approval_status, submitted_by, approved_by, approved_at"
+          )
           .single();
 
         if (error) {
@@ -133,6 +150,10 @@ export function usePreconstructionEsgTargets({
           category: data.category as EsgTarget["category"],
           goal: data.goal,
           metric: data.metric_kpi,
+          approvalStatus: (data.approval_status as SupplierApprovalStatus) ?? "pending",
+          submittedBy: data.submitted_by,
+          approvedBy: data.approved_by,
+          approvedAt: data.approved_at,
         };
 
         setTargets((prev) => [...prev, mappedTarget]);
@@ -196,6 +217,69 @@ export function usePreconstructionEsgTargets({
     [onError, onResetFeedback, projectSetupId]
   );
 
+  const updateTargetApprovalStatus = useCallback(
+    async (
+      targetId: string,
+      nextStatus: SupplierApprovalStatus,
+      reviewerId?: string | null
+    ) => {
+      if (!projectSetupId) {
+        onError?.("Save project setup before approving ESG targets.");
+        return;
+      }
+
+      setUpdatingTargetId(targetId);
+      onResetFeedback?.();
+
+      try {
+        const { data, error } = await supabase
+          .from("preconstruction_esg_target")
+          .update({
+            approval_status: nextStatus,
+            approved_by: reviewerId ?? null,
+            approved_at: nextStatus === "approved" ? new Date().toISOString() : null,
+          })
+          .eq("id", targetId)
+          .eq("project_setup_id", projectSetupId)
+          .select(
+            "id, category, goal, metric_kpi, approval_status, submitted_by, approved_by, approved_at"
+          )
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data) {
+          return;
+        }
+
+        setTargets((prev) =>
+          prev.map((target) =>
+            target.id === targetId
+              ? {
+                  ...target,
+                  approvalStatus: (data.approval_status as SupplierApprovalStatus) ?? target.approvalStatus,
+                  approvedBy: data.approved_by,
+                  approvedAt: data.approved_at,
+                }
+              : target
+          )
+        );
+      } catch (error) {
+        console.error("Failed to update ESG target approval", error);
+        onError?.(
+          error instanceof Error
+            ? error.message
+            : "Unable to update target approval."
+        );
+      } finally {
+        setUpdatingTargetId(null);
+      }
+    },
+    [onError, onResetFeedback, projectSetupId]
+  );
+
   useEffect(() => {
     void loadTargets();
   }, [loadTargets]);
@@ -205,8 +289,10 @@ export function usePreconstructionEsgTargets({
     isLoading,
     isSaving,
     deletingTargetId,
+    updatingTargetId,
     reloadTargets: loadTargets,
     saveTarget,
     deleteTarget,
+    updateTargetApprovalStatus,
   };
 }

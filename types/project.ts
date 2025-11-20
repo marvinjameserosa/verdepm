@@ -6,6 +6,8 @@ export type ProjectStatus =
 
 export type ProjectPriority = "low" | "medium" | "high";
 
+export type SupplierApprovalStatus = "pending" | "approved" | "rejected";
+
 export interface Project {
   id: string;
   ownerId?: string | null;
@@ -62,6 +64,10 @@ export type Material = {
   warehouse?: string;
   specSheetPath?: string;
   status: MaterialStatus;
+  approvalStatus?: SupplierApprovalStatus;
+  submittedBy?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
 };
 
 export const units = [
@@ -115,4 +121,8 @@ export type EsgTarget = {
   category: "Environmental" | "Social" | "Governance";
   goal: string;
   metric: string;
+  approvalStatus?: SupplierApprovalStatus;
+  submittedBy?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
 };

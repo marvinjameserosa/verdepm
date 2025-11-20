@@ -36,7 +36,11 @@ export default function ProjectPhases({ project, onProjectUpdated }: ProjectPhas
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pre-construction" className="mt-6">
-          <PreConstructionPhase project={project} onProjectUpdated={onProjectUpdated} />
+          <PreConstructionPhase
+            project={project}
+            onProjectUpdated={onProjectUpdated}
+            step2ReadOnly
+          />
         </TabsContent>
         <TabsContent value="construction" className="mt-6">
           <ConstructionPhase project={project} />

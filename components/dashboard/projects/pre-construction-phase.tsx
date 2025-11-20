@@ -8,6 +8,7 @@ import {
   type EsgTarget,
   type Material,
   type MaterialStatus,
+  type SupplierApprovalStatus,
 } from "./preconstruction/types";
 import { supabase } from "@/lib/supabase/client";
 import type { Project } from "@/types/project";
@@ -65,7 +66,8 @@ const getDefaultStep1Values = (
     project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
   status: project?.status ?? DEFAULT_STEP1_VALUES.status,
   priority: project?.priority ?? DEFAULT_STEP1_VALUES.priority,
-  projectManager: project?.projectManager ?? DEFAULT_STEP1_VALUES.projectManager,
+  projectManager:
+    project?.projectManager ?? DEFAULT_STEP1_VALUES.projectManager,
   startDate: project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
   endDate: project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
   clientName: project?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
@@ -161,16 +163,28 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 type PreConstructionPhaseProps = {
   project?: Project;
   onProjectUpdated?: (project: Project) => void;
+  initialStep?: 1 | 2 | 3;
+  restrictToStep?: 1 | 2 | 3;
+  hideStepIndicator?: boolean;
+  step2ReadOnly?: boolean;
+  showStep2Navigation?: boolean;
+  allowSourcingApprovals?: boolean;
 };
 
 export function PreConstructionPhase({
   project,
   onProjectUpdated,
+  initialStep = 1,
+  restrictToStep,
+  hideStepIndicator = false,
+  step2ReadOnly = false,
+  showStep2Navigation = true,
+  allowSourcingApprovals = false,
 }: PreConstructionPhaseProps) {
   const [projectDetails, setProjectDetails] = useState<Project | null>(
     project ?? null
   );
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
   const [userId, setUserId] = useState<string | null>(null);
   const [projectSetupId, setProjectSetupId] = useState<string | null>(null);
   const [step1Values, setStep1Values] = useState<Step1InitialValues>(() =>
@@ -183,10 +197,12 @@ export function PreConstructionPhase({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSavingStep1, setIsSavingStep1] = useState(false);
-  const [isSavingMaterial, setIsSavingMaterial] = useState(false);
   const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(
     null
   );
+  const [materialApprovalLoadingId, setMaterialApprovalLoadingId] = useState<
+    string | null
+  >(null);
   const [isSubmittingForApproval, setIsSubmittingForApproval] = useState(false);
   const [, setSubmittedForApprovalAt] = useState<string | null>(null);
   const supportsSubmittedAtColumn = false;
@@ -196,8 +212,14 @@ export function PreConstructionPhase({
     setProjectDetails(project ?? null);
   }, [project]);
 
-  const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, 3)), []);
-  const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
+  const nextStep = useCallback(() => {
+    if (restrictToStep) return;
+    setStep((s) => Math.min((s + 1) as 1 | 2 | 3, 3) as 1 | 2 | 3);
+  }, [restrictToStep]);
+  const prevStep = useCallback(() => {
+    if (restrictToStep) return;
+    setStep((s) => Math.max((s - 1) as 1 | 2 | 3, 1) as 1 | 2 | 3);
+  }, [restrictToStep]);
 
   const resetFeedback = useCallback(() => {
     setErrorMessage(null);
@@ -331,13 +353,15 @@ export function PreConstructionPhase({
         const [targetsResponse, materialsResponse] = await Promise.all([
           supabase
             .from("preconstruction_esg_target")
-            .select("id, category, goal, metric_kpi")
+            .select(
+              "id, category, goal, metric_kpi, approval_status, submitted_by, approved_by, approved_at"
+            )
             .eq("project_setup_id", normalizedSetup.id)
             .order("created_at", { ascending: true }),
           supabase
             .from("preconstruction_material")
             .select(
-              "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status"
+              "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status, approval_status, submitted_by, approved_by, approved_at"
             )
             .eq("project_setup_id", normalizedSetup.id)
             .order("created_at", { ascending: true }),
@@ -363,6 +387,10 @@ export function PreConstructionPhase({
                 category: EsgTarget["category"];
                 goal: string;
                 metric_kpi: string;
+                approval_status: SupplierApprovalStatus | null;
+                submitted_by: string | null;
+                approved_by: string | null;
+                approved_at: string | null;
               }>);
 
         const materialRows =
@@ -380,6 +408,10 @@ export function PreConstructionPhase({
                 supplier_vetting_notes: string | null;
                 spec_sheet_path: string | null;
                 vetting_status: MaterialStatus;
+                approval_status: SupplierApprovalStatus | null;
+                submitted_by: string | null;
+                approved_by: string | null;
+                approved_at: string | null;
               }>);
 
         const mappedTargets: EsgTarget[] = targetRows.map((targetRow) => ({
@@ -387,26 +419,32 @@ export function PreConstructionPhase({
           category: targetRow.category,
           goal: targetRow.goal,
           metric: targetRow.metric_kpi,
+          approvalStatus: targetRow.approval_status ?? "pending",
+          submittedBy: targetRow.submitted_by,
+          approvedBy: targetRow.approved_by,
+          approvedAt: targetRow.approved_at,
         }));
 
-        const mappedMaterials: Material[] = materialRows.map(
-          (materialRow) => ({
-            id: materialRow.id,
-            category: materialRow.material_category,
-            name: materialRow.material_name,
-            supplier: materialRow.planned_supplier,
-            cost:
-              materialRow.budgeted_cost !== null
-                ? materialRow.budgeted_cost.toString()
-                : "",
-            unit: materialRow.unit ?? undefined,
-            notes: materialRow.supplier_vetting_notes ?? "",
-            credentials: materialRow.sustainability_credentials ?? undefined,
-            status: materialRow.vetting_status,
-            warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
-            specSheetPath: materialRow.spec_sheet_path ?? undefined,
-          })
-        );
+        const mappedMaterials: Material[] = materialRows.map((materialRow) => ({
+          id: materialRow.id,
+          category: materialRow.material_category,
+          name: materialRow.material_name,
+          supplier: materialRow.planned_supplier,
+          cost:
+            materialRow.budgeted_cost !== null
+              ? materialRow.budgeted_cost.toString()
+              : "",
+          unit: materialRow.unit ?? undefined,
+          notes: materialRow.supplier_vetting_notes ?? "",
+          credentials: materialRow.sustainability_credentials ?? undefined,
+          status: materialRow.vetting_status,
+          warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
+          specSheetPath: materialRow.spec_sheet_path ?? undefined,
+          approvalStatus: materialRow.approval_status ?? "pending",
+          submittedBy: materialRow.submitted_by,
+          approvedBy: materialRow.approved_by,
+          approvedAt: materialRow.approved_at,
+        }));
 
         setTargets(mappedTargets);
         setMaterials(mappedMaterials);
@@ -467,7 +505,9 @@ export function PreConstructionPhase({
           project?.projectManager ??
           DEFAULT_STEP1_VALUES.projectManager,
         startDate:
-          prev.startDate ?? project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+          prev.startDate ??
+          project?.startDate ??
+          DEFAULT_STEP1_VALUES.startDate,
         endDate:
           prev.endDate ?? project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
         clientName:
@@ -475,9 +515,7 @@ export function PreConstructionPhase({
           project?.clientName ??
           DEFAULT_STEP1_VALUES.clientName,
         category:
-          prev.category ??
-          project?.category ??
-          DEFAULT_STEP1_VALUES.category,
+          prev.category ?? project?.category ?? DEFAULT_STEP1_VALUES.category,
         budget:
           prev.budget ??
           (project?.budget !== undefined && project?.budget !== null
@@ -487,18 +525,6 @@ export function PreConstructionPhase({
       }));
     }
   }, [isLoading, project, projectSetupId]);
-
-  type MaterialDraftInput = {
-    category: string;
-    name: string;
-    supplier: string;
-    cost: string;
-    unit: string;
-    notes: string;
-    credentials?: string;
-    status: MaterialStatus;
-    warehouse?: string;
-  };
 
   const saveProjectSetup = useCallback(
     async (values: Step1FormValues, goToNext: boolean) => {
@@ -598,9 +624,7 @@ export function PreConstructionPhase({
         const trimmedStartDate = values.startDate
           ? values.startDate.trim()
           : "";
-        const trimmedEndDate = values.endDate
-          ? values.endDate.trim()
-          : "";
+        const trimmedEndDate = values.endDate ? values.endDate.trim() : "";
         const normalizedStatus = values.status;
         const normalizedPriority = values.priority;
         const trimmedClientName = values.clientName.trim();
@@ -610,10 +634,7 @@ export function PreConstructionPhase({
         const parsedBudget =
           trimmedBudgetInput.length > 0 ? Number(trimmedBudgetInput) : null;
 
-        if (
-          trimmedBudgetInput.length > 0 &&
-          Number.isNaN(parsedBudget)
-        ) {
+        if (trimmedBudgetInput.length > 0 && Number.isNaN(parsedBudget)) {
           throw new Error("Budget must be a valid number.");
         }
 
@@ -877,121 +898,6 @@ export function PreConstructionPhase({
     userId,
   ]);
 
-  const handleAddMaterial = useCallback(
-    async (material: MaterialDraftInput, specSheet?: File | null) => {
-      if (!projectSetupId) {
-        setErrorMessage("Save project setup before adding sourcing materials.");
-        return;
-      }
-
-      resetFeedback();
-
-      if (
-        !material.category ||
-        !material.name ||
-        !material.supplier ||
-        !material.cost ||
-        !material.unit ||
-        !material.status
-      ) {
-        setErrorMessage("Please complete the material details before saving.");
-        return;
-      }
-
-      setIsSavingMaterial(true);
-
-      try {
-        const parsedCost = Number(material.cost);
-        if (!Number.isFinite(parsedCost)) {
-          throw new Error("Budgeted cost must be a number.");
-        }
-
-        let specSheetPath: string | null = null;
-
-        if (specSheet) {
-          const extension = specSheet.name.split(".").pop() || "pdf";
-          const fileName = `spec-${crypto.randomUUID()}.${extension}`;
-          const storagePath = `project/${projectSetupId}/materials/${fileName}`;
-          const { error } = await supabase.storage
-            .from("preconstruction-docs")
-            .upload(storagePath, specSheet, {
-              contentType: specSheet.type || "application/pdf",
-              upsert: true,
-            });
-
-          if (error) {
-            throw error;
-          }
-
-          specSheetPath = storagePath;
-        }
-
-        const { data, error } = await supabase
-          .from("preconstruction_material")
-          .insert([
-            {
-              project_setup_id: projectSetupId,
-              material_category: material.category,
-              planned_supplier: material.supplier,
-              material_name: material.name,
-              warehouse_of_the_supplier:
-                material.warehouse && material.warehouse.trim().length > 0
-                  ? material.warehouse
-                  : null,
-              budgeted_cost: parsedCost,
-              unit: material.unit,
-              sustainability_credentials: material.credentials ?? null,
-              supplier_vetting_notes: material.notes,
-              spec_sheet_path: specSheetPath,
-              vetting_status: material.status,
-            },
-          ])
-          .select(
-            "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status"
-          )
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        setMaterials((prev) => [
-          ...prev,
-          {
-            id: data.id,
-            category: data.material_category,
-            name: data.material_name,
-            supplier: data.planned_supplier,
-            cost:
-              data.budgeted_cost !== null && data.budgeted_cost !== undefined
-                ? data.budgeted_cost.toString()
-                : "",
-            unit: data.unit ?? undefined,
-            notes: data.supplier_vetting_notes ?? "",
-            credentials: data.sustainability_credentials ?? undefined,
-            status: data.vetting_status,
-            warehouse: data.warehouse_of_the_supplier ?? undefined,
-            specSheetPath: data.spec_sheet_path ?? undefined,
-          },
-        ]);
-      } catch (error) {
-        if (isMissingRelationError(error)) {
-          console.warn(
-            "Skipping sourcing material save because the related table is not configured."
-          );
-          return;
-        }
-        console.error("Failed to add material", error);
-        setErrorMessage(
-          error instanceof Error ? error.message : "Unable to add material."
-        );
-      } finally {
-        setIsSavingMaterial(false);
-      }
-    },
-    [projectSetupId, resetFeedback]
-  );
-
   const handleDeleteMaterial = useCallback(
     async (materialId: string) => {
       if (!projectSetupId) {
@@ -1036,6 +942,65 @@ export function PreConstructionPhase({
     [projectSetupId, resetFeedback]
   );
 
+  const handleMaterialApproval = useCallback(
+    async (materialId: string, nextStatus: SupplierApprovalStatus) => {
+      if (!projectSetupId) {
+        setErrorMessage(
+          "Save project setup before approving sourcing materials."
+        );
+        return;
+      }
+
+      setMaterialApprovalLoadingId(materialId);
+      resetFeedback();
+
+      try {
+        const timestamp =
+          nextStatus === "approved" ? new Date().toISOString() : null;
+        const { data, error } = await supabase
+          .from("preconstruction_material")
+          .update({
+            approval_status: nextStatus,
+            approved_by: nextStatus === "approved" ? userId ?? null : null,
+            approved_at: timestamp,
+          })
+          .eq("id", materialId)
+          .eq("project_setup_id", projectSetupId)
+          .select("id, approval_status, approved_by, approved_at")
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        setMaterials((prev) =>
+          prev.map((material) =>
+            material.id === materialId
+              ? {
+                  ...material,
+                  approvalStatus:
+                    (data?.approval_status as SupplierApprovalStatus) ??
+                    nextStatus,
+                  approvedBy: data?.approved_by ?? null,
+                  approvedAt: data?.approved_at ?? timestamp,
+                }
+              : material
+          )
+        );
+      } catch (error) {
+        console.error("Failed to update material approval", error);
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to update material approval."
+        );
+      } finally {
+        setMaterialApprovalLoadingId(null);
+      }
+    },
+    [projectSetupId, resetFeedback, setMaterials, setErrorMessage, userId]
+  );
+
   const step1InitialValues = useMemo<Step1InitialValues>(
     () => ({
       ...DEFAULT_STEP1_VALUES,
@@ -1043,6 +1008,26 @@ export function PreConstructionPhase({
     }),
     [step1Values]
   );
+
+  const approvedTargetFilter = useCallback(
+    (target: EsgTarget) => (target.approvalStatus ?? "pending") === "approved",
+    []
+  );
+
+  const approvedMaterials = useMemo(
+    () =>
+      materials.filter(
+        (material) => (material.approvalStatus ?? "pending") === "approved"
+      ),
+    [materials]
+  );
+
+  const visibleMaterials = step2ReadOnly ? approvedMaterials : materials;
+  const reviewTargets = step2ReadOnly
+    ? targets.filter(approvedTargetFilter)
+    : targets;
+  const reviewMaterials = step2ReadOnly ? approvedMaterials : materials;
+  const showStep2Nav = showStep2Navigation && !restrictToStep;
 
   if (isLoading) {
     return (
@@ -1052,7 +1037,10 @@ export function PreConstructionPhase({
     );
   }
 
-  const activeStep = STEP_DEFINITIONS.find((item) => item.id === step);
+  const activeStepNumber = restrictToStep ?? step;
+  const activeStep = STEP_DEFINITIONS.find(
+    (item) => item.id === activeStepNumber
+  );
 
   return (
     <div className="space-y-6">
@@ -1085,44 +1073,52 @@ export function PreConstructionPhase({
         </div>
       </div>
 
-      <div className="lg:grid lg:grid-cols-[280px_1fr] lg:items-start lg:gap-6 space-y-6 lg:space-y-0">
-        <div className="space-y-4 lg:sticky lg:top-24">
-          <StepIndicator currentStep={step} />
-          <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/70 dark:bg-emerald-900/30 p-4 text-sm space-y-2">
-            <p className="font-semibold text-emerald-800 dark:text-emerald-100">
-              Quick tip
-            </p>
-            {step === 1 && (
-              <p className="text-emerald-900/80 dark:text-emerald-100/80">
-                Keep names short and confirm compliance files in the
-                Organization tab so reviews move faster.
+      <div
+        className={
+          hideStepIndicator
+            ? "space-y-6"
+            : "lg:grid lg:grid-cols-[280px_1fr] lg:items-start lg:gap-6 space-y-6 lg:space-y-0"
+        }
+      >
+        {!hideStepIndicator && (
+          <div className="space-y-4 lg:sticky lg:top-24">
+            <StepIndicator currentStep={activeStepNumber} />
+            <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/70 dark:bg-emerald-900/30 p-4 text-sm space-y-2">
+              <p className="font-semibold text-emerald-800 dark:text-emerald-100">
+                Quick tip
               </p>
-            )}
-            {step === 2 && (
-              <p className="text-emerald-900/80 dark:text-emerald-100/80">
-                Tie each ESG target to a measurable KPI, then match sourcing
-                notes that support it.
+              {activeStepNumber === 1 && (
+                <p className="text-emerald-900/80 dark:text-emerald-100/80">
+                  Keep names short and confirm compliance files in the
+                  Organization tab so reviews move faster.
+                </p>
+              )}
+              {activeStepNumber === 2 && (
+                <p className="text-emerald-900/80 dark:text-emerald-100/80">
+                  Tie each ESG target to a measurable KPI, then match sourcing
+                  notes that support it.
+                </p>
+              )}
+              {activeStepNumber === 3 && (
+                <p className="text-emerald-900/80 dark:text-emerald-100/80">
+                  Scan for missing costs or vetting notes before submitting for
+                  approval.
+                </p>
+              )}
+            </div>
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-xs text-muted-foreground space-y-2">
+              <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                Need to pause?
               </p>
-            )}
-            {step === 3 && (
-              <p className="text-emerald-900/80 dark:text-emerald-100/80">
-                Scan for missing costs or vetting notes before submitting for
-                approval.
+              <p>
+                Your progress is saved locally after each step. You can return
+                later from the project overview.
               </p>
-            )}
+            </div>
           </div>
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-xs text-muted-foreground space-y-2">
-            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-              Need to pause?
-            </p>
-            <p>
-              Your progress is saved locally after each step. You can return
-              later from the project overview.
-            </p>
-          </div>
-        </div>
+        )}
         <div className="space-y-6">
-          {step === 1 && (
+          {activeStepNumber === 1 && (
             <Step1ProjectSetup
               onSubmit={handleStep1Submit}
               onSave={handleStep1Save}
@@ -1130,29 +1126,30 @@ export function PreConstructionPhase({
               isSubmitting={isSavingStep1}
             />
           )}
-          {step === 2 && (
+          {activeStepNumber === 2 && (
             <Step2TargetSetting
               onNext={nextStep}
               onBack={prevStep}
-              onAddMaterial={handleAddMaterial}
               onDeleteMaterial={handleDeleteMaterial}
-              projectSetupId={projectSetupId}
-              initialTargets={targets}
-              onTargetsChange={setTargets}
-              onError={setErrorMessage}
-              onResetFeedback={resetFeedback}
-              materials={materials}
-              isSavingMaterial={isSavingMaterial}
+              materials={visibleMaterials}
               deletingMaterialId={deletingMaterialId}
+              readOnly={step2ReadOnly}
+              showNavigation={showStep2Nav}
+              allowApprovals={allowSourcingApprovals}
+              onMaterialApproval={
+                allowSourcingApprovals ? handleMaterialApproval : undefined
+              }
+              materialApprovalLoadingId={materialApprovalLoadingId}
+              projectName={projectDetails?.name ?? project?.name ?? null}
             />
           )}
-          {step === 3 && (
+          {activeStepNumber === 3 && (
             <Step3ReviewPlans
               onBack={prevStep}
               onSubmitApproval={handleSubmitForApproval}
               isSubmitting={isSubmittingForApproval}
-              materials={materials}
-              targets={targets}
+              materials={reviewMaterials}
+              targets={reviewTargets}
             />
           )}
         </div>
