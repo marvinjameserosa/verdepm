@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Step1ProjectSetup from "./preconstruction/step1-project-setup";
 import Step2TargetSetting from "./preconstruction/step2-target-setting";
 import Step3ReviewPlans from "./preconstruction/step3-review-plans";
-import {
-  type EsgTarget,
-  type Material,
-  type MaterialStatus,
-} from "./preconstruction/types";
+import { type Material, type MaterialStatus } from "./preconstruction/types";
 import { supabase } from "@/lib/supabase/client";
 import type { Project } from "@/types/project";
 import {
@@ -18,12 +14,508 @@ import {
 } from "@/types/forms";
 import { mapProjectFromSupabase } from "./project-helpers";
 import { isMissingRelationError } from "@/lib/supabase/errors";
+import {
+  type ProjectEsgTargets,
+  type TargetSectionKey,
+  type TargetSectionValuesMap,
+} from "@/types/preconstruction";
 
 type Step1InitialValues = NonNullable<
   Parameters<typeof Step1ProjectSetup>[0]["initialValues"]
 >;
 
 type DocumentPathMap = ExistingFileState;
+
+const createEmptyTargets = (): ProjectEsgTargets => ({
+  electricityUsage: null,
+  equipmentUsage: null,
+  fuelConsumption: null,
+  wasteGenerated: null,
+  waterSupply: null,
+  safetyIncident: null,
+});
+
+type ColumnCandidateMap = Record<string, string[]>;
+
+type SectionConfig = {
+  table: string;
+  candidates: ColumnCandidateMap;
+  heuristics?: Record<string, string[]>;
+};
+
+type ColumnMapping = Record<TargetSectionKey, Record<string, string>>;
+
+type ColumnInfo = {
+  name: string;
+  lower: string;
+};
+
+type ColumnDescriptor = ColumnInfo & {
+  dataType: string;
+};
+
+const TIMEFRAME_COLUMN_CANDIDATES = [
+  "target_timeframe",
+  "targetTimeframe",
+  "timeframe_label",
+  "timeframe_text",
+  "timeframe_display",
+  "time_frame",
+  "reporting_period",
+  "target_period",
+  "timeframe",
+  "timeframe_id",
+  "target_timeframe_id",
+];
+
+const DATE_COLUMN_CANDIDATES = [
+  "date",
+  "target_date",
+  "targetDate",
+  "target_deadline",
+  "deadline",
+];
+
+const ELECTRICITY_TOTAL_CONSUMPTION_CANDIDATES = [
+  "total_electricity_consumed",
+  "total_electricity_consumption",
+  "total_electricity_usage",
+  "total_electricity_usage_kwh",
+  "electricity_consumption",
+  "electricity_consumption_kwh",
+  "electricity_usage",
+  "totalElectricityConsumed",
+  "totalElectricityConsumption",
+  "electricityConsumption",
+  "electricityUsage",
+];
+
+const EQUIPMENT_OPERATION_LOGS_CANDIDATES = [
+  "equipment_operation_logs",
+  "operation_logs",
+  "equipment_logs",
+  "operation_notes",
+  "equipmentOperationLogs",
+];
+
+const EQUIPMENT_FUEL_RATE_CANDIDATES = [
+  "fuel_rate",
+  "fuel_rate_lph",
+  "fuel_rate_liters_per_hour",
+  "fuel_rate_liters_hour",
+  "fuelRate",
+  "fuel_rate_value",
+];
+
+const EQUIPMENT_TOTAL_FUEL_CANDIDATES = [
+  "total_fuel",
+  "total_fuel_liters",
+  "fuel_consumed_total",
+  "fuel_consumed",
+  "totalFuel",
+];
+
+const EQUIPMENT_COMBUSTION_FACTOR_CANDIDATES = [
+  "combustion_emission_factor",
+  "combustion_factor",
+  "emission_factor",
+  "combustionEmissionFactor",
+  "emission_factor_combustion",
+];
+
+const FUEL_TOTAL_DISTANCE_CANDIDATES = [
+  "total_distance",
+  "distance_travelled",
+  "distance_traveled",
+  "total_distance_km",
+  "distance_km",
+  "distance",
+  "route_distance",
+  "totalDistance",
+];
+
+const FUEL_EFFICIENCY_CANDIDATES = [
+  "fuel_efficiency",
+  "fuel_efficiency_km_per_l",
+  "fuel_efficiency_kmpl",
+  "efficiency_km_per_liter",
+  "fuel_efficiency_km_l",
+  "fuelEfficiency",
+  "km_per_liter",
+];
+
+const FUEL_TOTAL_FUEL_CANDIDATES = [
+  "total_fuel",
+  "total_fuel_used",
+  "fuel_used",
+  "fuel_consumed",
+  "fuel_consumption_total",
+  "totalFuel",
+];
+
+const FUEL_EMISSION_FACTOR_CANDIDATES = [
+  "fuel_emission_factor",
+  "fuel_emission_factor_value",
+  "fuel_emission_factor_l",
+  "emission_factor_fuel",
+  "fuelEmissionFactor",
+];
+
+const WASTE_TOTAL_MASS_CANDIDATES = [
+  "total_waste_mass",
+  "total_waste_generated",
+  "waste_mass",
+  "waste_generated_mass",
+  "waste_mass_kg",
+  "totalWasteMass",
+];
+
+const WASTE_PERCENT_TREATMENT_CANDIDATES = [
+  "percent_by_treatment",
+  "treatment_percentage",
+  "treatment_percent",
+  "percent_treatment",
+  "percent_by_method",
+  "percentByTreatment",
+];
+
+const WASTE_EMISSION_FACTOR_CANDIDATES = [
+  "emission_factor",
+  "waste_emission_factor",
+  "emission_factor_waste",
+  "emissionFactor",
+];
+
+const WATER_TOTAL_CONSUMPTION_CANDIDATES = [
+  "total_water_consumed",
+  "water_consumption_total",
+  "total_water_usage",
+  "water_used_total",
+  "water_consumption",
+  "totalWaterConsumed",
+  "water_used",
+];
+
+const WATER_EMISSION_FACTOR_CANDIDATES = [
+  "water_supply_emission_factor",
+  "supply_emission_factor",
+  "water_emission_factor",
+  "emission_factor_water_supply",
+  "waterSupplyEmissionFactor",
+];
+
+const SAFETY_INCIDENT_COUNT_CANDIDATES = [
+  "number_of_incidents",
+  "incident_count",
+  "total_incidents",
+  "incidents_total",
+  "incidentNumber",
+  "numberOfIncidents",
+];
+
+const SAFETY_EMPLOYEE_HOURS_CANDIDATES = [
+  "total_employee_hours",
+  "employee_hours_total",
+  "hours_worked_total",
+  "total_hours_worked",
+  "employee_hours",
+  "totalEmployeeHours",
+];
+
+const FIXED_EMISSION_FACTOR = 2.68;
+const FIXED_EMISSION_FACTOR_STRING = FIXED_EMISSION_FACTOR.toString();
+
+const TARGET_SECTION_CONFIG: Record<TargetSectionKey, SectionConfig> = {
+  electricityUsage: {
+    table: "dim_electricity_usage_target",
+    candidates: {
+      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
+      date: DATE_COLUMN_CANDIDATES,
+      totalElectricityConsumed: ELECTRICITY_TOTAL_CONSUMPTION_CANDIDATES,
+    },
+    heuristics: {
+      timeframe: ["time", "frame"],
+      totalElectricityConsumed: ["electricity", "consum"],
+    },
+  },
+  equipmentUsage: {
+    table: "dim_equipment_usage_target",
+    candidates: {
+      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
+      date: DATE_COLUMN_CANDIDATES,
+      equipmentOperationLogs: EQUIPMENT_OPERATION_LOGS_CANDIDATES,
+      fuelRate: EQUIPMENT_FUEL_RATE_CANDIDATES,
+      totalFuel: EQUIPMENT_TOTAL_FUEL_CANDIDATES,
+      combustionEmissionFactor: EQUIPMENT_COMBUSTION_FACTOR_CANDIDATES,
+    },
+    heuristics: {
+      timeframe: ["time", "frame"],
+      equipmentOperationLogs: ["operation", "log"],
+      fuelRate: ["fuel", "rate"],
+      totalFuel: ["fuel", "total"],
+      combustionEmissionFactor: ["emission", "factor"],
+    },
+  },
+  fuelConsumption: {
+    table: "dim_fuel_consumption_target",
+    candidates: {
+      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
+      date: DATE_COLUMN_CANDIDATES,
+      totalDistance: FUEL_TOTAL_DISTANCE_CANDIDATES,
+      fuelEfficiency: FUEL_EFFICIENCY_CANDIDATES,
+      totalFuel: FUEL_TOTAL_FUEL_CANDIDATES,
+      fuelEmissionFactor: FUEL_EMISSION_FACTOR_CANDIDATES,
+    },
+    heuristics: {
+      timeframe: ["time", "frame"],
+      totalDistance: ["distance"],
+      fuelEfficiency: ["efficiency"],
+      totalFuel: ["total", "fuel"],
+      fuelEmissionFactor: ["emission", "factor"],
+    },
+  },
+  wasteGenerated: {
+    table: "dim_waste_generated_target",
+    candidates: {
+      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
+      date: DATE_COLUMN_CANDIDATES,
+      totalWasteMass: WASTE_TOTAL_MASS_CANDIDATES,
+      percentByTreatment: WASTE_PERCENT_TREATMENT_CANDIDATES,
+      emissionFactor: WASTE_EMISSION_FACTOR_CANDIDATES,
+    },
+    heuristics: {
+      timeframe: ["time", "frame"],
+      totalWasteMass: ["waste", "mass"],
+      percentByTreatment: ["treatment", "percent"],
+      emissionFactor: ["emission", "factor"],
+    },
+  },
+  waterSupply: {
+    table: "dim_water_supply_target",
+    candidates: {
+      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
+      date: DATE_COLUMN_CANDIDATES,
+      totalWaterConsumed: WATER_TOTAL_CONSUMPTION_CANDIDATES,
+      waterSupplyEmissionFactor: WATER_EMISSION_FACTOR_CANDIDATES,
+    },
+    heuristics: {
+      timeframe: ["time", "frame"],
+      totalWaterConsumed: ["water", "consum"],
+      waterSupplyEmissionFactor: ["emission", "factor"],
+    },
+  },
+  safetyIncident: {
+    table: "projects_safety_incident_targets",
+    candidates: {
+      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
+      date: DATE_COLUMN_CANDIDATES,
+      numberOfIncidents: SAFETY_INCIDENT_COUNT_CANDIDATES,
+      totalEmployeeHours: SAFETY_EMPLOYEE_HOURS_CANDIDATES,
+    },
+    heuristics: {
+      timeframe: ["time", "frame"],
+      numberOfIncidents: ["incident"],
+      totalEmployeeHours: ["employee", "hour"],
+    },
+  },
+};
+
+const MISSING_TABLE_MESSAGES: Record<TargetSectionKey, string> = {
+  electricityUsage: "Electricity usage targets table is not configured.",
+  equipmentUsage: "Equipment usage targets table is not configured.",
+  fuelConsumption: "Fuel consumption targets table is not configured.",
+  wasteGenerated: "Waste generated targets table is not configured.",
+  waterSupply: "Water supply targets table is not configured.",
+  safetyIncident: "Safety incident targets table is not configured.",
+};
+
+const buildDefaultColumnMapping = (): ColumnMapping => {
+  return Object.fromEntries(
+    Object.entries(TARGET_SECTION_CONFIG).map(([section, config]) => {
+      const mapping: Record<string, string> = {};
+      for (const [canonicalKey, candidates] of Object.entries(
+        config.candidates
+      )) {
+        mapping[canonicalKey] = candidates[0];
+      }
+      return [section, mapping];
+    })
+  ) as ColumnMapping;
+};
+
+const selectColumnName = (
+  available: ColumnInfo[],
+  candidates: string[],
+  heuristics?: string[]
+): string => {
+  if (available.length > 0) {
+    for (const candidate of candidates) {
+      const lowerCandidate = candidate.toLowerCase();
+      const directMatch = available.find(
+        (column) => column.lower === lowerCandidate
+      );
+      if (directMatch) {
+        return directMatch.name;
+      }
+    }
+
+    if (heuristics && heuristics.length > 0) {
+      const heuristicMatch = available.find((column) =>
+        heuristics.every((keyword) => column.lower.includes(keyword))
+      );
+      if (heuristicMatch) {
+        return heuristicMatch.name;
+      }
+    }
+  }
+
+  return candidates[0];
+};
+
+const isMissingColumnError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as { code?: string; message?: string };
+  if (candidate.code === "PGRST204") {
+    return true;
+  }
+
+  if (typeof candidate.message === "string") {
+    const normalized = candidate.message.toLowerCase();
+    return normalized.includes("column") && normalized.includes("schema cache");
+  }
+
+  return false;
+};
+
+const isForeignKeyTimeframeError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+  };
+
+  const normalize = (value?: string): string =>
+    typeof value === "string" ? value.toLowerCase() : "";
+
+  const message = normalize(candidate.message);
+  const details = normalize(candidate.details);
+
+  if (candidate.code === "23503") {
+    if (message.includes("timeframe") || details.includes("timeframe")) {
+      return true;
+    }
+  }
+
+  if (message.includes("foreign key") && message.includes("timeframe")) {
+    return true;
+  }
+
+  if (details.includes("foreign key") && details.includes("timeframe")) {
+    return true;
+  }
+
+  return false;
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+};
+
+const toStringOrEmpty = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value);
+};
+
+const hasAnyValue = (...values: string[]): boolean =>
+  values.some((value) => value.trim().length > 0);
+
+const DATE_INPUT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const normalizeDateInput = (value: string, fieldLabel: string): string | null => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  if (!DATE_INPUT_REGEX.test(trimmed)) {
+    throw new Error(`${fieldLabel} must be in YYYY-MM-DD format.`);
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`${fieldLabel} is not a valid date.`);
+  }
+
+  return trimmed;
+};
+
+const formatDateForInput = (value: unknown): string => {
+  if (!value) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return "";
+    }
+
+    if (DATE_INPUT_REGEX.test(trimmed)) {
+      return trimmed;
+    }
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) {
+      return "";
+    }
+
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      return "";
+    }
+
+    return value.toISOString().slice(0, 10);
+  }
+
+  return "";
+};
+
+const parseNumeric = (value: string, fieldLabel: string): number => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`${fieldLabel} is required.`);
+  }
+
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`${fieldLabel} must be a valid number.`);
+  }
+
+  return numeric;
+};
 
 const DEFAULT_STEP1_VALUES: Step1InitialValues = {
   projectName: "Greenwood Tower",
@@ -176,7 +668,9 @@ export function PreConstructionPhase({
   const [step1Values, setStep1Values] = useState<Step1InitialValues>(() =>
     getDefaultStep1Values(projectDetails ?? undefined)
   );
-  const [targets, setTargets] = useState<EsgTarget[]>([]);
+  const [targets, setTargets] = useState<ProjectEsgTargets>(() =>
+    createEmptyTargets()
+  );
   const [materials, setMaterials] = useState<Material[]>([]);
   const [documentPaths, setDocumentPaths] = useState<DocumentPathMap>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -187,14 +681,158 @@ export function PreConstructionPhase({
   const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(
     null
   );
+  const [savingTargetSection, setSavingTargetSection] =
+    useState<TargetSectionKey | null>(null);
   const [isSubmittingForApproval, setIsSubmittingForApproval] = useState(false);
   const [, setSubmittedForApprovalAt] = useState<string | null>(null);
   const supportsSubmittedAtColumn = false;
   const supportsApprovalStatusColumn = false;
 
+  const columnMapRef = useRef<ColumnMapping>(buildDefaultColumnMapping());
+  const columnTypesRef = useRef<Record<string, Record<string, string>>>({});
+  const metadataLoadedRef = useRef(false);
+  const metadataPromiseRef = useRef<Promise<void> | null>(null);
+
+  const loadTargetColumnMetadata = useCallback(async () => {
+    const updatedTypes: Record<string, Record<string, string>> = {
+      ...columnTypesRef.current,
+    };
+
+    await Promise.all(
+      (Object.entries(TARGET_SECTION_CONFIG) as Array<
+        [TargetSectionKey, SectionConfig]
+      >).map(async ([section, config]) => {
+        const { data, error } = await supabase
+          .from("information_schema.columns")
+          .select("column_name,data_type")
+          .eq("table_schema", "public")
+          .eq("table_name", config.table);
+
+        if (error || !data) {
+          console.warn(
+            `Unable to load column metadata for ${config.table}`,
+            error
+          );
+          return;
+        }
+
+        const columns: ColumnDescriptor[] = data.map(
+          (row: { column_name: string; data_type?: string | null }) => {
+            const name = String(row.column_name);
+            const dataType = row.data_type ? String(row.data_type) : "";
+            return {
+              name,
+              lower: name.toLowerCase(),
+              dataType,
+            };
+          }
+        );
+
+        const available: ColumnInfo[] = columns.map(
+          (column: ColumnDescriptor) => ({
+            name: column.name,
+            lower: column.lower,
+          })
+        );
+
+        const mapping = { ...columnMapRef.current[section] };
+        for (const [canonicalKey, candidates] of Object.entries(
+          config.candidates
+        )) {
+          const heuristics = config.heuristics?.[canonicalKey];
+          mapping[canonicalKey] = selectColumnName(
+            available,
+            candidates,
+            heuristics
+          );
+        }
+        columnMapRef.current[section] = mapping;
+
+        updatedTypes[config.table] = Object.fromEntries(
+          columns.map((column: ColumnDescriptor) => [column.name, column.dataType])
+        );
+      })
+    );
+
+    columnTypesRef.current = updatedTypes;
+  }, []);
+
+  const ensureColumnMetadataLoaded = useCallback(async () => {
+    if (metadataLoadedRef.current) {
+      return;
+    }
+
+    if (!metadataPromiseRef.current) {
+      metadataPromiseRef.current = loadTargetColumnMetadata()
+        .catch((error) => {
+          console.warn("Failed to load ESG target column metadata", error);
+        })
+        .finally(() => {
+          metadataLoadedRef.current = true;
+        });
+    }
+
+    await metadataPromiseRef.current;
+  }, [loadTargetColumnMetadata]);
+
+  const registerColumnsFromRecord = useCallback(
+    (section: TargetSectionKey, record: Record<string, unknown>) => {
+      const config = TARGET_SECTION_CONFIG[section];
+      if (!config) {
+        return;
+      }
+
+      const keys = Object.keys(record);
+      if (keys.length === 0) {
+        return;
+      }
+
+      const available: ColumnInfo[] = keys.map((name) => ({
+        name,
+        lower: name.toLowerCase(),
+      }));
+
+      const mapping = { ...columnMapRef.current[section] };
+      for (const [canonicalKey, candidates] of Object.entries(
+        config.candidates
+      )) {
+        const heuristics = config.heuristics?.[canonicalKey];
+        mapping[canonicalKey] = selectColumnName(
+          available,
+          candidates,
+          heuristics
+        );
+      }
+      columnMapRef.current[section] = mapping;
+    },
+    []
+  );
+
+  const buildPayloadForSection = useCallback(
+    (section: TargetSectionKey, canonicalValues: Record<string, unknown>) => {
+      const mapping = columnMapRef.current[section];
+      const payload: Record<string, unknown> = {};
+
+      for (const [canonicalKey, value] of Object.entries(canonicalValues)) {
+        if (value === undefined) {
+          continue;
+        }
+        const columnName = mapping?.[canonicalKey] ?? canonicalKey;
+        payload[columnName] = value;
+      }
+
+      return payload;
+    },
+    []
+  );
+
   useEffect(() => {
     setProjectDetails(project ?? null);
-  }, [project]);
+  }, [project, registerColumnsFromRecord]);
+
+  useEffect(() => {
+    void ensureColumnMetadataLoaded();
+  }, [ensureColumnMetadataLoaded]);
 
   const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, 3)), []);
   const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
@@ -210,7 +848,7 @@ export function PreConstructionPhase({
       setStep1Values(getDefaultStep1Values(project));
       setDocumentPaths({});
       setMaterials([]);
-      setTargets([]);
+      setTargets(createEmptyTargets());
       setUserId(null);
       setIsLoading(false);
       return;
@@ -239,7 +877,7 @@ export function PreConstructionPhase({
         setStep1Values(getDefaultStep1Values(project));
         setDocumentPaths({});
         setMaterials([]);
-        setTargets([]);
+        setTargets(createEmptyTargets());
         return;
       }
 
@@ -249,7 +887,7 @@ export function PreConstructionPhase({
         setStep1Values(getDefaultStep1Values(project));
         setDocumentPaths({});
         setMaterials([]);
-        setTargets([]);
+        setTargets(createEmptyTargets());
         return;
       }
 
@@ -281,7 +919,7 @@ export function PreConstructionPhase({
         setStep1Values(getDefaultStep1Values(project));
         setDocumentPaths({});
         setMaterials([]);
-        setTargets([]);
+        setTargets(createEmptyTargets());
         return;
       }
 
@@ -328,47 +966,25 @@ export function PreConstructionPhase({
       });
 
       if (normalizedSetup.id) {
-        const [targetsResponse, materialsResponse] = await Promise.all([
-          supabase
-            .from("preconstruction_esg_target")
-            .select("id, category, goal, metric_kpi")
-            .eq("project_setup_id", normalizedSetup.id)
-            .order("created_at", { ascending: true }),
-          supabase
-            .from("preconstruction_material")
-            .select(
-              "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status"
-            )
-            .eq("project_setup_id", normalizedSetup.id)
-            .order("created_at", { ascending: true }),
-        ]);
+        const {
+          data: materialRows,
+          error: materialsError,
+        } = await supabase
+          .from("preconstruction_material")
+          .select(
+            "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status"
+          )
+          .eq("project_setup_id", normalizedSetup.id)
+          .order("created_at", { ascending: true });
 
-        if (targetsResponse.error) {
-          if (!isMissingRelationError(targetsResponse.error)) {
-            throw targetsResponse.error;
+        if (materialsError) {
+          if (!isMissingRelationError(materialsError)) {
+            throw materialsError;
           }
-        }
-
-        if (materialsResponse.error) {
-          if (!isMissingRelationError(materialsResponse.error)) {
-            throw materialsResponse.error;
-          }
-        }
-
-        const targetRows =
-          targetsResponse.error || !targetsResponse.data
-            ? []
-            : (targetsResponse.data as Array<{
-                id: string;
-                category: EsgTarget["category"];
-                goal: string;
-                metric_kpi: string;
-              }>);
-
-        const materialRows =
-          materialsResponse.error || !materialsResponse.data
-            ? []
-            : (materialsResponse.data as Array<{
+          setMaterials([]);
+        } else {
+          const mappedMaterials: Material[] = materialRows
+            ? (materialRows as Array<{
                 id: string;
                 material_category: string;
                 planned_supplier: string;
@@ -380,36 +996,371 @@ export function PreConstructionPhase({
                 supplier_vetting_notes: string | null;
                 spec_sheet_path: string | null;
                 vetting_status: MaterialStatus;
-              }>);
+              }>).map((materialRow) => ({
+                id: materialRow.id,
+                category: materialRow.material_category,
+                name: materialRow.material_name,
+                supplier: materialRow.planned_supplier,
+                cost:
+                  materialRow.budgeted_cost !== null
+                    ? materialRow.budgeted_cost.toString()
+                    : "",
+                unit: materialRow.unit ?? undefined,
+                notes: materialRow.supplier_vetting_notes ?? "",
+                credentials:
+                  materialRow.sustainability_credentials ?? undefined,
+                status: materialRow.vetting_status,
+                warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
+                specSheetPath: materialRow.spec_sheet_path ?? undefined,
+              }))
+            : [];
 
-        const mappedTargets: EsgTarget[] = targetRows.map((targetRow) => ({
-          id: targetRow.id,
-          category: targetRow.category,
-          goal: targetRow.goal,
-          metric: targetRow.metric_kpi,
-        }));
+          setMaterials(mappedMaterials);
+        }
+      } else {
+        setMaterials([]);
+      }
 
-        const mappedMaterials: Material[] = materialRows.map(
-          (materialRow) => ({
-            id: materialRow.id,
-            category: materialRow.material_category,
-            name: materialRow.material_name,
-            supplier: materialRow.planned_supplier,
-            cost:
-              materialRow.budgeted_cost !== null
-                ? materialRow.budgeted_cost.toString()
-                : "",
-            unit: materialRow.unit ?? undefined,
-            notes: materialRow.supplier_vetting_notes ?? "",
-            credentials: materialRow.sustainability_credentials ?? undefined,
-            status: materialRow.vetting_status,
-            warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
-            specSheetPath: materialRow.spec_sheet_path ?? undefined,
-          })
-        );
+      const projectIdForTargets = project?.id ?? null;
 
-        setTargets(mappedTargets);
-        setMaterials(mappedMaterials);
+      if (projectIdForTargets) {
+        const [
+          electricityResponse,
+          equipmentResponse,
+          fuelResponse,
+          wasteResponse,
+          waterResponse,
+          safetyResponse,
+        ] = await Promise.all([
+          supabase
+            .from("dim_electricity_usage_target")
+            .select("*")
+            .eq("project_id", projectIdForTargets)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("dim_equipment_usage_target")
+            .select("*")
+            .eq("project_id", projectIdForTargets)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("dim_fuel_consumption_target")
+            .select("*")
+            .eq("project_id", projectIdForTargets)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("dim_waste_generated_target")
+            .select("*")
+            .eq("project_id", projectIdForTargets)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("dim_water_supply_target")
+            .select("*")
+            .eq("project_id", projectIdForTargets)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("projects_safety_incident_targets")
+            .select("*")
+            .eq("project_id", projectIdForTargets)
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        const nextTargets = createEmptyTargets();
+
+        if (electricityResponse.error) {
+          if (!isMissingRelationError(electricityResponse.error)) {
+            throw electricityResponse.error;
+          }
+        } else if (electricityResponse.data) {
+          const data = electricityResponse.data as Record<string, unknown>;
+          registerColumnsFromRecord("electricityUsage", data);
+          const timeframe = toStringOrEmpty(
+            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
+          );
+          const targetDate = formatDateForInput(
+            (data.date as unknown) ?? (data.target_date as unknown)
+          );
+          const totalElectricityConsumed = toStringOrEmpty(
+            (data.total_electricity_consumed as unknown) ??
+              (data.totalElectricityConsumed as unknown) ??
+              ""
+          );
+
+          if (hasAnyValue(timeframe, totalElectricityConsumed, targetDate)) {
+            nextTargets.electricityUsage = {
+              id: data.id != null ? String(data.id) : null,
+              timeframe,
+              date: targetDate,
+              totalElectricityConsumed,
+            };
+          }
+        }
+
+        if (equipmentResponse.error) {
+          if (!isMissingRelationError(equipmentResponse.error)) {
+            throw equipmentResponse.error;
+          }
+        } else if (equipmentResponse.data) {
+          const data = equipmentResponse.data as Record<string, unknown>;
+          registerColumnsFromRecord("equipmentUsage", data);
+          const timeframe = toStringOrEmpty(
+            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
+          );
+          const targetDate = formatDateForInput(
+            (data.date as unknown) ?? (data.target_date as unknown)
+          );
+          const equipmentOperationLogs = toStringOrEmpty(
+            (data.equipment_operation_logs as unknown) ??
+              (data.equipmentOperationLogs as unknown) ??
+              ""
+          );
+          const fuelRate = toStringOrEmpty(
+            (data.fuel_rate as unknown) ?? (data.fuelRate as unknown) ?? ""
+          );
+          const totalFuel = toStringOrEmpty(
+            (data.total_fuel as unknown) ?? (data.totalFuel as unknown) ?? ""
+          );
+          const combustionEmissionFactor =
+            toStringOrEmpty(
+              (data.combustion_emission_factor as unknown) ??
+                (data.combustionEmissionFactor as unknown) ??
+                ""
+            ) || FIXED_EMISSION_FACTOR_STRING;
+
+          if (
+            hasAnyValue(
+              timeframe,
+              equipmentOperationLogs,
+              fuelRate,
+              totalFuel,
+              combustionEmissionFactor,
+              targetDate
+            )
+          ) {
+            nextTargets.equipmentUsage = {
+              id: data.id != null ? String(data.id) : null,
+              timeframe,
+              date: targetDate,
+              equipmentOperationLogs,
+              fuelRate,
+              totalFuel,
+              combustionEmissionFactor,
+            };
+          }
+        }
+
+        if (fuelResponse.error) {
+          if (!isMissingRelationError(fuelResponse.error)) {
+            throw fuelResponse.error;
+          }
+        } else if (fuelResponse.data) {
+          const data = fuelResponse.data as Record<string, unknown>;
+          registerColumnsFromRecord("fuelConsumption", data);
+          const timeframe = toStringOrEmpty(
+            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
+          );
+          const targetDate = formatDateForInput(
+            (data.date as unknown) ?? (data.target_date as unknown)
+          );
+          const totalDistance = toStringOrEmpty(
+            (data.total_distance as unknown) ??
+              (data.totalDistance as unknown) ??
+              ""
+          );
+          const fuelEfficiency = toStringOrEmpty(
+            (data.fuel_efficiency as unknown) ??
+              (data.fuelEfficiency as unknown) ??
+              ""
+          );
+          const rawTotalFuel = toStringOrEmpty(
+            (data.total_fuel as unknown) ?? (data.totalFuel as unknown) ?? ""
+          );
+          const computedTotalFuel = (() => {
+            if (rawTotalFuel.trim().length > 0) {
+              return rawTotalFuel;
+            }
+            const distanceValue = Number(totalDistance);
+            const efficiencyValue = Number(fuelEfficiency);
+            if (
+              Number.isFinite(distanceValue) &&
+              Number.isFinite(efficiencyValue)
+            ) {
+              const product = distanceValue * efficiencyValue;
+              if (Number.isFinite(product)) {
+                return product.toString();
+              }
+            }
+            return "";
+          })();
+          const fuelEmissionFactor =
+            toStringOrEmpty(
+              (data.fuel_emission_factor as unknown) ??
+                (data.fuelEmissionFactor as unknown) ??
+                ""
+            ) || FIXED_EMISSION_FACTOR_STRING;
+
+          if (
+            hasAnyValue(
+              timeframe,
+              totalDistance,
+              fuelEfficiency,
+              computedTotalFuel,
+              targetDate
+            )
+          ) {
+            nextTargets.fuelConsumption = {
+              id: data.id != null ? String(data.id) : null,
+              timeframe,
+              date: targetDate,
+              totalDistance,
+              fuelEfficiency,
+              totalFuel: computedTotalFuel,
+              fuelEmissionFactor,
+            };
+          }
+        }
+
+        if (wasteResponse.error) {
+          if (!isMissingRelationError(wasteResponse.error)) {
+            throw wasteResponse.error;
+          }
+        } else if (wasteResponse.data) {
+          const data = wasteResponse.data as Record<string, unknown>;
+          registerColumnsFromRecord("wasteGenerated", data);
+          const timeframe = toStringOrEmpty(
+            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
+          );
+          const targetDate = formatDateForInput(
+            (data.date as unknown) ?? (data.target_date as unknown)
+          );
+          const totalWasteMass = toStringOrEmpty(
+            (data.total_waste_mass as unknown) ??
+              (data.totalWasteMass as unknown) ??
+              ""
+          );
+          const percentByTreatment = toStringOrEmpty(
+            (data.percent_by_treatment as unknown) ??
+              (data.percentByTreatment as unknown) ??
+              ""
+          );
+          const emissionFactor = toStringOrEmpty(
+            (data.emission_factor as unknown) ??
+              (data.emissionFactor as unknown) ??
+              ""
+          );
+
+          if (
+            hasAnyValue(
+              timeframe,
+              totalWasteMass,
+              percentByTreatment,
+              emissionFactor,
+              targetDate
+            )
+          ) {
+            nextTargets.wasteGenerated = {
+              id: data.id != null ? String(data.id) : null,
+              timeframe,
+              date: targetDate,
+              totalWasteMass,
+              percentByTreatment,
+              emissionFactor,
+            };
+          }
+        }
+
+        if (waterResponse.error) {
+          if (!isMissingRelationError(waterResponse.error)) {
+            throw waterResponse.error;
+          }
+        } else if (waterResponse.data) {
+          const data = waterResponse.data as Record<string, unknown>;
+          registerColumnsFromRecord("waterSupply", data);
+          const timeframe = toStringOrEmpty(
+            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
+          );
+          const targetDate = formatDateForInput(
+            (data.date as unknown) ?? (data.target_date as unknown)
+          );
+          const totalWaterConsumed = toStringOrEmpty(
+            (data.total_water_consumed as unknown) ??
+              (data.totalWaterConsumed as unknown) ??
+              ""
+          );
+          const waterSupplyEmissionFactor = toStringOrEmpty(
+            (data.water_supply_emission_factor as unknown) ??
+              (data.waterSupplyEmissionFactor as unknown) ??
+              ""
+          );
+
+          if (
+            hasAnyValue(
+              timeframe,
+              totalWaterConsumed,
+              waterSupplyEmissionFactor,
+              targetDate
+            )
+          ) {
+            nextTargets.waterSupply = {
+              id: data.id != null ? String(data.id) : null,
+              timeframe,
+              date: targetDate,
+              totalWaterConsumed,
+              waterSupplyEmissionFactor,
+            };
+          }
+        }
+
+        if (safetyResponse.error) {
+          if (!isMissingRelationError(safetyResponse.error)) {
+            throw safetyResponse.error;
+          }
+        } else if (safetyResponse.data) {
+          const data = safetyResponse.data as Record<string, unknown>;
+          registerColumnsFromRecord("safetyIncident", data);
+          const timeframe = toStringOrEmpty(
+            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
+          );
+          const targetDate = formatDateForInput(
+            (data.date as unknown) ?? (data.target_date as unknown)
+          );
+          const numberOfIncidents = toStringOrEmpty(
+            (data.number_of_incidents as unknown) ??
+              (data.numberOfIncidents as unknown) ??
+              ""
+          );
+          const totalEmployeeHours = toStringOrEmpty(
+            (data.total_employee_hours as unknown) ??
+              (data.totalEmployeeHours as unknown) ??
+              ""
+          );
+
+          if (
+            hasAnyValue(
+              timeframe,
+              numberOfIncidents,
+              totalEmployeeHours,
+              targetDate
+            )
+          ) {
+            nextTargets.safetyIncident = {
+              id: data.id != null ? String(data.id) : null,
+              timeframe,
+              date: targetDate,
+              numberOfIncidents,
+              totalEmployeeHours,
+            };
+          }
+        }
+
+        setTargets(nextTargets);
+      } else {
+        setTargets(createEmptyTargets());
       }
 
       setErrorMessage(null);
@@ -436,7 +1387,7 @@ export function PreConstructionPhase({
     } finally {
       setIsLoading(false);
     }
-  }, [project]);
+  }, [project, registerColumnsFromRecord]);
 
   useEffect(() => {
     loadData();
@@ -499,6 +1450,448 @@ export function PreConstructionPhase({
     status: MaterialStatus;
     warehouse?: string;
   };
+
+  const handleSaveTargetSection = useCallback(
+    async <K extends TargetSectionKey>(
+      section: K,
+      sectionValues: TargetSectionValuesMap[K]
+    ) => {
+      const activeProjectId = projectDetails?.id ?? project?.id ?? null;
+
+      if (!activeProjectId) {
+        setErrorMessage(
+          "Project context is missing. Save project details before defining targets."
+        );
+        return;
+      }
+
+      resetFeedback();
+      setSavingTargetSection(section);
+
+      const saveTargetRecord = async (
+        targetSection: TargetSectionKey,
+        canonicalValues: Record<string, unknown>,
+        existingId: string | null,
+        options?: { useDirectColumnNames?: boolean }
+      ): Promise<string | null> => {
+        const config = TARGET_SECTION_CONFIG[targetSection];
+        const { table } = config;
+        const missingTableMessage = MISSING_TABLE_MESSAGES[targetSection];
+
+        const applyTimeframeFallback = (): boolean => {
+          const timeframeCandidates = config.candidates.timeframe;
+          if (!timeframeCandidates || timeframeCandidates.length === 0) {
+            return false;
+          }
+
+          const tableTypes = columnTypesRef.current[table] ?? {};
+          const currentMapping = {
+            ...(columnMapRef.current[targetSection] ?? {}),
+          } as Record<string, string>;
+          const currentColumn = currentMapping.timeframe;
+
+          for (const candidateColumn of timeframeCandidates) {
+            if (candidateColumn === currentColumn) {
+              continue;
+            }
+            if (tableTypes[candidateColumn]) {
+              currentMapping.timeframe = candidateColumn;
+              columnMapRef.current[targetSection] = currentMapping;
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+        const persist = async (
+          currentId: string | null,
+          retry: boolean
+        ): Promise<string | null> => {
+          let mappedValues: Record<string, unknown>;
+
+          if (options?.useDirectColumnNames) {
+            mappedValues = canonicalValues;
+          } else {
+            await ensureColumnMetadataLoaded();
+            mappedValues = buildPayloadForSection(
+              targetSection,
+              canonicalValues
+            );
+          }
+          const payload = {
+            project_id: activeProjectId,
+            ...mappedValues,
+          };
+
+          if (currentId) {
+            const { error } = await supabase
+              .from(table)
+              .update(payload)
+              .eq("id", currentId);
+
+            if (error) {
+              if (isMissingRelationError(error)) {
+                throw new Error(missingTableMessage);
+              }
+              if (
+                isMissingColumnError(error) &&
+                !retry &&
+                !options?.useDirectColumnNames
+              ) {
+                metadataLoadedRef.current = false;
+                metadataPromiseRef.current = null;
+                return persist(currentId, true);
+              }
+              if (
+                isForeignKeyTimeframeError(error) &&
+                !retry &&
+                !options?.useDirectColumnNames &&
+                applyTimeframeFallback()
+              ) {
+                return persist(currentId, true);
+              }
+              throw error;
+            }
+
+            return currentId;
+          }
+
+          const { data, error } = await supabase
+            .from(table)
+            .insert([payload])
+            .select("id")
+            .single();
+
+          if (error) {
+            if (isMissingRelationError(error)) {
+              throw new Error(missingTableMessage);
+            }
+            if (
+              isMissingColumnError(error) &&
+              !retry &&
+              !options?.useDirectColumnNames
+            ) {
+              metadataLoadedRef.current = false;
+              metadataPromiseRef.current = null;
+              return persist(null, true);
+            }
+            if (
+              isForeignKeyTimeframeError(error) &&
+              !retry &&
+              !options?.useDirectColumnNames &&
+              applyTimeframeFallback()
+            ) {
+              return persist(null, true);
+            }
+            throw error;
+          }
+
+          return data && data.id != null ? String(data.id) : null;
+        };
+
+        return persist(existingId, false);
+      };
+
+      try {
+        if (section === "electricityUsage") {
+          const values =
+            sectionValues as TargetSectionValuesMap["electricityUsage"];
+          const totalElectricityInput =
+            values.totalElectricityConsumed.trim();
+          if (!totalElectricityInput) {
+            throw new Error(
+              "Provide the total electricity consumed before saving."
+            );
+          }
+
+          const totalElectricityConsumed = parseNumeric(
+            totalElectricityInput,
+            "Total electricity consumed"
+          );
+          const normalizedDate = normalizeDateInput(
+            values.date ?? "",
+            "Target date"
+          );
+
+          const recordId = await saveTargetRecord(
+            "electricityUsage",
+            {
+              date: normalizedDate,
+              totalElectricityConsumed,
+            },
+            values.id ?? null
+          );
+
+          setTargets((prev) => ({
+            ...prev,
+            electricityUsage: {
+              id: recordId,
+              timeframe: null,
+              date: normalizedDate ?? "",
+              totalElectricityConsumed: totalElectricityInput,
+            },
+          }));
+          setSuccessMessage("Electricity usage target saved.");
+          return;
+        }
+
+        if (section === "equipmentUsage") {
+          const values =
+            sectionValues as TargetSectionValuesMap["equipmentUsage"];
+          const equipmentOperationLogsInput =
+            values.equipmentOperationLogs.trim();
+          const fuelRateInput = values.fuelRate.trim();
+          const normalizedDate = normalizeDateInput(
+            values.date ?? "",
+            "Target date"
+          );
+
+          const equipmentOperationLogsValue = parseNumeric(
+            equipmentOperationLogsInput,
+            "Equipment operation logs"
+          );
+          const fuelRate = parseNumeric(fuelRateInput, "Fuel rate");
+          const totalFuel = equipmentOperationLogsValue * fuelRate;
+          const totalFuelString = totalFuel.toString();
+          const combustionEmissionFactor = FIXED_EMISSION_FACTOR;
+
+          const recordId = await saveTargetRecord(
+            "equipmentUsage",
+            {
+              date: normalizedDate,
+              equipmentOperationLogs: equipmentOperationLogsValue,
+              fuelRate,
+              totalFuel,
+              combustionEmissionFactor,
+            },
+            values.id ?? null
+          );
+
+          setTargets((prev) => ({
+            ...prev,
+            equipmentUsage: {
+              id: recordId,
+              timeframe: null,
+              date: normalizedDate ?? "",
+              equipmentOperationLogs: equipmentOperationLogsInput,
+              fuelRate: fuelRateInput,
+              totalFuel: totalFuelString,
+              combustionEmissionFactor: FIXED_EMISSION_FACTOR_STRING,
+            },
+          }));
+          setSuccessMessage("Equipment usage target saved.");
+          return;
+        }
+
+        if (section === "fuelConsumption") {
+          const values =
+            sectionValues as TargetSectionValuesMap["fuelConsumption"];
+          const totalDistanceInput = values.totalDistance.trim();
+          const fuelEfficiencyInput = values.fuelEfficiency.trim();
+          const normalizedDate = normalizeDateInput(
+            values.date ?? "",
+            "Target date"
+          );
+
+          const totalDistance = parseNumeric(
+            totalDistanceInput,
+            "Total distance"
+          );
+          const fuelEfficiency = parseNumeric(
+            fuelEfficiencyInput,
+            "Fuel efficiency"
+          );
+          const totalFuel = totalDistance * fuelEfficiency;
+          const totalFuelString = totalFuel.toString();
+          const fuelEmissionFactor = FIXED_EMISSION_FACTOR;
+
+          const recordId = await saveTargetRecord(
+            "fuelConsumption",
+            {
+              date: normalizedDate,
+              totalDistance,
+              fuelEfficiency,
+              totalFuel,
+              fuelEmissionFactor,
+            },
+            values.id ?? null
+          );
+
+          setTargets((prev) => ({
+            ...prev,
+            fuelConsumption: {
+              id: recordId,
+              timeframe: null,
+              date: normalizedDate ?? "",
+              totalDistance: totalDistanceInput,
+              fuelEfficiency: fuelEfficiencyInput,
+              totalFuel: totalFuelString,
+              fuelEmissionFactor: FIXED_EMISSION_FACTOR_STRING,
+            },
+          }));
+          setSuccessMessage("Fuel consumption target saved.");
+          return;
+        }
+
+        if (section === "wasteGenerated") {
+          const values =
+            sectionValues as TargetSectionValuesMap["wasteGenerated"];
+          const totalWasteMassInput = values.totalWasteMass.trim();
+          const percentByTreatmentInput = values.percentByTreatment.trim();
+          const emissionFactorInput = values.emissionFactor.trim();
+          const normalizedDate = normalizeDateInput(
+            values.date ?? "",
+            "Target date"
+          );
+
+          const totalWasteMass = parseNumeric(
+            totalWasteMassInput,
+            "Total waste mass"
+          );
+          const percentByTreatment = parseNumeric(
+            percentByTreatmentInput,
+            "Percent by treatment"
+          );
+          const emissionFactor = parseNumeric(
+            emissionFactorInput,
+            "Emission factor"
+          );
+
+          const recordId = await saveTargetRecord(
+            "wasteGenerated",
+            {
+              date: normalizedDate,
+              totalWasteMass,
+              percentByTreatment,
+              emissionFactor,
+            },
+            values.id ?? null
+          );
+
+          setTargets((prev) => ({
+            ...prev,
+            wasteGenerated: {
+              id: recordId,
+              timeframe: null,
+              date: normalizedDate ?? "",
+              totalWasteMass: totalWasteMassInput,
+              percentByTreatment: percentByTreatmentInput,
+              emissionFactor: emissionFactorInput,
+            },
+          }));
+          setSuccessMessage("Waste generated target saved.");
+          return;
+        }
+
+        if (section === "waterSupply") {
+          const values =
+            sectionValues as TargetSectionValuesMap["waterSupply"];
+          const totalWaterConsumedInput =
+            values.totalWaterConsumed.trim();
+          const waterSupplyEmissionFactorInput =
+            values.waterSupplyEmissionFactor.trim();
+          const normalizedDate = normalizeDateInput(
+            values.date ?? "",
+            "Target date"
+          );
+
+          const totalWaterConsumed = parseNumeric(
+            totalWaterConsumedInput,
+            "Total water consumed"
+          );
+          const waterSupplyEmissionFactor = parseNumeric(
+            waterSupplyEmissionFactorInput,
+            "Water supply emission factor"
+          );
+
+          const recordId = await saveTargetRecord(
+            "waterSupply",
+            {
+              date: normalizedDate,
+              totalWaterConsumed,
+              waterSupplyEmissionFactor,
+            },
+            values.id ?? null
+          );
+
+          setTargets((prev) => ({
+            ...prev,
+            waterSupply: {
+              id: recordId,
+              timeframe: null,
+              date: normalizedDate ?? "",
+              totalWaterConsumed: totalWaterConsumedInput,
+              waterSupplyEmissionFactor: waterSupplyEmissionFactorInput,
+            },
+          }));
+          setSuccessMessage("Water supply target saved.");
+          return;
+        }
+
+        if (section === "safetyIncident") {
+          const values =
+            sectionValues as TargetSectionValuesMap["safetyIncident"];
+          const numberOfIncidentsInput = values.numberOfIncidents.trim();
+          const totalEmployeeHoursInput = values.totalEmployeeHours.trim();
+          const normalizedDate = normalizeDateInput(
+            values.date ?? "",
+            "Target date"
+          );
+
+          const numberOfIncidents = parseNumeric(
+            numberOfIncidentsInput,
+            "Number of incidents"
+          );
+          const totalEmployeeHours = parseNumeric(
+            totalEmployeeHoursInput,
+            "Total employee hours"
+          );
+
+          const recordId = await saveTargetRecord(
+            "safetyIncident",
+            {
+              date: normalizedDate,
+              numberOfIncidents,
+              totalEmployeeHours,
+            },
+            values.id ?? null
+          );
+
+          setTargets((prev) => ({
+            ...prev,
+            safetyIncident: {
+              id: recordId,
+              timeframe: null,
+              date: normalizedDate ?? "",
+              numberOfIncidents: numberOfIncidentsInput,
+              totalEmployeeHours: totalEmployeeHoursInput,
+            },
+          }));
+          setSuccessMessage("Safety incident target saved.");
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to save ESG target section", error);
+        setErrorMessage(
+          getErrorMessage(error, "Unable to save ESG target section.")
+        );
+      } finally {
+        setSavingTargetSection(null);
+      }
+    },
+    [
+      buildPayloadForSection,
+      ensureColumnMetadataLoaded,
+      project?.id,
+      projectDetails?.id,
+      resetFeedback,
+    ]
+  );
+
+  const handleTargetsError = useCallback((message: string) => {
+    setErrorMessage(message);
+  }, []);
 
   const saveProjectSetup = useCallback(
     async (values: Step1FormValues, goToNext: boolean) => {
@@ -1044,6 +2437,11 @@ export function PreConstructionPhase({
     [step1Values]
   );
 
+  const savedTargetCount = useMemo(
+    () => Object.values(targets).filter(Boolean).length,
+    [targets]
+  );
+
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
@@ -1079,7 +2477,7 @@ export function PreConstructionPhase({
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <span>{targets.length} ESG targets saved</span>
+          <span>{savedTargetCount} ESG target{savedTargetCount === 1 ? "" : "s"} saved</span>
           <span className="hidden h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-700 sm:inline-flex" />
           <span>{materials.length} materials tracked</span>
         </div>
@@ -1136,10 +2534,11 @@ export function PreConstructionPhase({
               onBack={prevStep}
               onAddMaterial={handleAddMaterial}
               onDeleteMaterial={handleDeleteMaterial}
-              projectSetupId={projectSetupId}
-              initialTargets={targets}
-              onTargetsChange={setTargets}
-              onError={setErrorMessage}
+              projectId={projectDetails?.id ?? project?.id ?? null}
+              targets={targets}
+              onSaveTargetSection={handleSaveTargetSection}
+              savingSection={savingTargetSection}
+              onError={handleTargetsError}
               onResetFeedback={resetFeedback}
               materials={materials}
               isSavingMaterial={isSavingMaterial}

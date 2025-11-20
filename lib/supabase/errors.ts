@@ -8,13 +8,25 @@ export const isMissingRelationError = (error: unknown): boolean => {
     return true;
   }
 
-  if (typeof message === "string") {
-    const normalizedMessage = message.toLowerCase();
-    return (
-      normalizedMessage.includes("does not exist") ||
-      normalizedMessage.includes("could not find the table") ||
-      normalizedMessage.includes("schema cache")
-    );
+  if (typeof message !== "string" || message.trim().length === 0) {
+    return false;
+  }
+
+  const normalized = message.toLowerCase();
+  if (normalized.includes("column")) {
+    return false;
+  }
+
+  if (normalized.includes("row-level security") || normalized.includes("rls")) {
+    return false;
+  }
+
+  if (normalized.includes("does not exist") && normalized.includes("relation")) {
+    return true;
+  }
+
+  if (normalized.includes("schema cache") && normalized.includes("relation")) {
+    return true;
   }
 
   return false;
