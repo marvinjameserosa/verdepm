@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
+const ORGANIZATION_ID = "06e8e179-2734-4675-b14c-eab46611a6b2";
+
 export async function POST(request: Request) {
   const { email, password, firstname, lastname, phone, role } =
     await request.json();
@@ -69,11 +71,11 @@ export async function POST(request: Request) {
     last_name: lastname,
     phone: phone,
     email: email,
-    role: role,
     created_by: currentUser.id,
     modified_by: currentUser.id,
     created_at: new Date().toISOString(),
     modified_at: new Date().toISOString(),
+    organization_id: ORGANIZATION_ID,
   });
 
   if (profileError) {
@@ -81,6 +83,27 @@ export async function POST(request: Request) {
     // If profile creation fails, delete the auth user to roll back
     await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
     return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  const { error: organizationMemberError } = await supabaseAdmin
+    .from("organization_member")
+    .insert({
+      organization_id: ORGANIZATION_ID,
+      user_id: authData.user.id,
+      role,
+    });
+
+  if (organizationMemberError) {
+    console.error(
+      "Error assigning user to organization:",
+      organizationMemberError
+    );
+    await supabaseAdmin.from("users").delete().eq("user_id", authData.user.id);
+    await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+    return NextResponse.json(
+      { error: organizationMemberError.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({

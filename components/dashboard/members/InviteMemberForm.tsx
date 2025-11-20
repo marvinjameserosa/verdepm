@@ -17,7 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
+export function InviteMemberForm({
+  onSuccess,
+}: {
+  onSuccess?: () => Promise<void> | void;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstname, setFirstname] = useState("");
@@ -75,7 +79,9 @@ export function InviteMemberForm({ onSuccess }: { onSuccess: () => void }) {
       setLastname("");
       setPhone("");
       setRole("");
-      onSuccess();
+      if (onSuccess) {
+        await onSuccess();
+      }
     }
   };
 

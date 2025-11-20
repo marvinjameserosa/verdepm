@@ -89,6 +89,20 @@ type SourcedMaterial = {
   specSheetPath?: string;
 };
 
+type PreconstructionMaterialRow = {
+  id: string;
+  material_category: string | null;
+  planned_supplier: string | null;
+  material_name: string | null;
+  warehouse_of_the_supplier: string | null;
+  budgeted_cost: number | string | null;
+  unit: string | null;
+  sustainability_credentials: string | null;
+  supplier_vetting_notes: string | null;
+  vetting_status: MaterialStatus | null;
+  spec_sheet_path: string | null;
+};
+
 const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
   () =>
     import("@/components/dashboard/projects/delivery-route-map").then(
@@ -988,7 +1002,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           return;
         }
 
-        const { data: materials, error: materialsError } = await supabase
+        const { data: materialsData, error: materialsError } = await supabase
           .from("preconstruction_material")
           .select(
             "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, vetting_status, spec_sheet_path"
@@ -1004,8 +1018,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           return;
         }
 
+        const materialRows = Array.isArray(materialsData)
+          ? (materialsData as PreconstructionMaterialRow[])
+          : [];
+
         setSourcingMaterials(
-          (materials ?? []).map((material) => ({
+          materialRows.map((material) => ({
             id: material.id,
             category: material.material_category ?? "",
             name: material.material_name ?? "",

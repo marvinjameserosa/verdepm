@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -74,6 +74,9 @@ const MembersTab = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [deletingMember, setDeletingMember] = useState<User | null>(null);
+  const handleMemberInvited = useCallback(async () => {
+    await refreshMembers();
+  }, [refreshMembers]);
   const availableRoles = useMemo(() => {
     const unique = new Set<User["role"]>();
     members.forEach((member) => {
@@ -198,7 +201,7 @@ const MembersTab = () => {
                 </DialogDescription>
               </DialogHeader>
               <div className="px-6 pb-6">
-                <InviteMemberForm onSuccess={refreshMembers} />
+                <InviteMemberForm onSuccess={handleMemberInvited} />
               </div>
             </DialogContent>
           </Dialog>
