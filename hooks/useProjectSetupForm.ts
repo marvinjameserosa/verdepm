@@ -2,11 +2,18 @@
 
 import { useSession } from "@/components/auth/SessionProvider";
 import type { AppError } from "@/types/error";
-import type { InitialValues, Step1FormValues } from "@/types/forms";
+import type {
+  ExistingFileState,
+  FileState,
+  InitialValues,
+  Step1FormValues,
+  DocumentKey,
+} from "@/types/forms";
+import type { ProjectPriority, ProjectStatus } from "@/types/project";
 import { useState, useEffect } from "react";
 import type { User } from "@supabase/supabase-js";
 
-const EMPTY_FILE_STATE = {};
+const EMPTY_FILE_STATE: FileState = {};
 
 type UseProjectSetupFormProps = {
   onSubmit: (values: Step1FormValues) => Promise<void>;
@@ -30,6 +37,26 @@ export function useProjectSetupForm({
   const [projectDescription, setProjectDescription] = useState(
     initialValues?.projectDescription ?? ""
   );
+  const [status, setStatus] = useState<ProjectStatus>(
+    initialValues?.status ?? "planning"
+  );
+  const [priority, setPriority] = useState<ProjectPriority>(
+    initialValues?.priority ?? "medium"
+  );
+  const [projectManager, setProjectManager] = useState(
+    initialValues?.projectManager ?? ""
+  );
+  const [startDate, setStartDate] = useState(initialValues?.startDate ?? "");
+  const [endDate, setEndDate] = useState(initialValues?.endDate ?? "");
+  const [clientName, setClientName] = useState(
+    initialValues?.clientName ?? ""
+  );
+  const [category, setCategory] = useState(initialValues?.category ?? "");
+  const [budget, setBudget] = useState(initialValues?.budget ?? "");
+  const [files, setFiles] = useState<FileState>(EMPTY_FILE_STATE);
+  const [documentPaths, setDocumentPaths] = useState<ExistingFileState>(
+    initialValues?.documentPaths ?? {}
+  );
   const [error, setError] = useState<AppError | null>(null);
 
   useEffect(() => {
@@ -39,7 +66,37 @@ export function useProjectSetupForm({
     setProjectName(initialValues.projectName ?? "");
     setProjectAddress(initialValues.projectAddress ?? "");
     setProjectDescription(initialValues.projectDescription ?? "");
+    setStatus(initialValues.status ?? "planning");
+    setPriority(initialValues.priority ?? "medium");
+    setProjectManager(initialValues.projectManager ?? "");
+    setStartDate(initialValues.startDate ?? "");
+    setEndDate(initialValues.endDate ?? "");
+    setClientName(initialValues.clientName ?? "");
+    setCategory(initialValues.category ?? "");
+    setBudget(initialValues.budget ?? "");
+    setDocumentPaths(initialValues.documentPaths ?? {});
+    setFiles(EMPTY_FILE_STATE);
   }, [initialValues]);
+
+  const registerFile = (key: DocumentKey, file: File | null) => {
+    setFiles((prev) => {
+      const next = { ...prev };
+      if (file) {
+        next[key] = file;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
+
+    if (file) {
+      setDocumentPaths((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -49,9 +106,18 @@ export function useProjectSetupForm({
         projectName,
         projectAddress,
         projectDescription,
-        files: EMPTY_FILE_STATE,
+        status,
+        priority,
+        projectManager,
+        startDate,
+        endDate,
+        clientName,
+        category,
+        budget,
+        files,
         userId: user?.id,
       });
+      setFiles(EMPTY_FILE_STATE);
     } catch (error) {
       console.error("Failed to save project setup", error);
       setError({
@@ -70,9 +136,18 @@ export function useProjectSetupForm({
         projectName,
         projectAddress,
         projectDescription,
-        files: EMPTY_FILE_STATE,
+        status,
+        priority,
+        projectManager,
+        startDate,
+        endDate,
+        clientName,
+        category,
+        budget,
+        files,
         userId: user?.id,
       });
+      setFiles(EMPTY_FILE_STATE);
     } catch (error) {
       console.error("Failed to save project setup", error);
       setError({
@@ -90,6 +165,25 @@ export function useProjectSetupForm({
     setProjectAddress,
     projectDescription,
     setProjectDescription,
+    status,
+    setStatus,
+    priority,
+    setPriority,
+    projectManager,
+    setProjectManager,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    clientName,
+    setClientName,
+    category,
+    setCategory,
+    budget,
+    setBudget,
+    files,
+    documentPaths,
+    registerFile,
     error,
     handleSubmit,
     handleSave,

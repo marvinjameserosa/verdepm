@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ProjectPriority, ProjectStatus } from "@/types/project";
 
 export const careersFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -31,7 +32,11 @@ export const addProjectSchema = z.object({
 
 export type AddProjectData = z.infer<typeof addProjectSchema>;
 
-export type DocumentKey = "sec-dti" | "mayors-permit" | "bir";
+export type DocumentKey =
+  | "sec-dti"
+  | "mayors-permit"
+  | "bir"
+  | "building-permit";
 
 export type FileState = Partial<Record<DocumentKey, File | null>>;
 
@@ -41,6 +46,14 @@ export type Step1FormValues = {
   projectName: string;
   projectAddress: string;
   projectDescription: string;
+  status: ProjectStatus;
+  priority: ProjectPriority;
+  projectManager: string;
+  startDate?: string;
+  endDate?: string;
+  clientName: string;
+  category: string;
+  budget: string;
   files: FileState;
   userId?: string;
 };
@@ -49,5 +62,13 @@ export type InitialValues = {
   projectName?: string;
   projectAddress?: string;
   projectDescription?: string;
+  status?: ProjectStatus;
+  priority?: ProjectPriority;
+  projectManager?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  clientName?: string;
+  category?: string;
+  budget?: string;
   documentPaths?: ExistingFileState;
 };

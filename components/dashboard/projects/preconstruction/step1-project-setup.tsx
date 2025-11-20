@@ -19,6 +19,18 @@ import { useProjectSetupForm } from "@/hooks/useProjectSetupForm";
 import type { InitialValues, Step1FormValues } from "@/types/forms";
 import { useSession } from "@/components/auth/SessionProvider";
 import { Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  categoryOptions,
+  priorityOptions,
+  statusOptions,
+} from "@/lib/project-options";
 
 type Props = {
   onSubmit: (values: Step1FormValues) => Promise<void>;
@@ -45,6 +57,25 @@ export default function Step1ProjectSetup({
     setProjectAddress,
     projectDescription,
     setProjectDescription,
+    status,
+    setStatus,
+    priority,
+    setPriority,
+    projectManager,
+    setProjectManager,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    clientName,
+    setClientName,
+    category,
+    setCategory,
+    budget,
+    setBudget,
+    files,
+    documentPaths,
+    registerFile,
     error,
     handleSubmit,
     handleSave,
@@ -87,8 +118,8 @@ export default function Step1ProjectSetup({
                   Step 1 · Project Setup & Due Diligence
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Capture the project basics. Compliance documentation now lives
-                  in the Organization tab.
+                  Capture the project basics and keep primary attributes aligned
+                  with the original project record.
                 </CardDescription>
               </div>
             </div>
@@ -101,7 +132,7 @@ export default function Step1ProjectSetup({
                 className="mb-6"
               />
             )}
-            <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
               <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full">
                 <CardHeader className="pb-2 px-6">
                   <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
@@ -144,6 +175,186 @@ export default function Step1ProjectSetup({
                   </div>
                 </CardContent>
               </Card>
+              <div className="space-y-6">
+                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
+                  <CardHeader className="pb-2 px-6">
+                    <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
+                      Project Attributes
+                    </CardTitle>
+                    <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                      Status, priority, category
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-6 pb-6 space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Current Status</Label>
+                      <Select
+                        value={status}
+                        onValueChange={(value) => setStatus(value)}
+                      >
+                        <SelectTrigger id="status" className="bg-white/80 dark:bg-gray-800/80">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[60] max-h-60">
+                          {statusOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="priority">Priority</Label>
+                      <Select
+                        value={priority}
+                        onValueChange={(value) => setPriority(value)}
+                      >
+                        <SelectTrigger id="priority" className="bg-white/80 dark:bg-gray-800/80">
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[60] max-h-60">
+                          {priorityOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Category</Label>
+                      <Select
+                        value={category || undefined}
+                        onValueChange={(value) => setCategory(value)}
+                      >
+                        <SelectTrigger id="category" className="bg-white/80 dark:bg-gray-800/80">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[60] max-h-60">
+                          {categoryOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
+                  <CardHeader className="pb-2 px-6">
+                    <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
+                      Team & Timeline
+                    </CardTitle>
+                    <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                      Ownership, schedule, client
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-6 pb-6 space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="projectManager">Project Manager</Label>
+                      <Input
+                        id="projectManager"
+                        placeholder="Enter manager or owner"
+                        className="bg-white/80 dark:bg-gray-800/80"
+                        value={projectManager}
+                        onChange={(e) => setProjectManager(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="clientName">Client / Customer</Label>
+                      <Input
+                        id="clientName"
+                        placeholder="Enter client name"
+                        className="bg-white/80 dark:bg-gray-800/80"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="startDate">Start Date</Label>
+                        <Input
+                          id="startDate"
+                          type="date"
+                          className="bg-white/80 dark:bg-gray-800/80"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="endDate">Target End Date</Label>
+                        <Input
+                          id="endDate"
+                          type="date"
+                          className="bg-white/80 dark:bg-gray-800/80"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="budget">Estimated Budget</Label>
+                      <Input
+                        id="budget"
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        placeholder="e.g., 500000"
+                        className="bg-white/80 dark:bg-gray-800/80"
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Leave blank to keep the current budget value.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
+                  <CardHeader className="pb-2 px-6">
+                    <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
+                      Compliance Documents
+                    </CardTitle>
+                    <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                      Upload building permit for reference
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-6 pb-6 space-y-4 text-sm">
+                    <div className="space-y-2">
+                      <Label htmlFor="buildingPermit">Building Permit</Label>
+                      <Input
+                        id="buildingPermit"
+                        type="file"
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                        className="bg-white/80 dark:bg-gray-800/80"
+                        onChange={(event) =>
+                          registerFile(
+                            "building-permit",
+                            event.target.files?.[0] ?? null
+                          )
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Accepted formats: PDF, DOC, DOCX, PNG, JPG. Uploading a
+                        new file will replace the existing document.
+                      </p>
+                      {files["building-permit"] ? (
+                        <p className="text-xs text-emerald-700 dark:text-emerald-200">
+                          Selected: {files["building-permit"]?.name}
+                        </p>
+                      ) : documentPaths["building-permit"] ? (
+                        <p className="text-xs text-muted-foreground">
+                          Existing file path: {documentPaths["building-permit"]}
+                        </p>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3 border-t border-gray-100 dark:border-gray-800 p-6 lg:flex-row lg:items-center lg:justify-between">

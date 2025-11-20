@@ -96,7 +96,7 @@ export async function getProjects(): Promise<{
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "project_id, organization_id, project_name, slug, description, status, priority, category, client_name, location, budget, created_at, updated_at"
+        "project_id, organization_id, project_name, slug, description, status, priority, category, client_name, location, budget, start_date, end_date, created_at, updated_at"
       )
       .eq("organization_id", organizationId)
       .order("created_at", { ascending: false });

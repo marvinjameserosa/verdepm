@@ -11,20 +11,32 @@ import {
 } from "./preconstruction/types";
 import { supabase } from "@/lib/supabase/client";
 import type { Project } from "@/types/project";
+import {
+  type DocumentKey,
+  type ExistingFileState,
+  type Step1FormValues,
+} from "@/types/forms";
 import { mapProjectFromSupabase } from "./project-helpers";
+import { isMissingRelationError } from "@/lib/supabase/errors";
 
 type Step1InitialValues = NonNullable<
   Parameters<typeof Step1ProjectSetup>[0]["initialValues"]
 >;
 
-type DocumentKey = "sec-dti" | "mayors-permit" | "bir";
-
-type DocumentPathMap = Partial<Record<DocumentKey, string>>;
+type DocumentPathMap = ExistingFileState;
 
 const DEFAULT_STEP1_VALUES: Step1InitialValues = {
   projectName: "Greenwood Tower",
   projectAddress: "123 Sustainable Ave, Eco City",
   projectDescription: "",
+  status: "planning",
+  priority: "medium",
+  projectManager: "",
+  startDate: "",
+  endDate: "",
+  clientName: "",
+  category: "",
+  budget: "",
   documentPaths: {},
 };
 
@@ -43,12 +55,26 @@ const buildSlugFallback = (identifier: string) =>
       .toLowerCase() || crypto.randomUUID().slice(0, 12)
   }`;
 
-const getDefaultStep1Values = (project?: Project): Step1InitialValues => ({
+const getDefaultStep1Values = (
+  project?: Project,
+  documentPaths: DocumentPathMap = {}
+): Step1InitialValues => ({
   projectName: project?.name ?? DEFAULT_STEP1_VALUES.projectName,
   projectAddress: project?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
   projectDescription:
     project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
-  documentPaths: {},
+  status: project?.status ?? DEFAULT_STEP1_VALUES.status,
+  priority: project?.priority ?? DEFAULT_STEP1_VALUES.priority,
+  projectManager: project?.projectManager ?? DEFAULT_STEP1_VALUES.projectManager,
+  startDate: project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+  endDate: project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
+  clientName: project?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
+  category: project?.category ?? DEFAULT_STEP1_VALUES.category,
+  budget:
+    project?.budget !== undefined && project?.budget !== null
+      ? project.budget.toString()
+      : DEFAULT_STEP1_VALUES.budget,
+  documentPaths,
 });
 
 const STEP_DEFINITIONS = [
@@ -157,20 +183,14 @@ export function PreConstructionPhase({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSavingStep1, setIsSavingStep1] = useState(false);
-  const [isSavingTarget, setIsSavingTarget] = useState(false);
   const [isSavingMaterial, setIsSavingMaterial] = useState(false);
-  const [deletingTargetId, setDeletingTargetId] = useState<string | null>(null);
   const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(
     null
   );
   const [isSubmittingForApproval, setIsSubmittingForApproval] = useState(false);
-  const [submittedForApprovalAt, setSubmittedForApprovalAt] = useState<
-    string | null
-  >(null);
-  const [supportsSubmittedAtColumn, setSupportsSubmittedAtColumn] =
-    useState(false);
-  const [supportsApprovalStatusColumn, setSupportsApprovalStatusColumn] =
-    useState(false);
+  const [, setSubmittedForApprovalAt] = useState<string | null>(null);
+  const supportsSubmittedAtColumn = false;
+  const supportsApprovalStatusColumn = false;
 
   useEffect(() => {
     setProjectDetails(project ?? null);
@@ -242,13 +262,21 @@ export function PreConstructionPhase({
         )
         .eq("user_id", user.id)
         .eq("project_id", project.id)
+        .limit(1)
         .maybeSingle();
 
-      if (setupError) {
+      const isMultipleRowError =
+        setupError?.code === "PGRST116" ||
+        (typeof setupError?.message === "string" &&
+          setupError.message.toLowerCase().includes("multiple rows"));
+
+      if (setupError && !isMultipleRowError) {
         throw setupError;
       }
 
-      if (!setupData) {
+      const normalizedSetup = setupData ?? null;
+
+      if (!normalizedSetup) {
         setProjectSetupId(null);
         setStep1Values(getDefaultStep1Values(project));
         setDocumentPaths({});
@@ -257,92 +285,153 @@ export function PreConstructionPhase({
         return;
       }
 
-      setProjectSetupId(setupData.id);
+      setProjectSetupId(normalizedSetup.id);
 
       const nextDocPaths: DocumentPathMap = {};
-      if (setupData.sec_dti_path) {
-        nextDocPaths["sec-dti"] = setupData.sec_dti_path;
+      if (normalizedSetup.sec_dti_path) {
+        nextDocPaths["sec-dti"] = normalizedSetup.sec_dti_path;
       }
-      if (setupData.mayors_permit_path) {
-        nextDocPaths["mayors-permit"] = setupData.mayors_permit_path;
+      if (normalizedSetup.mayors_permit_path) {
+        nextDocPaths["mayors-permit"] = normalizedSetup.mayors_permit_path;
       }
-      if (setupData.bir_registration_path) {
-        nextDocPaths.bir = setupData.bir_registration_path;
+      if (normalizedSetup.bir_registration_path) {
+        nextDocPaths.bir = normalizedSetup.bir_registration_path;
       }
       setDocumentPaths(nextDocPaths);
 
       setStep1Values({
         projectName:
-          setupData.project_name ??
+          normalizedSetup.project_name ??
           project?.name ??
           DEFAULT_STEP1_VALUES.projectName,
         projectAddress:
-          setupData.project_address ??
+          normalizedSetup.project_address ??
           project?.location ??
           DEFAULT_STEP1_VALUES.projectAddress,
         projectDescription:
-          setupData.project_description ??
+          normalizedSetup.project_description ??
           project?.description ??
           DEFAULT_STEP1_VALUES.projectDescription,
+        status: project?.status ?? DEFAULT_STEP1_VALUES.status,
+        priority: project?.priority ?? DEFAULT_STEP1_VALUES.priority,
+        projectManager:
+          project?.projectManager ?? DEFAULT_STEP1_VALUES.projectManager,
+        startDate: project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+        endDate: project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
+        clientName: project?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
+        category: project?.category ?? DEFAULT_STEP1_VALUES.category,
+        budget:
+          project?.budget !== undefined && project?.budget !== null
+            ? project.budget.toString()
+            : DEFAULT_STEP1_VALUES.budget,
         documentPaths: nextDocPaths,
       });
 
-      if (setupData.id) {
+      if (normalizedSetup.id) {
         const [targetsResponse, materialsResponse] = await Promise.all([
           supabase
             .from("preconstruction_esg_target")
             .select("id, category, goal, metric_kpi")
-            .eq("project_setup_id", setupData.id)
+            .eq("project_setup_id", normalizedSetup.id)
             .order("created_at", { ascending: true }),
           supabase
             .from("preconstruction_material")
             .select(
               "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status"
             )
-            .eq("project_setup_id", setupData.id)
+            .eq("project_setup_id", normalizedSetup.id)
             .order("created_at", { ascending: true }),
         ]);
 
         if (targetsResponse.error) {
-          throw targetsResponse.error;
+          if (!isMissingRelationError(targetsResponse.error)) {
+            throw targetsResponse.error;
+          }
         }
+
         if (materialsResponse.error) {
-          throw materialsResponse.error;
+          if (!isMissingRelationError(materialsResponse.error)) {
+            throw materialsResponse.error;
+          }
         }
 
-        setTargets(
-          (targetsResponse.data ?? []).map((target) => ({
-            id: target.id,
-            category: target.category,
-            goal: target.goal,
-            metric: target.metric_kpi,
-          }))
+        const targetRows =
+          targetsResponse.error || !targetsResponse.data
+            ? []
+            : (targetsResponse.data as Array<{
+                id: string;
+                category: EsgTarget["category"];
+                goal: string;
+                metric_kpi: string;
+              }>);
+
+        const materialRows =
+          materialsResponse.error || !materialsResponse.data
+            ? []
+            : (materialsResponse.data as Array<{
+                id: string;
+                material_category: string;
+                planned_supplier: string;
+                material_name: string;
+                warehouse_of_the_supplier: string | null;
+                budgeted_cost: number | null;
+                unit: string | null;
+                sustainability_credentials: string | null;
+                supplier_vetting_notes: string | null;
+                spec_sheet_path: string | null;
+                vetting_status: MaterialStatus;
+              }>);
+
+        const mappedTargets: EsgTarget[] = targetRows.map((targetRow) => ({
+          id: targetRow.id,
+          category: targetRow.category,
+          goal: targetRow.goal,
+          metric: targetRow.metric_kpi,
+        }));
+
+        const mappedMaterials: Material[] = materialRows.map(
+          (materialRow) => ({
+            id: materialRow.id,
+            category: materialRow.material_category,
+            name: materialRow.material_name,
+            supplier: materialRow.planned_supplier,
+            cost:
+              materialRow.budgeted_cost !== null
+                ? materialRow.budgeted_cost.toString()
+                : "",
+            unit: materialRow.unit ?? undefined,
+            notes: materialRow.supplier_vetting_notes ?? "",
+            credentials: materialRow.sustainability_credentials ?? undefined,
+            status: materialRow.vetting_status,
+            warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
+            specSheetPath: materialRow.spec_sheet_path ?? undefined,
+          })
         );
 
-        setMaterials(
-          (materialsResponse.data ?? []).map((material) => ({
-            id: material.id,
-            category: material.material_category,
-            name: material.material_name,
-            supplier: material.planned_supplier,
-            cost:
-              material.budgeted_cost !== null &&
-              material.budgeted_cost !== undefined
-                ? material.budgeted_cost.toString()
-                : "",
-            unit: material.unit ?? undefined,
-            notes: material.supplier_vetting_notes ?? "",
-            credentials: material.sustainability_credentials ?? undefined,
-            status: material.vetting_status,
-            warehouse: material.warehouse_of_the_supplier ?? undefined,
-            specSheetPath: material.spec_sheet_path ?? undefined,
-          }))
-        );
+        setTargets(mappedTargets);
+        setMaterials(mappedMaterials);
       }
+
+      setErrorMessage(null);
     } catch (error) {
+      if (isMissingRelationError(error)) {
+        console.warn(
+          "Optional pre-construction relations are not configured; continuing without targets/materials."
+        );
+        setErrorMessage(null);
+        return;
+      }
+
       console.error("Failed to load pre-construction data", error);
+      const derivedMessage =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message: unknown }).message ?? "")
+          : "";
+
       setErrorMessage(
-        error instanceof Error ? error.message : "Failed to load data."
+        derivedMessage.trim().length > 0
+          ? derivedMessage
+          : "Failed to load data."
       );
     } finally {
       setIsLoading(false);
@@ -370,23 +459,34 @@ export function PreConstructionPhase({
           prev.projectDescription && prev.projectDescription.length > 0
             ? prev.projectDescription
             : project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
+        status: prev.status ?? project?.status ?? DEFAULT_STEP1_VALUES.status,
+        priority:
+          prev.priority ?? project?.priority ?? DEFAULT_STEP1_VALUES.priority,
+        projectManager:
+          prev.projectManager ??
+          project?.projectManager ??
+          DEFAULT_STEP1_VALUES.projectManager,
+        startDate:
+          prev.startDate ?? project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+        endDate:
+          prev.endDate ?? project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
+        clientName:
+          prev.clientName ??
+          project?.clientName ??
+          DEFAULT_STEP1_VALUES.clientName,
+        category:
+          prev.category ??
+          project?.category ??
+          DEFAULT_STEP1_VALUES.category,
+        budget:
+          prev.budget ??
+          (project?.budget !== undefined && project?.budget !== null
+            ? project.budget.toString()
+            : DEFAULT_STEP1_VALUES.budget),
         documentPaths: prev.documentPaths,
       }));
     }
   }, [isLoading, project, projectSetupId]);
-
-  type Step1FormValues = {
-    projectName: string;
-    projectAddress: string;
-    projectDescription: string;
-    files: Partial<Record<DocumentKey, File | null>>;
-  };
-
-  type TargetFormInput = {
-    category: "" | "Environmental" | "Social" | "Governance";
-    goal: string;
-    metric: string;
-  };
 
   type MaterialDraftInput = {
     category: string;
@@ -433,13 +533,18 @@ export function PreConstructionPhase({
             throw error;
           }
 
-          const conflictingSlugs = (data ?? [])
+          const slugRows = (data ?? []) as Array<{
+            project_id: string | null;
+            slug: string | null;
+          }>;
+
+          const conflictingSlugs = slugRows
             .filter(
               (row) =>
                 row.project_id !== projectDetails.id &&
                 typeof row.slug === "string"
             )
-            .map((row) => row.slug);
+            .map((row) => row.slug as string);
 
           if (!conflictingSlugs.includes(baseSlug)) {
             return baseSlug;
@@ -489,6 +594,28 @@ export function PreConstructionPhase({
         const trimmedProjectName = values.projectName.trim();
         const trimmedProjectAddress = values.projectAddress.trim();
         const trimmedProjectDescription = values.projectDescription.trim();
+        const trimmedProjectManager = values.projectManager.trim();
+        const trimmedStartDate = values.startDate
+          ? values.startDate.trim()
+          : "";
+        const trimmedEndDate = values.endDate
+          ? values.endDate.trim()
+          : "";
+        const normalizedStatus = values.status;
+        const normalizedPriority = values.priority;
+        const trimmedClientName = values.clientName.trim();
+        const trimmedCategory = values.category.trim();
+        const trimmedBudgetInput = values.budget.trim();
+
+        const parsedBudget =
+          trimmedBudgetInput.length > 0 ? Number(trimmedBudgetInput) : null;
+
+        if (
+          trimmedBudgetInput.length > 0 &&
+          Number.isNaN(parsedBudget)
+        ) {
+          throw new Error("Budget must be a valid number.");
+        }
 
         const projectIdForSetup = projectDetails?.id ?? project?.id;
 
@@ -535,7 +662,7 @@ export function PreConstructionPhase({
 
         if (projectDetails?.id) {
           const nextSlug = await ensureUniqueProjectSlug();
-          const updates: Record<string, string | null> = {};
+          const updates: Record<string, string | number | null> = {};
 
           if (projectDetails.name !== trimmedProjectName) {
             updates.project_name = trimmedProjectName;
@@ -548,6 +675,31 @@ export function PreConstructionPhase({
           const incomingDescription = trimmedProjectDescription || null;
           if ((projectDetails.description ?? null) !== incomingDescription) {
             updates.description = incomingDescription;
+          }
+
+          if (projectDetails.status !== normalizedStatus) {
+            updates.status = normalizedStatus;
+          }
+
+          if (projectDetails.priority !== normalizedPriority) {
+            updates.priority = normalizedPriority;
+          }
+
+          const incomingClientName = trimmedClientName || null;
+          if ((projectDetails.clientName ?? null) !== incomingClientName) {
+            updates.client_name = incomingClientName;
+          }
+
+          const incomingCategory = trimmedCategory || null;
+          if ((projectDetails.category ?? null) !== incomingCategory) {
+            updates.category = incomingCategory;
+          }
+
+          if (
+            (projectDetails.budget ?? null) !==
+            (parsedBudget === null ? null : parsedBudget)
+          ) {
+            updates.budget = parsedBudget;
           }
 
           if (nextSlug && nextSlug !== projectDetails.slug) {
@@ -584,6 +736,14 @@ export function PreConstructionPhase({
               name: trimmedProjectName,
               location: trimmedProjectAddress,
               description: trimmedProjectDescription || null,
+              status: normalizedStatus,
+              priority: normalizedPriority,
+              clientName: trimmedClientName || null,
+              category: trimmedCategory || null,
+              budget: parsedBudget,
+              projectManager: trimmedProjectManager || null,
+              startDate: trimmedStartDate || null,
+              endDate: trimmedEndDate || null,
             };
             setProjectDetails(nextProjectState);
           }
@@ -594,6 +754,14 @@ export function PreConstructionPhase({
           projectName: trimmedProjectName,
           projectAddress: trimmedProjectAddress,
           projectDescription: trimmedProjectDescription,
+          status: normalizedStatus,
+          priority: normalizedPriority,
+          projectManager: trimmedProjectManager,
+          startDate: trimmedStartDate,
+          endDate: trimmedEndDate,
+          clientName: trimmedClientName,
+          category: trimmedCategory,
+          budget: trimmedBudgetInput,
           documentPaths: nextDocPaths,
         });
 
@@ -620,6 +788,7 @@ export function PreConstructionPhase({
       documentPaths,
       nextStep,
       onProjectUpdated,
+      project?.id,
       projectDetails,
       projectSetupId,
       resetFeedback,
@@ -665,6 +834,12 @@ export function PreConstructionPhase({
         delete updates.approval_status;
       }
 
+      if (Object.keys(updates).length === 0) {
+        setSubmittedForApprovalAt(new Date().toISOString());
+        setSuccessMessage("Submitted for approval.");
+        return;
+      }
+
       const { error } = await supabase
         .from("preconstruction_project_setup")
         .update(updates)
@@ -701,61 +876,6 @@ export function PreConstructionPhase({
     supportsSubmittedAtColumn,
     userId,
   ]);
-
-  const handleSaveTarget = useCallback(
-    async (target: TargetFormInput) => {
-      if (!projectSetupId) {
-        setErrorMessage("Save project setup before adding ESG targets.");
-        return;
-      }
-
-      resetFeedback();
-
-      if (!target.category || !target.goal || !target.metric) {
-        setErrorMessage("Please complete the target details before saving.");
-        return;
-      }
-
-      setIsSavingTarget(true);
-
-      try {
-        const { data, error } = await supabase
-          .from("preconstruction_esg_target")
-          .insert([
-            {
-              project_setup_id: projectSetupId,
-              category: target.category,
-              goal: target.goal,
-              metric_kpi: target.metric,
-            },
-          ])
-          .select("id, category, goal, metric_kpi")
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        setTargets((prev) => [
-          ...prev,
-          {
-            id: data.id,
-            category: data.category,
-            goal: data.goal,
-            metric: data.metric_kpi,
-          },
-        ]);
-      } catch (error) {
-        console.error("Failed to save ESG target", error);
-        setErrorMessage(
-          error instanceof Error ? error.message : "Unable to save ESG target."
-        );
-      } finally {
-        setIsSavingTarget(false);
-      }
-    },
-    [projectSetupId, resetFeedback]
-  );
 
   const handleAddMaterial = useCallback(
     async (material: MaterialDraftInput, specSheet?: File | null) => {
@@ -855,48 +975,18 @@ export function PreConstructionPhase({
           },
         ]);
       } catch (error) {
+        if (isMissingRelationError(error)) {
+          console.warn(
+            "Skipping sourcing material save because the related table is not configured."
+          );
+          return;
+        }
         console.error("Failed to add material", error);
         setErrorMessage(
           error instanceof Error ? error.message : "Unable to add material."
         );
       } finally {
         setIsSavingMaterial(false);
-      }
-    },
-    [projectSetupId, resetFeedback]
-  );
-
-  const handleDeleteTarget = useCallback(
-    async (targetId: string) => {
-      if (!projectSetupId) {
-        setErrorMessage("Save project setup before modifying ESG targets.");
-        return;
-      }
-
-      resetFeedback();
-      setDeletingTargetId(targetId);
-
-      try {
-        const { error } = await supabase
-          .from("preconstruction_esg_target")
-          .delete()
-          .eq("id", targetId)
-          .eq("project_setup_id", projectSetupId);
-
-        if (error) {
-          throw error;
-        }
-
-        setTargets((prev) => prev.filter((target) => target.id !== targetId));
-      } catch (error) {
-        console.error("Failed to delete ESG target", error);
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Unable to delete ESG target."
-        );
-      } finally {
-        setDeletingTargetId(null);
       }
     },
     [projectSetupId, resetFeedback]
@@ -929,6 +1019,12 @@ export function PreConstructionPhase({
           prev.filter((material) => material.id !== materialId)
         );
       } catch (error) {
+        if (isMissingRelationError(error)) {
+          console.warn(
+            "Skipping sourcing material delete because the related table is not configured."
+          );
+          return;
+        }
         console.error("Failed to delete material", error);
         setErrorMessage(
           error instanceof Error ? error.message : "Unable to delete material."
@@ -942,16 +1038,10 @@ export function PreConstructionPhase({
 
   const step1InitialValues = useMemo<Step1InitialValues>(
     () => ({
-      projectName: step1Values.projectName,
-      projectAddress: step1Values.projectAddress,
-      projectDescription: step1Values.projectDescription,
-      documentPaths: {},
+      ...DEFAULT_STEP1_VALUES,
+      ...step1Values,
     }),
-    [
-      step1Values.projectAddress,
-      step1Values.projectDescription,
-      step1Values.projectName,
-    ]
+    [step1Values]
   );
 
   if (isLoading) {
@@ -1044,15 +1134,15 @@ export function PreConstructionPhase({
             <Step2TargetSetting
               onNext={nextStep}
               onBack={prevStep}
-              onSaveTarget={handleSaveTarget}
               onAddMaterial={handleAddMaterial}
-              onDeleteTarget={handleDeleteTarget}
               onDeleteMaterial={handleDeleteMaterial}
-              targets={targets}
+              projectSetupId={projectSetupId}
+              initialTargets={targets}
+              onTargetsChange={setTargets}
+              onError={setErrorMessage}
+              onResetFeedback={resetFeedback}
               materials={materials}
-              isSavingTarget={isSavingTarget}
               isSavingMaterial={isSavingMaterial}
-              deletingTargetId={deletingTargetId}
               deletingMaterialId={deletingMaterialId}
             />
           )}

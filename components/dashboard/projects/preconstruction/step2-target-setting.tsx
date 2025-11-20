@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,11 +43,13 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { Material, MaterialStatus, type EsgTarget, units } from "./types";
+import {
+  TargetDraft,
+  usePreconstructionEsgTargets,
+} from "@/hooks/usePreconstructionEsgTargets";
 
-type TargetForm = {
-  category: "Environmental" | "Social" | "Governance" | "";
-  goal: string;
-  metric: string;
+type TargetForm = TargetDraft & {
+  category: TargetDraft["category"] | "";
 };
 
 type MaterialDraft = {
@@ -65,30 +67,30 @@ type MaterialDraft = {
 type Props = {
   onNext: () => void;
   onBack: () => void;
-  onSaveTarget: (target: TargetForm) => Promise<void>;
   onAddMaterial: (material: MaterialDraft, specSheet?: File | null) => Promise<void>;
-  onDeleteTarget: (targetId: string) => Promise<void>;
   onDeleteMaterial: (materialId: string) => Promise<void>;
-  targets: EsgTarget[];
+  projectSetupId?: string | null;
+  initialTargets?: EsgTarget[];
+  onTargetsChange?: (targets: EsgTarget[]) => void;
+  onError?: (message: string) => void;
+  onResetFeedback?: () => void;
   materials: Material[];
-  isSavingTarget: boolean;
   isSavingMaterial: boolean;
-  deletingTargetId?: string | null;
   deletingMaterialId?: string | null;
 };
 
 export default function Step2TargetSetting({
   onNext,
   onBack,
-  onSaveTarget,
   onAddMaterial,
-  onDeleteTarget,
   onDeleteMaterial,
-  targets,
+  projectSetupId,
+  initialTargets,
+  onTargetsChange,
+  onError,
+  onResetFeedback,
   materials,
-  isSavingTarget,
   isSavingMaterial,
-  deletingTargetId,
   deletingMaterialId,
 }: Props) {
   const [targetForm, setTargetForm] = useState<TargetForm>({
@@ -108,6 +110,24 @@ export default function Step2TargetSetting({
   const [warehouse, setWarehouse] = useState("");
   const [open, setOpen] = React.useState(false);
   const [specSheet, setSpecSheet] = useState<File | null>(null);
+
+  const {
+    targets: targetItems,
+    isLoading: isLoadingTargets,
+    isSaving: isSavingTarget,
+    deletingTargetId,
+    saveTarget,
+    deleteTarget,
+  } = usePreconstructionEsgTargets({
+    projectSetupId,
+    initialTargets,
+    onError,
+    onResetFeedback,
+  });
+
+  useEffect(() => {
+    onTargetsChange?.(targetItems);
+  }, [onTargetsChange, targetItems]);
 
   const resetMaterialForm = () => {
     setNewMaterial({
@@ -129,9 +149,20 @@ export default function Step2TargetSetting({
       console.warn("Target details are incomplete.");
       return;
     }
+    if (!projectSetupId) {
+      onResetFeedback?.();
+      onError?.("Save project setup before adding ESG targets.");
+      return;
+    }
     try {
-      await onSaveTarget(targetForm);
-      setTargetForm({ category: "", goal: "", metric: "" });
+      const savedTarget = await saveTarget({
+        category: targetForm.category as TargetDraft["category"],
+        goal: targetForm.goal,
+        metric: targetForm.metric,
+      });
+      if (savedTarget) {
+        setTargetForm({ category: "", goal: "", metric: "" });
+      }
     } catch (error) {
       console.error("Failed to save target", error);
     }
@@ -257,6 +288,7 @@ export default function Step2TargetSetting({
                   onClick={handleTargetSave}
                   disabled={
                     isSavingTarget ||
+                    !projectSetupId ||
                     !targetForm.category ||
                     !targetForm.goal.trim() ||
                     !targetForm.metric.trim()
@@ -269,14 +301,18 @@ export default function Step2TargetSetting({
                 <h5 className="text-sm font-medium text-muted-foreground">
                   Saved Targets
                 </h5>
-                {targets.length === 0 ? (
+                {isLoadingTargets ? (
+                  <p className="text-xs text-muted-foreground">
+                    Loading saved ESG targets...
+                  </p>
+                ) : targetItems.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     Once saved, your ESG goals will appear here for quick
                     reference.
                   </p>
                 ) : (
                   <ul className="space-y-2">
-                    {targets.map((target) => (
+                    {targetItems.map((target) => (
                       <li
                         key={target.id}
                         className="flex flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-800 p-3 bg-white/80 dark:bg-gray-900/60"
@@ -297,7 +333,7 @@ export default function Step2TargetSetting({
                             size="icon"
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
                             onClick={() => {
-                              void onDeleteTarget(target.id);
+                              void deleteTarget(target.id);
                             }}
                             disabled={isSavingTarget || deletingTargetId === target.id}
                             aria-label="Delete target"
