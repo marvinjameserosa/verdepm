@@ -162,7 +162,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
     const fetchProjectName = async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("name")
+        .select("project_name")
         .eq("slug", slug)
         .maybeSingle();
 
@@ -176,7 +176,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
         return;
       }
 
-      setProjectName(data?.name ?? null);
+      setProjectName(data?.project_name ?? null);
     };
 
     fetchProjectName();

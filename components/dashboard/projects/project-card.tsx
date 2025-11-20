@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Calendar, Users, Target, MapPin } from "lucide-react";
+import { Building2, Calendar, Users, Target, MapPin, Hash, Wallet, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Project } from "@/types/project";
 import {
@@ -44,6 +44,21 @@ const formatTimeline = (project: Project) => {
   return endDisplay ? `${startDisplay} - ${endDisplay}` : startDisplay;
 };
 
+const formatBudget = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined) {
+    return "No budget";
+  }
+
+  const numericValue =
+    typeof value === "string" ? Number(value.replace(/,/g, "")) : value;
+
+  if (!Number.isFinite(numericValue)) {
+    return String(value);
+  }
+
+  return `PHP ${numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+};
+
 export function ProjectCard({ project }: ProjectCardProps) {
   return (
     <Link
@@ -61,6 +76,12 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 <CardTitle className="text-lg font-semibold">
                   {project.name}
                 </CardTitle>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">
+                  <span className="inline-flex items-center gap-1">
+                    <Hash className="h-3 w-3" />
+                    {project.slug}
+                  </span>
+                </p>
                 {project.clientName ? (
                   <p className="text-xs text-muted-foreground mt-1">
                     {project.clientName}
@@ -117,6 +138,22 @@ export function ProjectCard({ project }: ProjectCardProps) {
               </div>
               <span className="text-xs text-muted-foreground line-clamp-1" title={project.location ?? ""}>
                 {project.location ?? "No location"}
+              </span>
+            </div>
+            <div className="flex flex-col items-center text-center">
+              <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
+                <Layers className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {project.category ?? "Uncategorized"}
+              </span>
+            </div>
+            <div className="flex flex-col items-center text-center">
+              <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
+                <Wallet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {formatBudget(project.budget)}
               </span>
             </div>
           </div>
