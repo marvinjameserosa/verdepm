@@ -10,13 +10,15 @@ import {
   Home,
   Flag,
   Building,
+  Truck,
 } from "lucide-react";
 
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { SettingsModal } from "./settings-modal";
 import { HelpModal } from "./help-modal";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useCurrentRole } from "@/hooks/useCurrentRole";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -35,6 +37,19 @@ interface SidebarProps {
 export default function Sidebar({ isSidebarOpen }: SidebarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const { role } = useCurrentRole();
+
+  const canAccessSupplierWorkspace = useMemo(() => {
+    if (!role || typeof role !== "string") {
+      return false;
+    }
+    const normalized = role.toLowerCase();
+    return (
+      normalized === "owner" ||
+      normalized === "manager" ||
+      normalized === "supplier"
+    );
+  }, [role]);
 
   function NavItem({
     href,
@@ -126,6 +141,11 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
                 <NavItem href="/dashboard/organization" icon={Building}>
                   Organization
                 </NavItem>
+                {canAccessSupplierWorkspace ? (
+                  <NavItem href="/dashboard/suppliers" icon={Truck}>
+                    Supplier Workspace
+                  </NavItem>
+                ) : null}
               </div>
             </div>
           </div>

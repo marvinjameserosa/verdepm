@@ -3,6 +3,7 @@ export {
 	type Material,
 	type MaterialStatus,
 	type EsgTarget,
+  type SupplierApprovalStatus,
 	units,
 	initialMaterials,
 } from "@/types/project";

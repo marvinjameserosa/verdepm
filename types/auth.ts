@@ -30,7 +30,7 @@ export const inviteMemberSchema = z.object({
     .regex(/^\+?[1-9]\d{1,14}$/, { message: "Invalid phone number format" })
     .optional()
     .or(z.literal("")),
-  role: z.enum(["owner", "manager", "member"], {
+  role: z.enum(["owner", "manager", "member", "supplier"], {
     message: "Please select a valid role",
   }),
 });

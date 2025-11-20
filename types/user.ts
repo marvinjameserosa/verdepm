@@ -13,7 +13,8 @@ export type User = {
     | "Viewer"
     | "owner"
     | "manager"
-    | "member";
+    | "member"
+    | "supplier";
   created_at: string;
   modified_at: string;
   created_by: string;
@@ -39,4 +40,5 @@ export const USER_ROLE_OPTIONS: User["role"][] = [
   "owner",
   "manager",
   "member",
+  "supplier",
 ];

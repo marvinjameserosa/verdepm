@@ -208,6 +208,7 @@ export function InviteMemberForm({
             <SelectItem value="owner">Owner</SelectItem>
             <SelectItem value="manager">Manager</SelectItem>
             <SelectItem value="member">Member</SelectItem>
+            <SelectItem value="supplier">Supplier</SelectItem>
           </SelectContent>
         </Select>
         {validationErrors.role && (
