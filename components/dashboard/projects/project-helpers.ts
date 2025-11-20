@@ -31,6 +31,7 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
 
   const {
     id,
+    project_id: projectId,
     owner_id: ownerId,
     name,
     slug,
@@ -48,8 +49,16 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     updated_at: updatedAt,
   } = record as Record<string, unknown>;
 
+  const normalizedId =
+    (id as string | null | undefined) ??
+    (projectId as string | null | undefined);
+
+  if (!normalizedId) {
+    throw new Error("Project record is missing an id or project_id field");
+  }
+
   return {
-    id: id as string,
+    id: normalizedId,
     ownerId: (ownerId as string | null | undefined) ?? null,
     name: name as string,
     slug: slug as string,
@@ -63,7 +72,8 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     budget: (budget as number | null | undefined) ?? null,
     startDate: (startDate as string | null | undefined) ?? null,
     endDate: (endDate as string | null | undefined) ?? null,
-    createdAt: (createdAt as string | null | undefined) ?? new Date().toISOString(),
+    createdAt:
+      (createdAt as string | null | undefined) ?? new Date().toISOString(),
     updatedAt:
       (updatedAt as string | null | undefined) ??
       (createdAt as string | null | undefined) ??

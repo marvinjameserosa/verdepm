@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-
-import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   BarChart,
   Bar,

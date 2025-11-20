@@ -30,3 +30,24 @@ export const addProjectSchema = z.object({
 });
 
 export type AddProjectData = z.infer<typeof addProjectSchema>;
+
+export type DocumentKey = "sec-dti" | "mayors-permit" | "bir";
+
+export type FileState = Partial<Record<DocumentKey, File | null>>;
+
+export type ExistingFileState = Partial<Record<DocumentKey, string>>;
+
+export type Step1FormValues = {
+  projectName: string;
+  projectAddress: string;
+  projectDescription: string;
+  files: FileState;
+  userId?: string;
+};
+
+export type InitialValues = {
+  projectName?: string;
+  projectAddress?: string;
+  projectDescription?: string;
+  documentPaths?: ExistingFileState;
+};

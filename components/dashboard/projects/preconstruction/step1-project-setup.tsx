@@ -13,30 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { GanttChartSquare } from "lucide-react";
-import { useEffect, useState } from "react";
 import LocationPicker from "@/components/ui/location-picker";
-
-type DocumentKey = "sec-dti" | "mayors-permit" | "bir";
-
-type FileState = Partial<Record<DocumentKey, File | null>>;
-
-type ExistingFileState = Partial<Record<DocumentKey, string>>;
-
-type Step1FormValues = {
-  projectName: string;
-  projectAddress: string;
-  projectDescription: string;
-  files: FileState;
-};
-
-type InitialValues = {
-  projectName?: string;
-  projectAddress?: string;
-  projectDescription?: string;
-  documentPaths?: ExistingFileState;
-};
-
-const EMPTY_FILE_STATE: FileState = {};
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useProjectSetupForm } from "@/hooks/useProjectSetupForm";
+import type { InitialValues, Step1FormValues } from "@/types/forms";
+import { useSession } from "@/components/auth/SessionProvider";
+import { Loader2 } from "lucide-react";
 
 type Props = {
   onSubmit: (values: Step1FormValues) => Promise<void>;
@@ -51,52 +33,45 @@ export default function Step1ProjectSetup({
   initialValues,
   isSubmitting,
 }: Props) {
-  const [projectName, setProjectName] = useState(
-    initialValues?.projectName ?? "Greenwood Tower"
-  );
-  const [projectAddress, setProjectAddress] = useState(
-    initialValues?.projectAddress ?? "123 Sustainable Ave, Eco City"
-  );
-  const [projectDescription, setProjectDescription] = useState(
-    initialValues?.projectDescription ?? ""
-  );
+  const {
+    isLoading: isSessionLoading,
+    error: sessionError,
+    user,
+  } = useSession();
+  const {
+    projectName,
+    setProjectName,
+    projectAddress,
+    setProjectAddress,
+    projectDescription,
+    setProjectDescription,
+    error,
+    handleSubmit,
+    handleSave,
+  } = useProjectSetupForm({
+    onSubmit,
+    onSave,
+    initialValues,
+    user,
+  });
 
-  useEffect(() => {
-    if (!initialValues) {
-      return;
-    }
-    setProjectName(initialValues.projectName ?? "");
-    setProjectAddress(initialValues.projectAddress ?? "");
-    setProjectDescription(initialValues.projectDescription ?? "");
-  }, [initialValues]);
+  if (isSessionLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    try {
-      await onSubmit({
-        projectName,
-        projectAddress,
-        projectDescription,
-        files: EMPTY_FILE_STATE,
-      });
-    } catch (error) {
-      console.error("Failed to save project setup", error);
-    }
-  };
-
-  const handleSave = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    try {
-      await onSave({
-        projectName,
-        projectAddress,
-        projectDescription,
-        files: EMPTY_FILE_STATE,
-      });
-    } catch (error) {
-      console.error("Failed to save project setup", error);
-    }
-  };
+  if (sessionError) {
+    return (
+      <ErrorDisplay
+        title={sessionError.title}
+        message={sessionError.message}
+        className="mt-4"
+      />
+    );
+  }
 
   return (
     <section className="w-full">
@@ -112,13 +87,20 @@ export default function Step1ProjectSetup({
                   Step 1 · Project Setup & Due Diligence
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Capture the project basics. Compliance documentation now
-                  lives in the Organization tab.
+                  Capture the project basics. Compliance documentation now lives
+                  in the Organization tab.
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-8 px-6 py-8 lg:px-10">
+            {error && (
+              <ErrorDisplay
+                title={error.title}
+                message={error.message}
+                className="mb-6"
+              />
+            )}
             <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
               <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full">
                 <CardHeader className="pb-2 px-6">
@@ -143,23 +125,10 @@ export default function Step1ProjectSetup({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="projectAddress">Project Address</Label>
-                    <div className="space-y-2">
-                      <LocationPicker
-                        value={projectAddress}
-                        onChange={setProjectAddress}
-                        onSave={() => {
-                          onSave({
-                            projectName,
-                            projectAddress,
-                            projectDescription,
-                            files: EMPTY_FILE_STATE,
-                          });
-                        }}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Selected Location: {projectAddress || "None"}
-                      </p>
-                    </div>
+                    <LocationPicker
+                      value={projectAddress}
+                      onChange={setProjectAddress}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="projectDescription">
@@ -175,7 +144,6 @@ export default function Step1ProjectSetup({
                   </div>
                 </CardContent>
               </Card>
-
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3 border-t border-gray-100 dark:border-gray-800 p-6 lg:flex-row lg:items-center lg:justify-between">
