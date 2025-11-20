@@ -230,8 +230,7 @@ const MembersTab = () => {
       {/* Members List */}
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
         <CardHeader>
-          <CardTitle className="text-emerald-700 dark:text-emerald-300">
-          </CardTitle>
+          <CardTitle className="text-emerald-700 dark:text-emerald-300"></CardTitle>
           <CardDescription>
             {filteredMembers.length} of {members.length} members
           </CardDescription>
@@ -268,12 +267,6 @@ const MembersTab = () => {
                           <h3 className="font-semibold">
                             {displayName || member.email}
                           </h3>
-                          <Badge
-                            variant="outline"
-                            className={getStatusBadge(member.status ?? "")}
-                          >
-                            {member.status}
-                          </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {member.email}

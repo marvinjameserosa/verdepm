@@ -99,6 +99,19 @@ export default function Profile01({ onAvatarChange }: Profile01Props) {
         setErrorMessage("Unable to load profile details.");
       }
 
+      const {
+        data: membership,
+        error: membershipError,
+      } = await supabase
+        .from("organization_member")
+        .select("role")
+        .eq("user_id", authUser.id)
+        .maybeSingle();
+
+      if (membershipError && membershipError.code !== "PGRST116") {
+        console.warn("Failed to load membership role", membershipError);
+      }
+
       const firstName = userProfile?.first_name?.trim();
       const lastName = userProfile?.last_name?.trim();
       const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
@@ -133,6 +146,9 @@ export default function Profile01({ onAvatarChange }: Profile01Props) {
         email: authUser.email ?? null,
         name: resolvedName,
         role:
+          (membership?.role &&
+            typeof membership.role === "string" &&
+            membership.role) ||
           userProfile?.role ||
           authUser.user_metadata?.role ||
           defaultProfile.role,
