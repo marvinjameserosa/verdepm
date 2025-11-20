@@ -2,8 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
-const ORGANIZATION_ID = "06e8e179-2734-4675-b14c-eab46611a6b2";
-
 export async function POST(request: Request) {
   const { email, password, firstname, lastname, phone, role } =
     await request.json();
@@ -40,6 +38,47 @@ export async function POST(request: Request) {
     },
   });
 
+  const {
+    data: inviterMemberships,
+    error: inviterMembershipError,
+  } = await supabaseAdmin
+    .from("organization_member")
+    .select("organization_id, role")
+    .eq("user_id", currentUser.id);
+
+  if (inviterMembershipError) {
+    console.error(
+      "Failed to resolve inviter organization",
+      inviterMembershipError
+    );
+    return NextResponse.json(
+      { error: "Unable to determine organization for the new member." },
+      { status: 500 }
+    );
+  }
+
+  const ownerMembership = (inviterMemberships ?? []).find((membership) => {
+    const role =
+      typeof membership?.role === "string"
+        ? membership.role.toLowerCase()
+        : "";
+    return (
+      role === "owner" && typeof membership?.organization_id === "string"
+    );
+  });
+
+  if (!ownerMembership?.organization_id) {
+    return NextResponse.json(
+      {
+        error:
+          "Only organization owners can invite members. No owner organization found for this account.",
+      },
+      { status: 403 }
+    );
+  }
+
+  const organizationId = ownerMembership.organization_id;
+
   // Step 1: Create the user in auth.users
   const { data: authData, error: authError } =
     await supabaseAdmin.auth.admin.createUser({
@@ -75,7 +114,7 @@ export async function POST(request: Request) {
     modified_by: currentUser.id,
     created_at: new Date().toISOString(),
     modified_at: new Date().toISOString(),
-    organization_id: ORGANIZATION_ID,
+    organization_id: organizationId,
   });
 
   if (profileError) {
@@ -88,7 +127,7 @@ export async function POST(request: Request) {
   const { error: organizationMemberError } = await supabaseAdmin
     .from("organization_member")
     .insert({
-      organization_id: ORGANIZATION_ID,
+      organization_id: organizationId,
       user_id: authData.user.id,
       role,
     });
