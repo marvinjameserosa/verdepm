@@ -1,12 +1,22 @@
-import { supabase } from "@/lib/supabase/client";
 import type { User } from "@/types/user";
 
-export async function fetchMembers(): Promise<User[]> {
-  const { data, error } = await supabase.from("users").select("*");
+type MembersResponse = {
+  members?: User[];
+  error?: string;
+};
 
-  if (error) {
-    throw error;
+export async function fetchMembers(): Promise<User[]> {
+  const response = await fetch("/api/admin/members", {
+    method: "GET",
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as MembersResponse;
+
+  if (!response.ok) {
+    throw new Error(
+      payload?.error ?? "Failed to fetch members for this organization."
+    );
   }
 
-  return (data as User[]) ?? [];
+  return payload.members ?? [];
 }
