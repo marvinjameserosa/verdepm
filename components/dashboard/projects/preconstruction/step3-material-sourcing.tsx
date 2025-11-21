@@ -22,6 +22,8 @@ import {
   Trash2,
   Upload,
   X,
+  ExternalLink,
+  Edit,
 } from "lucide-react";
 import {
   Select,
@@ -256,7 +258,7 @@ export default function Step3MaterialSourcing({
 
   return (
     <section className="w-full pb-12">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 sm:px-6">
+      <div className="mx-auto flex w-full flex-col gap-8 px-4 sm:px-6">
         <header className="space-y-2">
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
             <div className="rounded-lg bg-emerald-100 p-1.5 dark:bg-emerald-900/40">
@@ -497,7 +499,6 @@ export default function Step3MaterialSourcing({
                     <SelectItem value="Vetted">Vetted</SelectItem>
                     <SelectItem value="Identified">Identified</SelectItem>
                     <SelectItem value="Denied">Denied</SelectItem>
-                    <SelectItem value="Not Delivered">Not Delivered</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -550,6 +551,10 @@ export default function Step3MaterialSourcing({
                         </TableHead>
                         <TableHead>Unit</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Delivery Status</TableHead>
+                        <TableHead>Credentials</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead>Spec Sheet</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -558,22 +563,17 @@ export default function Step3MaterialSourcing({
                         <TableRow key={material.id}>
                           <TableCell className="font-medium">
                             {material.name}
-                            {material.specSheetUrl && (
-                              <div className="mt-1">
-                                <a
-                                  href={material.specSheetUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-                                >
-                                  View Spec Sheet
-                                </a>
-                              </div>
-                            )}
                           </TableCell>
                           <TableCell>{material.category}</TableCell>
                           <TableCell>{material.supplier}</TableCell>
-                          <TableCell>{material.warehouse ?? "—"}</TableCell>
+                          <TableCell>
+                            <div
+                              className="max-w-[150px] truncate"
+                              title={material.warehouse}
+                            >
+                              {material.warehouse ?? "—"}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                             {formatCurrencyValue(material.cost)}
                           </TableCell>
@@ -590,6 +590,35 @@ export default function Step3MaterialSourcing({
                             </Badge>
                           </TableCell>
                           <TableCell>
+                            {material.deliveryStatus ?? "—"}
+                          </TableCell>
+                          <TableCell
+                            className="max-w-[200px] truncate"
+                            title={material.credentials}
+                          >
+                            {material.credentials ?? "—"}
+                          </TableCell>
+                          <TableCell
+                            className="max-w-[200px] truncate"
+                            title={material.notes}
+                          >
+                            {material.notes ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            {material.specSheetUrl ? (
+                              <a
+                                href={material.specSheetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline flex items-center gap-1"
+                              >
+                                View <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center gap-2">
                               <Button
                                 type="button"
@@ -601,7 +630,7 @@ export default function Step3MaterialSourcing({
                                   deletingMaterialId === material.id
                                 }
                               >
-                                Edit
+                                <Edit className="h-4 w-4" />
                               </Button>
                               <Button
                                 type="button"

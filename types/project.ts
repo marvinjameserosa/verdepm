@@ -75,6 +75,7 @@ export type Material = {
   submittedBy?: string | null;
   approvedBy?: string | null;
   approvedAt?: string | null;
+  deliveryStatus?: string;
 };
 
 export type EsgTarget = {

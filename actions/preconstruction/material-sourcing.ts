@@ -24,7 +24,8 @@ export async function addMaterialSourcing(projectId: string, material: any) {
         supplier_vetting_notes: material.notes,
         spec_sheet_path: material.specSheetPath,
         spec_sheet_url: material.specSheetUrl,
-        vetting_status: material.status,
+        vetting: material.status,
+        delivery_status: "Not Delivered",
         submitted_by: user?.id,
       },
     ])

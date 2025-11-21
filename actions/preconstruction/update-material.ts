@@ -22,7 +22,7 @@ export async function updateMaterialSourcing(
     unit: material.unit,
     sustainability_credentials: material.credentials,
     supplier_vetting_notes: material.notes,
-    vetting_status: material.status,
+    vetting: material.status,
   };
 
   if (material.specSheetPath) {

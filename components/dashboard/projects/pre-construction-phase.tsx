@@ -334,7 +334,8 @@ export function PreConstructionPhase({
         unit: materialRow.unit ?? undefined,
         notes: materialRow.supplier_vetting_notes ?? "",
         credentials: materialRow.sustainability_credentials ?? undefined,
-        status: materialRow.vetting_status,
+        status: materialRow.vetting,
+        deliveryStatus: materialRow.delivery_status ?? undefined,
         warehouse: materialRow.warehouse ?? undefined,
         specSheetPath: materialRow.spec_sheet_path ?? undefined,
         specSheetUrl: materialRow.spec_sheet_url ?? undefined,
@@ -1102,10 +1103,11 @@ export function PreConstructionPhase({
                     unit: data.unit ?? undefined,
                     notes: data.supplier_vetting_notes ?? "",
                     credentials: data.sustainability_credentials ?? undefined,
-                    status: data.vetting_status,
+                    status: data.vetting,
                     warehouse: data.warehouse ?? undefined,
                     specSheetPath: data.spec_sheet_path ?? undefined,
                     specSheetUrl: data.spec_sheet_url ?? undefined,
+                    deliveryStatus: data.delivery_status ?? undefined,
                   }
                 : m
             )
@@ -1133,10 +1135,11 @@ export function PreConstructionPhase({
               unit: data.unit ?? undefined,
               notes: data.supplier_vetting_notes ?? "",
               credentials: data.sustainability_credentials ?? undefined,
-              status: data.vetting_status,
+              status: data.vetting,
               warehouse: data.warehouse ?? undefined,
               specSheetPath: data.spec_sheet_path ?? undefined,
               specSheetUrl: data.spec_sheet_url ?? undefined,
+              deliveryStatus: data.delivery_status ?? undefined,
             },
           ]);
         }

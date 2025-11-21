@@ -43,6 +43,7 @@ export type SourcedMaterial = {
   approvalStatus?: string;
   specSheetUrl?: string;
   fuelSummary?: number;
+  deliveryStatus?: string;
 };
 
 export type DailyMetricKey =

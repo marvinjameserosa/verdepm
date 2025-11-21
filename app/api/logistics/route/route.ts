@@ -42,6 +42,36 @@ const fetchWithTimeout = async (
   }
 };
 
+const fetchWithRetry = async (
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+  timeoutMessage: string,
+  retries: number = 2
+) => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetchWithTimeout(input, init, timeoutMs, timeoutMessage);
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `Attempt ${attempt + 1} failed for ${input.toString()}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+
+      if (attempt < retries) {
+        const delay = 1000 * (attempt + 1); // Linear backoff: 1s, 2s...
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+};
+
 const isValidLatitude = (value: number) => value >= -90 && value <= 90;
 const isValidLongitude = (value: number) => value >= -180 && value <= 180;
 
@@ -80,7 +110,7 @@ const geocodeWithNominatim = async (query: string): Promise<CoordinateResult> =>
   url.searchParams.set("addressdetails", "0");
   url.searchParams.set("polygon_geojson", "0");
 
-  const response = await fetchWithTimeout(
+  const response = await fetchWithRetry(
     url,
     {
       cache: "no-store",
@@ -89,7 +119,7 @@ const geocodeWithNominatim = async (query: string): Promise<CoordinateResult> =>
         "Accept-Language": "en",
       },
     },
-    12000,
+    15000,
     "Geocoding request timed out. Please refine the address or try again."
   );
 
@@ -139,7 +169,7 @@ const requestRoute = async (start: CoordinateResult, end: CoordinateResult) => {
   url.searchParams.set("alternatives", "false");
   url.searchParams.set("steps", "false");
 
-  const response = await fetchWithTimeout(
+  const response = await fetchWithRetry(
     url,
     {
       cache: "no-store",
@@ -147,7 +177,7 @@ const requestRoute = async (start: CoordinateResult, end: CoordinateResult) => {
         "User-Agent": NOMINATIM_USER_AGENT,
       },
     },
-    15000,
+    20000,
     "Route planning request timed out. Please try again with different points."
   );
 

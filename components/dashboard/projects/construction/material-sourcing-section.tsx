@@ -98,6 +98,7 @@ export function MaterialSourcingSection({
                   </TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Delivery Status</TableHead>
                   <TableHead>Approval</TableHead>
                   <TableHead>Fuel Summary (L)</TableHead>
                   <TableHead>Credentials</TableHead>
@@ -109,7 +110,7 @@ export function MaterialSourcingSection({
               <TableBody>
                 {materialLoading ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center">
+                    <TableCell colSpan={14} className="text-center">
                       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading sourcing plan…
@@ -140,6 +141,7 @@ export function MaterialSourcingSection({
                           {material.status}
                         </Badge>
                       </TableCell>
+                      <TableCell>{material.deliveryStatus ?? "—"}</TableCell>
                       <TableCell>{material.approvalStatus ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         {material.fuelSummary

@@ -71,7 +71,7 @@ export async function getPreconstructionData(projectId: string) {
     const { data: materialRows, error: materialsError } = await supabase
       .from("material")
       .select(
-        "id, material_category, supplier, material_name, warehouse, estimated_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, spec_sheet_url, vetting_status"
+        "id, material_category, supplier, material_name, warehouse, estimated_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, spec_sheet_url, vetting, delivery_status"
       )
       .eq("project_id", projectId)
       .order("created_at", { ascending: true });
@@ -174,7 +174,8 @@ export async function getReviewPlansData(projectId: string) {
     warehouse: m.warehouse,
     specSheetPath: m.spec_sheet_path,
     specSheetUrl: m.spec_sheet_url,
-    status: m.vetting_status,
+    status: m.vetting,
+    deliveryStatus: m.delivery_status,
   }));
 
   return {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getReviewPlansData } from "@/actions/preconstruction/fetch";
+
 
 type Props = {
   onBack: () => void;
@@ -49,46 +49,13 @@ export default function Step4ReviewPlans({
   onBack,
   onSubmitApproval,
   isSubmitting,
-  materials: initialMaterials,
-  targets: initialTargets,
+  materials,
+  targets,
   projectId,
 }: Props) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
-
-  const [materials, setMaterials] = useState<Material[]>(initialMaterials);
-  const [targets, setTargets] = useState<ProjectEsgTargets>(initialTargets);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (projectId) {
-      const fetchData = async () => {
-        setIsLoading(true);
-        try {
-          const data = await getReviewPlansData(projectId);
-          setMaterials(data.materials);
-          if (data.targets) {
-            // Cast or ensure type safety if needed, assuming the action returns compatible structure
-            setTargets(data.targets as unknown as ProjectEsgTargets);
-          }
-        } catch (error) {
-          console.error("Failed to fetch review data", error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchData();
-    }
-  }, [projectId]);
-
-  // Update local state if props change (and we are not fetching or just to sync)
-  useEffect(() => {
-    if (!projectId) {
-      setMaterials(initialMaterials);
-      setTargets(initialTargets);
-    }
-  }, [initialMaterials, initialTargets, projectId]);
 
   const formatValueDisplay = (value: string | undefined | null) => {
     if (!value) {
@@ -168,13 +135,7 @@ export default function Step4ReviewPlans({
           </p>
         </header>
 
-        {isLoading ? (
-          <div className="py-12 text-center text-muted-foreground">
-            Loading review data...
-          </div>
-        ) : (
-          <>
-            <div className="space-y-4">
+        <div className="space-y-4">
               <h3 className="font-semibold text-lg">Project ESG Targets</h3>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <ReviewCard
@@ -317,6 +278,7 @@ export default function Step4ReviewPlans({
                       <TableHead>Sustainability & Compliance</TableHead>
                       <TableHead>Supplier</TableHead>
                       <TableHead>Estimated Cost per Unit</TableHead>
+                      <TableHead>Delivery Status</TableHead>
                       <TableHead className="text-right">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -324,7 +286,7 @@ export default function Step4ReviewPlans({
                     {materials.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={5}
+                          colSpan={6}
                           className="text-center text-sm text-muted-foreground h-24"
                         >
                           No materials added yet.
@@ -371,7 +333,7 @@ export default function Step4ReviewPlans({
                               {!mat.credentials && !mat.specSheetUrl && (
                                 <span className="text-xs text-muted-foreground italic">
                                   None
-                                </span>
+                                 </span>
                               )}
                             </div>
                           </TableCell>
@@ -390,6 +352,11 @@ export default function Step4ReviewPlans({
                             <div className="text-xs text-muted-foreground">
                               per {mat.unit}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {mat.deliveryStatus ?? "—"}
+                            </span>
                           </TableCell>
                           <TableCell className="text-right">
                             <Badge
@@ -432,8 +399,7 @@ export default function Step4ReviewPlans({
                 </Button>
               </div>
             </div>
-          </>
-        )}
+
       </div>
 
       <Dialog

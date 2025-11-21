@@ -28,7 +28,8 @@ const STATUS_FILTER_ORDER: ProjectStatus[] = [
 ];
 
 export default function ProjectsTab() {
-  const { projectList, isLoading, errorMessage, addProject } = useProjects();
+  const { projectList, isLoading, errorMessage, addProject, refreshProjects } =
+    useProjects();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatuses, setSelectedStatuses] =
     useState<ProjectStatus[]>(STATUS_FILTER_ORDER);
@@ -160,7 +161,11 @@ export default function ProjectsTab() {
           </Card>
         ) : (
           filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onRefresh={refreshProjects}
+            />
           ))
         )}
       </div>
