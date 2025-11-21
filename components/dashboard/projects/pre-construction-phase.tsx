@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Step1ProjectSetup from "./preconstruction/step1-project-setup";
 import Step2TargetSetting from "./preconstruction/step2-target-setting";
-import Step3ReviewPlans from "./preconstruction/step3-review-plans";
+import Step3MaterialSourcing from "./preconstruction/step3-material-sourcing";
+import Step4ReviewPlans from "./preconstruction/step4-review-plans";
 import { type Material, type MaterialStatus } from "./preconstruction/types";
 
 import type { Project } from "@/types/project";
@@ -21,11 +22,15 @@ import {
   saveProjectSetup as saveProjectSetupAction,
   submitForApproval,
 } from "@/actions/preconstruction/setup";
-import { saveTarget } from "@/actions/preconstruction/targets";
 import {
-  addMaterial,
-  deleteMaterial,
-} from "@/actions/preconstruction/materials";
+  saveTarget,
+  saveProjectTarget,
+} from "@/actions/preconstruction/targets";
+import {
+  addMaterialSourcing,
+  deleteMaterialSourcing,
+} from "@/actions/preconstruction/material-sourcing";
+import { updateMaterialSourcing } from "@/actions/preconstruction/update-material";
 import {
   type TargetSectionKey,
   type TargetSectionValuesMap,
@@ -234,7 +239,7 @@ export function PreConstructionPhase({
     void ensureColumnMetadataLoaded();
   }, [ensureColumnMetadataLoaded]);
 
-  const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, 3)), []);
+  const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, 4)), []);
   const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
 
   const resetFeedback = useCallback(() => {
@@ -321,17 +326,18 @@ export function PreConstructionPhase({
         id: materialRow.id,
         category: materialRow.material_category,
         name: materialRow.material_name,
-        supplier: materialRow.planned_supplier,
+        supplier: materialRow.supplier,
         cost:
-          materialRow.budgeted_cost !== null
-            ? materialRow.budgeted_cost.toString()
+          materialRow.estimated_cost !== null
+            ? materialRow.estimated_cost.toString()
             : "",
         unit: materialRow.unit ?? undefined,
         notes: materialRow.supplier_vetting_notes ?? "",
         credentials: materialRow.sustainability_credentials ?? undefined,
         status: materialRow.vetting_status,
-        warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
+        warehouse: materialRow.warehouse ?? undefined,
         specSheetPath: materialRow.spec_sheet_path ?? undefined,
+        specSheetUrl: materialRow.spec_sheet_url ?? undefined,
       }));
       setMaterials(mappedMaterials);
 
@@ -682,385 +688,35 @@ export function PreConstructionPhase({
       resetFeedback();
       setSavingTargetSection(section);
 
-      const saveTargetRecord = async (
-        targetSection: TargetSectionKey,
-        canonicalValues: Record<string, unknown>,
-        existingId: string | null,
-        options?: { useDirectColumnNames?: boolean }
-      ): Promise<string | null> => {
-        const config = TARGET_SECTION_CONFIG[targetSection];
-        const { table } = config;
-        const missingTableMessage = MISSING_TABLE_MESSAGES[targetSection];
-
-        const applyTimeframeFallback = (): boolean => {
-          const timeframeCandidates = config.candidates.timeframe;
-          if (!timeframeCandidates || timeframeCandidates.length === 0) {
-            return false;
-          }
-
-          const tableTypes = columnTypesRef.current[table] ?? {};
-          const currentMapping = {
-            ...(columnMapRef.current[targetSection] ?? {}),
-          } as Record<string, string>;
-          const currentColumn = currentMapping.timeframe;
-
-          for (const candidateColumn of timeframeCandidates) {
-            if (candidateColumn === currentColumn) {
-              continue;
-            }
-            if (tableTypes[candidateColumn]) {
-              currentMapping.timeframe = candidateColumn;
-              columnMapRef.current[targetSection] = currentMapping;
-              return true;
-            }
-          }
-
-          return false;
-        };
-
-        const persist = async (
-          currentId: string | null,
-          retry: boolean
-        ): Promise<string | null> => {
-          let mappedValues: Record<string, unknown>;
-
-          if (options?.useDirectColumnNames) {
-            mappedValues = canonicalValues;
-          } else {
-            await ensureColumnMetadataLoaded();
-            mappedValues = buildPayloadForSection(
-              targetSection,
-              canonicalValues
-            );
-          }
-
-          try {
-            const recordId = await saveTarget(
-              targetSection,
-              activeProjectId,
-              mappedValues,
-              currentId
-            );
-            return recordId;
-          } catch (error) {
-            if (isMissingRelationError(error)) {
-              throw new Error(missingTableMessage);
-            }
-            if (
-              isMissingColumnError(error) &&
-              !retry &&
-              !options?.useDirectColumnNames
-            ) {
-              metadataLoadedRef.current = false;
-              metadataPromiseRef.current = null;
-              return persist(currentId, true);
-            }
-            if (
-              isForeignKeyTimeframeError(error) &&
-              !retry &&
-              !options?.useDirectColumnNames &&
-              applyTimeframeFallback()
-            ) {
-              return persist(currentId, true);
-            }
-            throw error;
-          }
-        };
-
-        return persist(existingId, false);
-      };
-
       try {
-        if (section === "electricityUsage") {
-          const values =
-            sectionValues as TargetSectionValuesMap["electricityUsage"];
-          const totalElectricityInput = values.totalElectricityConsumed.trim();
-          if (!totalElectricityInput) {
-            throw new Error(
-              "Provide the total electricity consumed before saving."
-            );
-          }
+        const recordId = await saveProjectTarget(
+          activeProjectId,
+          section,
+          sectionValues
+        );
 
-          const totalElectricityConsumed = parseNumeric(
-            totalElectricityInput,
-            "Total electricity consumed"
-          );
-          const normalizedDate = normalizeDateInput(
-            values.date ?? "",
-            "Target date"
-          );
+        setTargets((prev) => {
+          const updated = { ...prev };
+          // @ts-ignore
+          updated[section] = {
+            ...updated[section],
+            ...sectionValues,
+            id: recordId,
+          };
+          return updated;
+        });
 
-          const recordId = await saveTargetRecord(
-            "electricityUsage",
-            {
-              date: normalizedDate,
-              totalElectricityConsumed,
-            },
-            values.id ?? null
-          );
-
-          setTargets((prev) => ({
-            ...prev,
-            electricityUsage: {
-              id: recordId,
-              timeframe: null,
-              date: normalizedDate ?? "",
-              totalElectricityConsumed: totalElectricityInput,
-            },
-          }));
-          setSuccessMessage("Electricity usage target saved.");
-          return;
-        }
-
-        if (section === "equipmentUsage") {
-          const values =
-            sectionValues as TargetSectionValuesMap["equipmentUsage"];
-          const equipmentOperationLogsInput =
-            values.equipmentOperationLogs.trim();
-          const fuelRateInput = values.fuelRate.trim();
-          const normalizedDate = normalizeDateInput(
-            values.date ?? "",
-            "Target date"
-          );
-
-          const equipmentOperationLogsValue = parseNumeric(
-            equipmentOperationLogsInput,
-            "Equipment operation logs"
-          );
-          const fuelRate = parseNumeric(fuelRateInput, "Fuel rate");
-          const totalFuel = equipmentOperationLogsValue * fuelRate;
-          const totalFuelString = totalFuel.toString();
-          const combustionEmissionFactor = FIXED_EMISSION_FACTOR;
-
-          const recordId = await saveTargetRecord(
-            "equipmentUsage",
-            {
-              date: normalizedDate,
-              equipmentOperationLogs: equipmentOperationLogsValue,
-              fuelRate,
-              totalFuel,
-              combustionEmissionFactor,
-            },
-            values.id ?? null
-          );
-
-          setTargets((prev) => ({
-            ...prev,
-            equipmentUsage: {
-              id: recordId,
-              timeframe: null,
-              date: normalizedDate ?? "",
-              equipmentOperationLogs: equipmentOperationLogsInput,
-              fuelRate: fuelRateInput,
-              totalFuel: totalFuelString,
-              combustionEmissionFactor: FIXED_EMISSION_FACTOR_STRING,
-            },
-          }));
-          setSuccessMessage("Equipment usage target saved.");
-          return;
-        }
-
-        if (section === "fuelConsumption") {
-          const values =
-            sectionValues as TargetSectionValuesMap["fuelConsumption"];
-          const totalDistanceInput = values.totalDistance.trim();
-          const fuelEfficiencyInput = values.fuelEfficiency.trim();
-          const normalizedDate = normalizeDateInput(
-            values.date ?? "",
-            "Target date"
-          );
-
-          const totalDistance = parseNumeric(
-            totalDistanceInput,
-            "Total distance"
-          );
-          const fuelEfficiency = parseNumeric(
-            fuelEfficiencyInput,
-            "Fuel efficiency"
-          );
-          const totalFuel = totalDistance * fuelEfficiency;
-          const totalFuelString = totalFuel.toString();
-          const fuelEmissionFactor = FIXED_EMISSION_FACTOR;
-
-          const recordId = await saveTargetRecord(
-            "fuelConsumption",
-            {
-              date: normalizedDate,
-              totalDistance,
-              fuelEfficiency,
-              totalFuel,
-              fuelEmissionFactor,
-            },
-            values.id ?? null
-          );
-
-          setTargets((prev) => ({
-            ...prev,
-            fuelConsumption: {
-              id: recordId,
-              timeframe: null,
-              date: normalizedDate ?? "",
-              totalDistance: totalDistanceInput,
-              fuelEfficiency: fuelEfficiencyInput,
-              totalFuel: totalFuelString,
-              fuelEmissionFactor: FIXED_EMISSION_FACTOR_STRING,
-            },
-          }));
-          setSuccessMessage("Fuel consumption target saved.");
-          return;
-        }
-
-        if (section === "wasteGenerated") {
-          const values =
-            sectionValues as TargetSectionValuesMap["wasteGenerated"];
-          const totalWasteMassInput = values.totalWasteMass.trim();
-          const percentByTreatmentInput = values.percentByTreatment.trim();
-          const emissionFactorInput = values.emissionFactor.trim();
-          const normalizedDate = normalizeDateInput(
-            values.date ?? "",
-            "Target date"
-          );
-
-          const totalWasteMass = parseNumeric(
-            totalWasteMassInput,
-            "Total waste mass"
-          );
-          const percentByTreatment = parseNumeric(
-            percentByTreatmentInput,
-            "Percent by treatment"
-          );
-          const emissionFactor = parseNumeric(
-            emissionFactorInput,
-            "Emission factor"
-          );
-
-          const recordId = await saveTargetRecord(
-            "wasteGenerated",
-            {
-              date: normalizedDate,
-              totalWasteMass,
-              percentByTreatment,
-              emissionFactor,
-            },
-            values.id ?? null
-          );
-
-          setTargets((prev) => ({
-            ...prev,
-            wasteGenerated: {
-              id: recordId,
-              timeframe: null,
-              date: normalizedDate ?? "",
-              totalWasteMass: totalWasteMassInput,
-              percentByTreatment: percentByTreatmentInput,
-              emissionFactor: emissionFactorInput,
-            },
-          }));
-          setSuccessMessage("Waste generated target saved.");
-          return;
-        }
-
-        if (section === "waterSupply") {
-          const values = sectionValues as TargetSectionValuesMap["waterSupply"];
-          const totalWaterConsumedInput = values.totalWaterConsumed.trim();
-          const waterSupplyEmissionFactorInput =
-            values.waterSupplyEmissionFactor.trim();
-          const normalizedDate = normalizeDateInput(
-            values.date ?? "",
-            "Target date"
-          );
-
-          const totalWaterConsumed = parseNumeric(
-            totalWaterConsumedInput,
-            "Total water consumed"
-          );
-          const waterSupplyEmissionFactor = parseNumeric(
-            waterSupplyEmissionFactorInput,
-            "Water supply emission factor"
-          );
-
-          const recordId = await saveTargetRecord(
-            "waterSupply",
-            {
-              date: normalizedDate,
-              totalWaterConsumed,
-              waterSupplyEmissionFactor,
-            },
-            values.id ?? null
-          );
-
-          setTargets((prev) => ({
-            ...prev,
-            waterSupply: {
-              id: recordId,
-              timeframe: null,
-              date: normalizedDate ?? "",
-              totalWaterConsumed: totalWaterConsumedInput,
-              waterSupplyEmissionFactor: waterSupplyEmissionFactorInput,
-            },
-          }));
-          setSuccessMessage("Water supply target saved.");
-          return;
-        }
-
-        if (section === "safetyIncident") {
-          const values =
-            sectionValues as TargetSectionValuesMap["safetyIncident"];
-          const numberOfIncidentsInput = values.numberOfIncidents.trim();
-          const totalEmployeeHoursInput = values.totalEmployeeHours.trim();
-          const normalizedDate = normalizeDateInput(
-            values.date ?? "",
-            "Target date"
-          );
-
-          const numberOfIncidents = parseNumeric(
-            numberOfIncidentsInput,
-            "Number of incidents"
-          );
-          const totalEmployeeHours = parseNumeric(
-            totalEmployeeHoursInput,
-            "Total employee hours"
-          );
-
-          const recordId = await saveTargetRecord(
-            "safetyIncident",
-            {
-              date: normalizedDate,
-              numberOfIncidents,
-              totalEmployeeHours,
-            },
-            values.id ?? null
-          );
-
-          setTargets((prev) => ({
-            ...prev,
-            safetyIncident: {
-              id: recordId,
-              timeframe: null,
-              date: normalizedDate ?? "",
-              numberOfIncidents: numberOfIncidentsInput,
-              totalEmployeeHours: totalEmployeeHoursInput,
-            },
-          }));
-          setSuccessMessage("Safety incident target saved.");
-          return;
-        }
+        setSuccessMessage("Target saved successfully.");
       } catch (error) {
-        console.error("Failed to save ESG target section", error);
+        console.error("Failed to save target", error);
         setErrorMessage(
-          getErrorMessage(error, "Unable to save ESG target section.")
+          error instanceof Error ? error.message : "Failed to save target."
         );
       } finally {
         setSavingTargetSection(null);
       }
     },
-    [
-      buildPayloadForSection,
-      ensureColumnMetadataLoaded,
-      project?.id,
-      projectDetails?.id,
-      resetFeedback,
-    ]
+    [projectDetails?.id, project?.id]
   );
 
   const handleTargetsError = useCallback((message: string) => {
@@ -1353,9 +1009,19 @@ export function PreConstructionPhase({
   ]);
 
   const handleAddMaterial = useCallback(
-    async (material: MaterialDraftInput, specSheet?: File | null) => {
+    async (
+      material: MaterialDraftInput,
+      specSheet?: File | null,
+      materialId?: string
+    ) => {
       if (!projectSetupId) {
         setErrorMessage("Save project setup before adding sourcing materials.");
+        return;
+      }
+
+      const projectId = projectDetails?.id ?? project?.id;
+      if (!projectId) {
+        setErrorMessage("Project ID is missing.");
         return;
       }
 
@@ -1382,15 +1048,17 @@ export function PreConstructionPhase({
         }
 
         let specSheetPath: string | null = null;
+        let specSheetUrl: string | null = null;
 
         if (specSheet) {
           const extension = specSheet.name.split(".").pop() || "pdf";
           const fileName = `spec-${crypto.randomUUID()}.${extension}`;
-          const storagePath = `project/${projectSetupId}/materials/${fileName}`;
+          const storagePath = `project/${projectId}/materials/${fileName}`;
 
           const formData = new FormData();
           formData.append("file", specSheet);
           formData.append("path", storagePath);
+          formData.append("bucket", "materials");
 
           const { error } = await uploadProjectFile(formData);
 
@@ -1399,34 +1067,79 @@ export function PreConstructionPhase({
             // Continue even if upload fails
           } else {
             specSheetPath = storagePath;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(
+              /\/$/,
+              ""
+            );
+            if (supabaseUrl) {
+              specSheetUrl = `${supabaseUrl}/storage/v1/object/public/materials/${storagePath}`;
+            }
           }
         }
 
-        const data = await addMaterial(projectSetupId, {
-          ...material,
-          cost: parsedCost,
-          specSheetPath,
-        });
+        let data: any;
+        if (materialId) {
+          data = await updateMaterialSourcing(materialId, projectId, {
+            ...material,
+            cost: parsedCost,
+            specSheetPath,
+            specSheetUrl,
+          });
 
-        setMaterials((prev) => [
-          ...prev,
-          {
-            id: data.id,
-            category: data.material_category,
-            name: data.material_name,
-            supplier: data.planned_supplier,
-            cost:
-              data.budgeted_cost !== null && data.budgeted_cost !== undefined
-                ? data.budgeted_cost.toString()
-                : "",
-            unit: data.unit ?? undefined,
-            notes: data.supplier_vetting_notes ?? "",
-            credentials: data.sustainability_credentials ?? undefined,
-            status: data.vetting_status,
-            warehouse: data.warehouse_of_the_supplier ?? undefined,
-            specSheetPath: data.spec_sheet_path ?? undefined,
-          },
-        ]);
+          setMaterials((prev) =>
+            prev.map((m) =>
+              m.id === materialId
+                ? {
+                    id: data.id,
+                    category: data.material_category,
+                    name: data.material_name,
+                    supplier: data.supplier,
+                    cost:
+                      data.estimated_cost !== null &&
+                      data.estimated_cost !== undefined
+                        ? data.estimated_cost.toString()
+                        : "",
+                    unit: data.unit ?? undefined,
+                    notes: data.supplier_vetting_notes ?? "",
+                    credentials: data.sustainability_credentials ?? undefined,
+                    status: data.vetting_status,
+                    warehouse: data.warehouse ?? undefined,
+                    specSheetPath: data.spec_sheet_path ?? undefined,
+                    specSheetUrl: data.spec_sheet_url ?? undefined,
+                  }
+                : m
+            )
+          );
+        } else {
+          data = await addMaterialSourcing(projectId, {
+            ...material,
+            cost: parsedCost,
+            specSheetPath,
+            specSheetUrl,
+          });
+
+          setMaterials((prev) => [
+            ...prev,
+            {
+              id: data.id,
+              category: data.material_category,
+              name: data.material_name,
+              supplier: data.supplier,
+              cost:
+                data.estimated_cost !== null &&
+                data.estimated_cost !== undefined
+                  ? data.estimated_cost.toString()
+                  : "",
+              unit: data.unit ?? undefined,
+              notes: data.supplier_vetting_notes ?? "",
+              credentials: data.sustainability_credentials ?? undefined,
+              status: data.vetting_status,
+              warehouse: data.warehouse ?? undefined,
+              specSheetPath: data.spec_sheet_path ?? undefined,
+              specSheetUrl: data.spec_sheet_url ?? undefined,
+            },
+          ]);
+        }
       } catch (error) {
         if (isMissingRelationError(error)) {
           console.warn(
@@ -1434,15 +1147,17 @@ export function PreConstructionPhase({
           );
           return;
         }
-        console.error("Failed to add material", error);
+        console.error("Failed to add/update material", error);
         setErrorMessage(
-          error instanceof Error ? error.message : "Unable to add material."
+          error instanceof Error
+            ? error.message
+            : "Unable to add/update material."
         );
       } finally {
         setIsSavingMaterial(false);
       }
     },
-    [projectSetupId, resetFeedback]
+    [projectSetupId, resetFeedback, projectDetails?.id, project?.id]
   );
 
   const handleDeleteMaterial = useCallback(
@@ -1454,11 +1169,17 @@ export function PreConstructionPhase({
         return;
       }
 
+      const projectId = projectDetails?.id ?? project?.id;
+      if (!projectId) {
+        setErrorMessage("Project ID is missing.");
+        return;
+      }
+
       resetFeedback();
       setDeletingMaterialId(materialId);
 
       try {
-        await deleteMaterial(materialId, projectSetupId);
+        await deleteMaterialSourcing(materialId, projectId);
 
         setMaterials((prev) =>
           prev.filter((material) => material.id !== materialId)
@@ -1478,7 +1199,7 @@ export function PreConstructionPhase({
         setDeletingMaterialId(null);
       }
     },
-    [projectSetupId, resetFeedback]
+    [projectSetupId, resetFeedback, projectDetails?.id, project?.id]
   );
 
   const step1InitialValues = useMemo<Step1InitialValues>(
@@ -1528,14 +1249,6 @@ export function PreConstructionPhase({
             each section.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <span>
-            {savedTargetCount} ESG target{savedTargetCount === 1 ? "" : "s"}{" "}
-            saved
-          </span>
-          <span className="hidden h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-700 sm:inline-flex" />
-          <span>{materials.length} materials tracked</span>
-        </div>
       </div>
 
       <div className="lg:grid lg:grid-cols-[280px_1fr] lg:items-start lg:gap-6 space-y-6 lg:space-y-0">
@@ -1553,11 +1266,15 @@ export function PreConstructionPhase({
             )}
             {step === 2 && (
               <p className="text-emerald-900/80 dark:text-emerald-100/80">
-                Tie each ESG target to a measurable KPI, then match sourcing
-                notes that support it.
+                Tie each ESG target to a measurable KPI.
               </p>
             )}
             {step === 3 && (
+              <p className="text-emerald-900/80 dark:text-emerald-100/80">
+                Match sourcing notes that support your targets.
+              </p>
+            )}
+            {step === 4 && (
               <p className="text-emerald-900/80 dark:text-emerald-100/80">
                 Scan for missing costs or vetting notes before submitting for
                 approval.
@@ -1587,26 +1304,33 @@ export function PreConstructionPhase({
             <Step2TargetSetting
               onNext={nextStep}
               onBack={prevStep}
-              onAddMaterial={handleAddMaterial}
-              onDeleteMaterial={handleDeleteMaterial}
               projectId={projectDetails?.id ?? project?.id ?? null}
               targets={targets}
               onSaveTargetSection={handleSaveTargetSection}
               savingSection={savingTargetSection}
               onError={handleTargetsError}
               onResetFeedback={resetFeedback}
+            />
+          )}
+          {step === 3 && (
+            <Step3MaterialSourcing
+              onNext={nextStep}
+              onBack={prevStep}
+              onAddMaterial={handleAddMaterial}
+              onDeleteMaterial={handleDeleteMaterial}
               materials={materials}
               isSavingMaterial={isSavingMaterial}
               deletingMaterialId={deletingMaterialId}
             />
           )}
-          {step === 3 && (
-            <Step3ReviewPlans
+          {step === 4 && (
+            <Step4ReviewPlans
               onBack={prevStep}
               onSubmitApproval={handleSubmitForApproval}
               isSubmitting={isSubmittingForApproval}
               materials={materials}
               targets={targets}
+              projectId={projectDetails?.id ?? project?.id ?? null}
             />
           )}
         </div>

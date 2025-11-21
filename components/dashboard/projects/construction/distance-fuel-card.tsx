@@ -7,87 +7,164 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Fuel, Truck } from "lucide-react";
+import { Construction, ShieldAlert, Target } from "lucide-react";
+import { EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER } from "@/types/construction";
 
 interface DistanceFuelCardProps {
-  distanceValue: string;
-  efficiencyValue: string;
-  onDistanceChange: (value: string) => void;
-  onEfficiencyChange: (value: string) => void;
-  computedFuelLiters: number | null;
+  // Equipment Props
+  equipmentHours: string;
+  equipmentFuelRate: string;
+  onEquipmentHoursChange: (value: string) => void;
+  onEquipmentFuelRateChange: (value: string) => void;
+  computedEquipmentFuelLiters: number | null;
+  computedEquipmentCo2Kg: number | null;
+
+  // Safety Props
+  incidentCount: string;
+  hoursWorked: string;
+  onIncidentCountChange: (value: string) => void;
+  onHoursWorkedChange: (value: string) => void;
+  computedTrir: number | null;
+  safetyTarget: { goal: string; metric: string };
 }
 
 export function DistanceFuelCard({
-  distanceValue,
-  efficiencyValue,
-  onDistanceChange,
-  onEfficiencyChange,
-  computedFuelLiters,
+  equipmentHours,
+  equipmentFuelRate,
+  onEquipmentHoursChange,
+  onEquipmentFuelRateChange,
+  computedEquipmentFuelLiters,
+  computedEquipmentCo2Kg,
+  incidentCount,
+  hoursWorked,
+  onIncidentCountChange,
+  onHoursWorkedChange,
+  computedTrir,
+  safetyTarget,
 }: DistanceFuelCardProps) {
-  // Calculate tCO2e for today's fuel
-  const todayTco2e =
-    computedFuelLiters !== null ? computedFuelLiters * 2.68 : null;
   return (
-    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl col-span-1 md:col-span-2 lg:col-span-2">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div>
           <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-            Route Fuel Summary (For Deliveries)
+            Equipment Emissions Summary and Safety Performance (TRIR)
           </CardTitle>
           <CardDescription className="mt-1">
-            Capture today&apos;s travel distance and efficiency to
-            auto-calculate fuel usage.
+            Track equipment usage and safety incidents.
           </CardDescription>
         </div>
-        <div className="flex space-x-1">
+        <div className="flex gap-2">
           <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
-            <Truck className="h-4 w-4 text-muted-foreground" />
+            <Construction className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
-            <Fuel className="h-4 w-4 text-muted-foreground" />
+            <ShieldAlert className="h-4 w-4 text-muted-foreground" />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="daily-total-distance">
-              Today&apos;s Total Distance (km)
-            </Label>
-            <Input
-              id="daily-total-distance"
-              type="number"
-              value={distanceValue}
-              onChange={(event) => onDistanceChange(event.target.value)}
-              placeholder="Enter distance travelled"
-            />
+      <CardContent className="space-y-6">
+        {/* Equipment Section */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 border-b pb-2">
+            Equipment Emissions
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="equipment-total-hours">
+                Total Equipment Hours
+              </Label>
+              <Input
+                id="equipment-total-hours"
+                type="number"
+                value={equipmentHours}
+                onChange={(event) => onEquipmentHoursChange(event.target.value)}
+                placeholder="Enter total runtime"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="equipment-fuel-rate">Fuel Rate (L/hour)</Label>
+              <Input
+                id="equipment-fuel-rate"
+                type="number"
+                value={equipmentFuelRate}
+                onChange={(event) =>
+                  onEquipmentFuelRateChange(event.target.value)
+                }
+                placeholder="Enter average consumption"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="daily-fuel-efficiency">
-              Fuel Efficiency (L/km)
-            </Label>
-            <Input
-              id="daily-fuel-efficiency"
-              type="number"
-              value={efficiencyValue}
-              onChange={(event) => onEfficiencyChange(event.target.value)}
-              placeholder="Enter average efficiency"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-emerald-700 dark:text-emerald-200">
+              Total fuel consumed:
+              <span className="ml-1 font-semibold">
+                {computedEquipmentFuelLiters !== null
+                  ? `${computedEquipmentFuelLiters.toFixed(2)} L`
+                  : "--"}
+              </span>
+            </div>
+            <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-emerald-700 dark:text-emerald-200">
+              Total CO₂e emitted:
+              <span className="ml-1 font-semibold">
+                {computedEquipmentCo2Kg !== null
+                  ? `${computedEquipmentCo2Kg.toFixed(2)} kg`
+                  : "--"}
+              </span>
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Calculations assume an emission factor of{" "}
+            {EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER} kg CO₂e per liter of fuel
+            burned.
+          </p>
         </div>
-        <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
-          Total fuel for today:
-          <span className="ml-1 font-semibold">
-            {computedFuelLiters !== null
-              ? `${computedFuelLiters.toFixed(2)} L`
-              : "--"}
-          </span>
-        </div>
-        <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
-          Total tCO₂e for today:
-          <span className="ml-1 font-semibold">
-            {todayTco2e !== null ? `${todayTco2e.toFixed(2)} tCO₂e` : "--"}
-          </span>
+
+        {/* Safety Section */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 border-b pb-2 flex items-center justify-between">
+            <span>Safety Performance (TRIR)</span>
+            <div className="flex items-center text-xs text-muted-foreground font-normal">
+              <Target className="h-3 w-3 mr-1" />
+              <span>
+                Goal: {safetyTarget.goal} ({safetyTarget.metric})
+              </span>
+            </div>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="safety-incidents">Number of Incidents</Label>
+              <Input
+                id="safety-incidents"
+                type="number"
+                value={incidentCount}
+                onChange={(event) => onIncidentCountChange(event.target.value)}
+                placeholder="Enter recordable incidents"
+                min={0}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="safety-hours">Total Hours Worked</Label>
+              <Input
+                id="safety-hours"
+                type="number"
+                value={hoursWorked}
+                onChange={(event) => onHoursWorkedChange(event.target.value)}
+                placeholder="Enter total crew hours"
+                min={0}
+              />
+            </div>
+          </div>
+          <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
+            Total Recordable Incident Rate:
+            <span className="ml-1 font-semibold">
+              {computedTrir !== null ? computedTrir.toFixed(2) : "--"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            TRIR is computed as (Incidents × 200,000) ÷ Total Hours Worked. A
+            lower value reflects stronger site safety.
+          </p>
         </div>
       </CardContent>
     </Card>

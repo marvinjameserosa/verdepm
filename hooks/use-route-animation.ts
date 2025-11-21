@@ -196,6 +196,7 @@ export function useRouteAnimation() {
     routeEndQuery,
     setRouteEndQuery,
     routeFuelLiters,
+    setRouteFuelLiters,
     routeDistanceKm,
     routeDurationMinutes,
     startLabel,

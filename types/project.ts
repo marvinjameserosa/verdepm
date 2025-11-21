@@ -52,7 +52,11 @@ export interface SupabaseProject {
   updated_at: string;
 }
 
-export type MaterialStatus = "Identified" | "Vetted" | "Denied";
+export type MaterialStatus =
+  | "Identified"
+  | "Vetted"
+  | "Denied"
+  | "Not Delivered";
 
 export type Material = {
   id: string;
@@ -65,6 +69,7 @@ export type Material = {
   credentials?: string;
   warehouse?: string;
   specSheetPath?: string;
+  specSheetUrl?: string;
   status: MaterialStatus;
   approvalStatus?: SupplierApprovalStatus;
   submittedBy?: string | null;

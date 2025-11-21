@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -14,13 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, PackageCheck } from "lucide-react";
+import { Loader2, PackageCheck, Truck } from "lucide-react";
 import { SourcedMaterial } from "@/types/construction";
 
 interface MaterialSourcingSectionProps {
   materialLoading: boolean;
   sourcingMaterials: SourcedMaterial[];
   materialFetchError: string | null;
+  onOpenLogisticsModal: (material: SourcedMaterial) => void;
 }
 
 const MATERIAL_STATUS_BADGE: Record<string, string> = {
@@ -48,6 +50,7 @@ export function MaterialSourcingSection({
   materialLoading,
   sourcingMaterials,
   materialFetchError,
+  onOpenLogisticsModal,
 }: MaterialSourcingSectionProps) {
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
@@ -56,11 +59,10 @@ export function MaterialSourcingSection({
           <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
             <PackageCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          Material Sourcing Plan Alignment
+          Material Delivery & Logistics
         </CardTitle>
         <CardDescription>
-          Review the sourcing commitments captured during pre-construction.
-          Updates must be made from the pre-construction workflow.
+          Review sourcing commitments and log delivery logistics for each material.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -83,12 +85,13 @@ export function MaterialSourcingSection({
                 <TableHead className="text-right">Budgeted Cost ($)</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Route Fuel Summary</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {materialLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Loading sourcing plan…
@@ -119,12 +122,23 @@ export function MaterialSourcingSection({
                         {material.status}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-2"
+                        onClick={() => onOpenLogisticsModal(material)}
+                      >
+                        <Truck className="h-3.5 w-3.5" />
+                        Log Delivery
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-sm text-muted-foreground"
                   >
                     {materialFetchError ??

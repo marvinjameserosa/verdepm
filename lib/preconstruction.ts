@@ -544,10 +544,15 @@ export const STEP_DEFINITIONS = [
   {
     id: 2,
     title: "Target Setting",
-    description: "Capture ESG targets & sourcing notes.",
+    description: "Capture ESG targets.",
   },
   {
     id: 3,
+    title: "Material Sourcing",
+    description: "Log supporting materials and suppliers.",
+  },
+  {
+    id: 4,
     title: "Review Plans",
     description: "Validate and submit for approvals.",
   },
