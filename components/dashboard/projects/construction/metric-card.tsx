@@ -6,7 +6,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Target, Save } from "lucide-react";
 
 interface MetricCardProps {
   icon: React.ReactNode;
@@ -18,6 +19,8 @@ interface MetricCardProps {
   labelPrefix?: string;
   secondaryLabel?: string;
   secondaryValue?: string | null;
+  onSave: () => void;
+  isSaving?: boolean;
 }
 
 export function MetricCard({
@@ -30,6 +33,8 @@ export function MetricCard({
   labelPrefix = "Today's",
   secondaryLabel,
   secondaryValue,
+  onSave,
+  isSaving = false,
 }: MetricCardProps) {
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
@@ -59,11 +64,17 @@ export function MetricCard({
           />
         </div>
         {secondaryLabel ? (
-          <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
+          <div className="mt-4 rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
             {secondaryLabel}
             <span className="ml-1 font-semibold">{secondaryValue ?? "--"}</span>
           </div>
         ) : null}
+        <div className="flex justify-end pt-4">
+          <Button onClick={onSave} disabled={isSaving} size="sm">
+            <Save className="mr-2 h-3 w-3" />
+            {isSaving ? "Saving..." : "Save"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -25,6 +25,7 @@ import { useWasteManagement } from "@/hooks/use-waste-management";
 import { useRouteAnimation } from "@/hooks/use-route-animation";
 import { useSourcingMaterials } from "@/hooks/use-sourcing-materials";
 import { submitConstructionLog } from "@/actions/construction/submit";
+import { addMaterialFuel } from "@/actions/preconstruction/update-material";
 
 import { MetricCard } from "./construction/metric-card";
 import { DistanceFuelCard } from "./construction/distance-fuel-card";
@@ -57,13 +58,16 @@ type ConstructionPhaseProps = {
 export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"daily" | "monthly" | "logistics">(
-    "daily"
+  const [isSubmittingDaily, setIsSubmittingDaily] = useState(false);
+  const [isSubmittingMonthly, setIsSubmittingMonthly] = useState(false);
+  const [isSavingFuel, setIsSavingFuel] = useState(false);
+  const [activeTab, setActiveTab] = useState<"monitoring" | "logistics">(
+    "monitoring"
   );
 
   // Logistics State
-  const [selectedMaterial, setSelectedMaterial] = useState<SourcedMaterial | null>(null);
+  const [selectedMaterial, setSelectedMaterial] =
+    useState<SourcedMaterial | null>(null);
 
   const {
     dailyMetrics,
@@ -115,8 +119,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     handleAnimateRoute,
   } = useRouteAnimation();
 
-  const { sourcingMaterials, materialFetchError, materialLoading } =
-    useSourcingMaterials(project?.id);
+  const {
+    sourcingMaterials,
+    materialFetchError,
+    materialLoading,
+    refreshMaterials,
+  } = useSourcingMaterials(project?.id);
 
   const resetMessages = () => {
     setStatusMessage(null);
@@ -142,17 +150,20 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     // but setting queries is a good start.
   };
 
-  const handleApplyRouteFuel = () => {
+  const handleApplyRouteFuel = async () => {
     resetMessages();
     if (routeDistanceKm === null || routeDistanceKm <= 0) {
       setErrorMessage("Calculate a valid route before applying fuel data.");
       return;
     }
-    
-    const fuelToApply = computedFuelLiters !== null ? computedFuelLiters : Number(routeFuelLiters);
+
+    const fuelToApply =
+      computedFuelLiters !== null
+        ? computedFuelLiters
+        : Number(routeFuelLiters);
 
     if (!fuelToApply && fuelToApply !== 0) {
-       setErrorMessage(
+      setErrorMessage(
         "Ensure fuel consumption is calculated or entered before applying."
       );
       return;
@@ -172,9 +183,10 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       const newTotalDistance = currentDistance + routeDistanceKm;
       const newTotalFuel = currentFuel + fuelToApply;
-      
+
       // Recalculate average efficiency
-      const newEfficiency = newTotalDistance > 0 ? newTotalFuel / newTotalDistance : 0;
+      const newEfficiency =
+        newTotalDistance > 0 ? newTotalFuel / newTotalDistance : 0;
 
       return {
         ...prev,
@@ -183,196 +195,270 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       };
     });
 
-    setStatusMessage(
-      `Added ${fuelToApply.toFixed(2)}L fuel from ${selectedMaterial?.name || "delivery"} to daily total.`
-    );
+    // If a material is selected, update its fuel summary
+    if (selectedMaterial) {
+      setIsSavingFuel(true);
+      try {
+        await addMaterialFuel(selectedMaterial.id, fuelToApply);
+        refreshMaterials();
+        setStatusMessage(
+          `Added ${fuelToApply.toFixed(2)}L fuel from ${
+            selectedMaterial.name
+          } to daily total and material record.`
+        );
+      } catch (error) {
+        console.error("Failed to update material fuel", error);
+        setErrorMessage("Failed to update material fuel summary.");
+      } finally {
+        setIsSavingFuel(false);
+      }
+    } else {
+      setStatusMessage(`Added ${fuelToApply.toFixed(2)}L fuel to daily total.`);
+    }
   };
 
-  const submissionPeriod = activeTab === "monthly" ? "monthly" : "daily";
+  const parseNumber = (value: string) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    if (Number.isNaN(parsed)) {
+      throw new Error("One of the numeric fields contains invalid data.");
+    }
+    return parsed;
+  };
 
-  const handleSubmit = async () => {
+  const handleSaveDaily = async () => {
     resetMessages();
-
     const hasDailyMetrics = Object.values(dailyMetrics).some(
       (value) => value.trim() !== ""
     );
-    const hasMonthlyMetrics = Object.values(monthlyMetrics).some(
-      (value) => value.trim() !== ""
-    );
-    const hasWasteEntries = wasteEntries.length > 0;
-    const shouldSubmitDaily = submissionPeriod === "daily" && hasDailyMetrics;
-    const shouldSubmitMonthly =
-      submissionPeriod === "monthly" && (hasMonthlyMetrics || hasWasteEntries);
 
-    if (!shouldSubmitDaily && !shouldSubmitMonthly) {
-      const message =
-        submissionPeriod === "monthly"
-          ? "Enter at least one monthly metric or waste record before submitting."
-          : "Enter at least one daily metric before submitting.";
-      setErrorMessage(message);
+    if (!hasDailyMetrics) {
+      setErrorMessage("Enter at least one daily metric before saving.");
       return;
     }
 
-    setIsSubmitting(true);
+    setIsSubmittingDaily(true);
 
     try {
-      const parseNumber = (value: string) => {
-        if (!value) return null;
-        const trimmed = value.trim();
-        if (!trimmed) return null;
-        const parsed = Number(trimmed);
-        if (Number.isNaN(parsed)) {
-          throw new Error("One of the numeric fields contains invalid data.");
-        }
-        return parsed;
-      };
+      const distanceValue = parseNumber(dailyMetrics.distanceKm);
+      const efficiencyValue = parseNumber(dailyMetrics.fuelEfficiency);
+      const equipmentHoursValue = parseNumber(dailyMetrics.equipmentHours);
+      const equipmentFuelRateValue = parseNumber(
+        dailyMetrics.equipmentFuelRate
+      );
+      const incidentCountValue = parseNumber(dailyMetrics.incidentCount);
+      const hoursWorkedValue = parseNumber(dailyMetrics.hoursWorked);
 
-      let dailyData = undefined;
-      if (shouldSubmitDaily) {
-        const distanceValue = parseNumber(dailyMetrics.distanceKm);
-        const efficiencyValue = parseNumber(dailyMetrics.fuelEfficiency);
-        const equipmentHoursValue = parseNumber(dailyMetrics.equipmentHours);
-        const equipmentFuelRateValue = parseNumber(
-          dailyMetrics.equipmentFuelRate
+      if (
+        (distanceValue !== null && efficiencyValue === null) ||
+        (distanceValue === null && efficiencyValue !== null)
+      ) {
+        throw new Error(
+          "Provide both total distance and fuel efficiency to compute fuel usage."
         );
-        const incidentCountValue = parseNumber(dailyMetrics.incidentCount);
-        const hoursWorkedValue = parseNumber(dailyMetrics.hoursWorked);
-
-        if (
-          (distanceValue !== null && efficiencyValue === null) ||
-          (distanceValue === null && efficiencyValue !== null)
-        ) {
-          throw new Error(
-            "Provide both total distance and fuel efficiency to compute fuel usage."
-          );
-        }
-
-        if (
-          (equipmentHoursValue !== null && equipmentFuelRateValue === null) ||
-          (equipmentHoursValue === null && equipmentFuelRateValue !== null)
-        ) {
-          throw new Error(
-            "Provide both equipment hours and fuel rate to compute equipment emissions."
-          );
-        }
-
-        if (
-          (incidentCountValue !== null && hoursWorkedValue === null) ||
-          (incidentCountValue === null && hoursWorkedValue !== null)
-        ) {
-          throw new Error(
-            "Provide both number of incidents and total hours worked to compute TRIR."
-          );
-        }
-
-        if (incidentCountValue !== null && incidentCountValue < 0) {
-          throw new Error("Number of incidents cannot be negative.");
-        }
-
-        if (hoursWorkedValue !== null && hoursWorkedValue <= 0) {
-          throw new Error("Total hours worked must be greater than zero.");
-        }
-
-        const fuelConsumptionLiters =
-          distanceValue !== null && efficiencyValue !== null
-            ? Number((distanceValue * efficiencyValue).toFixed(4))
-            : null;
-        const fuelTco2e =
-          fuelConsumptionLiters !== null
-            ? Number((fuelConsumptionLiters * 2.68).toFixed(4))
-            : null;
-
-        const equipmentFuelConsumptionLiters =
-          equipmentHoursValue !== null && equipmentFuelRateValue !== null
-            ? equipmentHoursValue * equipmentFuelRateValue
-            : null;
-        const equipmentEmissionsKg =
-          equipmentFuelConsumptionLiters !== null
-            ? Number(
-                (
-                  equipmentFuelConsumptionLiters *
-                  EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER
-                ).toFixed(4)
-              )
-            : null;
-
-        const scope1 =
-          (fuelTco2e !== null ? fuelTco2e : 0) +
-          (equipmentEmissionsKg !== null ? equipmentEmissionsKg : 0);
-
-        const safetyTrirRaw =
-          incidentCountValue !== null && hoursWorkedValue !== null
-            ? (incidentCountValue * TRIR_STANDARD_HOURS) / hoursWorkedValue
-            : null;
-
-        const safetyTrirRounded =
-          safetyTrirRaw !== null && Number.isFinite(safetyTrirRaw)
-            ? Math.round(safetyTrirRaw)
-            : null;
-
-        dailyData = {
-          fuelConsumptionLiters,
-          equipmentEmissionsKg,
-          safetyTrirRounded,
-          scope1,
-          incidentCount: incidentCountValue,
-          hoursWorked: hoursWorkedValue,
-        };
       }
 
-      let monthlyData = undefined;
-      if (shouldSubmitMonthly) {
-        const rawElectricityKwh = parseNumber(monthlyMetrics.electricity) ?? 0;
-        const rawWaterCubicM = parseNumber(monthlyMetrics.water) ?? 0;
-        const rawWaste =
-          hasWasteEntries && wasteEntries.length > 0
-            ? wasteEntries.reduce(
-                (sum, entry) =>
-                  sum + Number(entry.mass) * (entry.unit === "ton" ? 1000 : 1),
-                0
-              )
-            : 0;
-
-        const electricityEmissionsKg =
-          computedMonthlyElectricityEmissions !== null
-            ? Number(computedMonthlyElectricityEmissions.toFixed(4))
-            : null;
-        const scope2 =
-          electricityEmissionsKg !== null
-            ? Number(electricityEmissionsKg.toFixed(4))
-            : null;
-
-        const waterEmissionsKg =
-          computedMonthlyWaterEmissions !== null
-            ? Number(computedMonthlyWaterEmissions.toFixed(4))
-            : null;
-
-        const wasteEmissionsKg =
-          computedMonthlyWasteEmissions > 0
-            ? Number(computedMonthlyWasteEmissions.toFixed(4))
-            : null;
-
-        const scope3 =
-          (wasteEmissionsKg !== null ? wasteEmissionsKg : 0) +
-          (waterEmissionsKg !== null ? waterEmissionsKg : 0);
-
-        monthlyData = {
-          rawElectricityKwh,
-          rawWaterCubicM,
-          rawWasteKg: rawWaste,
-          electricityEmissionsKg,
-          waterEmissionsKg,
-          wasteEmissionsKg,
-          scope2,
-          scope3,
-        };
+      if (
+        (equipmentHoursValue !== null && equipmentFuelRateValue === null) ||
+        (equipmentHoursValue === null && equipmentFuelRateValue !== null)
+      ) {
+        throw new Error(
+          "Provide both equipment hours and fuel rate to compute equipment emissions."
+        );
       }
+
+      if (
+        (incidentCountValue !== null && hoursWorkedValue === null) ||
+        (incidentCountValue === null && hoursWorkedValue !== null)
+      ) {
+        throw new Error(
+          "Provide both number of incidents and total hours worked to compute TRIR."
+        );
+      }
+
+      if (incidentCountValue !== null && incidentCountValue < 0) {
+        throw new Error("Number of incidents cannot be negative.");
+      }
+
+      if (hoursWorkedValue !== null && hoursWorkedValue <= 0) {
+        throw new Error("Total hours worked must be greater than zero.");
+      }
+
+      const fuelConsumptionLiters =
+        distanceValue !== null && efficiencyValue !== null
+          ? Number((distanceValue * efficiencyValue).toFixed(4))
+          : null;
+      const fuelTco2e =
+        fuelConsumptionLiters !== null
+          ? Number((fuelConsumptionLiters * 2.68).toFixed(4))
+          : null;
+
+      const equipmentFuelConsumptionLiters =
+        equipmentHoursValue !== null && equipmentFuelRateValue !== null
+          ? equipmentHoursValue * equipmentFuelRateValue
+          : null;
+      const equipmentEmissionsKg =
+        equipmentFuelConsumptionLiters !== null
+          ? Number(
+              (
+                equipmentFuelConsumptionLiters *
+                EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER
+              ).toFixed(4)
+            )
+          : null;
+
+      const scope1 =
+        (fuelTco2e !== null ? fuelTco2e : 0) +
+        (equipmentEmissionsKg !== null ? equipmentEmissionsKg : 0);
+
+      const safetyTrirRaw =
+        incidentCountValue !== null && hoursWorkedValue !== null
+          ? (incidentCountValue * TRIR_STANDARD_HOURS) / hoursWorkedValue
+          : null;
+
+      const safetyTrirRounded =
+        safetyTrirRaw !== null && Number.isFinite(safetyTrirRaw)
+          ? Math.round(safetyTrirRaw)
+          : null;
+
+      const dailyData = {
+        fuelConsumptionLiters,
+        equipmentEmissionsKg,
+        safetyTrirRounded,
+        scope1,
+        incidentCount: incidentCountValue,
+        hoursWorked: hoursWorkedValue,
+      };
 
       const result = await submitConstructionLog({
         projectId: project.id,
         date: new Date().toISOString().slice(0, 10),
-        metricsPeriod: submissionPeriod as "daily" | "monthly",
+        metricsPeriod: "daily",
         dailyData,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      let fuelSummary = "";
+      let equipmentSummary = "";
+      let safetySummary = "";
+
+      if (dailyData.fuelConsumptionLiters !== null) {
+        fuelSummary = ` Calculated fuel usage: ${dailyData.fuelConsumptionLiters.toFixed(
+          2
+        )} L.`;
+      }
+      if (dailyData.equipmentEmissionsKg !== null) {
+        equipmentSummary = ` Equipment emissions: ${dailyData.equipmentEmissionsKg.toFixed(
+          2
+        )} kg CO₂e.`;
+      }
+      if (dailyData.safetyTrirRounded !== null) {
+        safetySummary = ` Safety TRIR recorded: ${
+          dailyData.safetyTrirRounded
+        } (Incidents: ${dailyData.incidentCount ?? 0}, Hours: ${
+          dailyData.hoursWorked ?? 0
+        }).`;
+      }
+
+      const combinedSummary = `${fuelSummary}${equipmentSummary}${safetySummary}`;
+      const warningSummary =
+        result.warnings && result.warnings.length > 0
+          ? ` ${result.warnings.join(" ")}`
+          : "";
+
+      setStatusMessage(
+        `Daily report saved successfully.${combinedSummary}${warningSummary}`.trim()
+      );
+
+      setDailyMetrics({
+        distanceKm: "",
+        fuelEfficiency: "",
+        equipmentHours: "",
+        equipmentFuelRate: "",
+        incidentCount: "",
+        hoursWorked: "",
+      });
+    } catch (error) {
+      console.error("Failed to submit daily report", error);
+      const message =
+        error instanceof Error ? error.message : "Unable to submit report.";
+      setErrorMessage(message);
+    } finally {
+      setIsSubmittingDaily(false);
+    }
+  };
+
+  const handleSaveMonthly = async () => {
+    resetMessages();
+    const hasMonthlyMetrics = Object.values(monthlyMetrics).some(
+      (value) => value.trim() !== ""
+    );
+    const hasWasteEntries = wasteEntries.length > 0;
+
+    if (!hasMonthlyMetrics && !hasWasteEntries) {
+      setErrorMessage(
+        "Enter at least one monthly metric or waste record before saving."
+      );
+      return;
+    }
+
+    setIsSubmittingMonthly(true);
+
+    try {
+      const rawElectricityKwh = parseNumber(monthlyMetrics.electricity) ?? 0;
+      const rawWaterCubicM = parseNumber(monthlyMetrics.water) ?? 0;
+      const rawWaste =
+        hasWasteEntries && wasteEntries.length > 0
+          ? wasteEntries.reduce(
+              (sum, entry) =>
+                sum + Number(entry.mass) * (entry.unit === "ton" ? 1000 : 1),
+              0
+            )
+          : 0;
+
+      const electricityEmissionsKg =
+        computedMonthlyElectricityEmissions !== null
+          ? Number(computedMonthlyElectricityEmissions.toFixed(4))
+          : null;
+      const scope2 =
+        electricityEmissionsKg !== null
+          ? Number(electricityEmissionsKg.toFixed(4))
+          : null;
+
+      const waterEmissionsKg =
+        computedMonthlyWaterEmissions !== null
+          ? Number(computedMonthlyWaterEmissions.toFixed(4))
+          : null;
+
+      const wasteEmissionsKg =
+        computedMonthlyWasteEmissions > 0
+          ? Number(computedMonthlyWasteEmissions.toFixed(4))
+          : null;
+
+      const scope3 =
+        (wasteEmissionsKg !== null ? wasteEmissionsKg : 0) +
+        (waterEmissionsKg !== null ? waterEmissionsKg : 0);
+
+      const monthlyData = {
+        rawElectricityKwh,
+        rawWaterCubicM,
+        rawWasteKg: rawWaste,
+        electricityEmissionsKg,
+        waterEmissionsKg,
+        wasteEmissionsKg,
+        scope2,
+        scope3,
+      };
+
+      const result = await submitConstructionLog({
+        projectId: project.id,
+        date: new Date().toISOString().slice(0, 10),
+        metricsPeriod: "monthly",
         monthlyData,
       });
 
@@ -380,106 +466,49 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         throw new Error(result.error);
       }
 
-      // Construct summary messages
       let electricitySummary = "";
       let waterSummary = "";
       let wasteSummary = "";
 
-      if (shouldSubmitMonthly && monthlyData && result.sumElec !== undefined) {
-        if (monthlyData.electricityEmissionsKg !== null) {
-          electricitySummary = ` Electricity emissions: ${monthlyData.electricityEmissionsKg.toFixed(
-            2
-          )} kg CO₂e (from ${result.sumElec.toFixed(2)} kWh).`;
-        }
-        if (
-          monthlyData.waterEmissionsKg !== null &&
-          result.sumWater !== undefined
-        ) {
-          waterSummary = ` Water emissions: ${monthlyData.waterEmissionsKg.toFixed(
-            2
-          )} kg CO₂e (from ${result.sumWater.toFixed(2)} m³).`;
-        }
-        if (monthlyData.wasteEmissionsKg !== null) {
-          wasteSummary = ` Waste emissions: ${monthlyData.wasteEmissionsKg.toFixed(
-            2
-          )} kg CO₂e.`;
-        }
+      if (monthlyData.electricityEmissionsKg !== null) {
+        electricitySummary = ` Electricity emissions: ${monthlyData.electricityEmissionsKg.toFixed(
+          2
+        )} kg CO₂e.`;
+      }
+      if (monthlyData.waterEmissionsKg !== null) {
+        waterSummary = ` Water emissions: ${monthlyData.waterEmissionsKg.toFixed(
+          2
+        )} kg CO₂e.`;
+      }
+      if (monthlyData.wasteEmissionsKg !== null) {
+        wasteSummary = ` Waste emissions: ${monthlyData.wasteEmissionsKg.toFixed(
+          2
+        )} kg CO₂e.`;
       }
 
-      let fuelSummary = "";
-      let equipmentSummary = "";
-      let safetySummary = "";
-
-      if (shouldSubmitDaily && dailyData) {
-        if (dailyData.fuelConsumptionLiters !== null) {
-          fuelSummary = ` Calculated fuel usage: ${dailyData.fuelConsumptionLiters.toFixed(
-            2
-          )} L.`;
-        }
-        if (dailyData.equipmentEmissionsKg !== null) {
-          equipmentSummary = ` Equipment emissions: ${dailyData.equipmentEmissionsKg.toFixed(
-            2
-          )} kg CO₂e.`;
-        }
-        if (dailyData.safetyTrirRounded !== null) {
-          safetySummary = ` Safety TRIR recorded: ${
-            dailyData.safetyTrirRounded
-          } (Incidents: ${dailyData.incidentCount ?? 0}, Hours: ${
-            dailyData.hoursWorked ?? 0
-          }).`;
-        }
-      }
-
-      const combinedSummary = `${fuelSummary}${equipmentSummary}${safetySummary}${electricitySummary}${waterSummary}${wasteSummary}`;
+      const combinedSummary = `${electricitySummary}${waterSummary}${wasteSummary}`;
       const warningSummary =
         result.warnings && result.warnings.length > 0
           ? ` ${result.warnings.join(" ")}`
           : "";
 
-      if (shouldSubmitDaily) {
-        if (shouldSubmitMonthly) {
-          setStatusMessage(
-            `Daily report and monthly metrics saved successfully.${combinedSummary}${warningSummary}`.trim()
-          );
-        } else {
-          setStatusMessage(
-            `Daily report saved successfully.${combinedSummary}${warningSummary}`.trim()
-          );
-        }
-      } else if (shouldSubmitMonthly) {
-        setStatusMessage(
-          `Monthly metrics saved successfully.${warningSummary}`.trim()
-        );
-      } else {
-        setStatusMessage(`Submission completed.${warningSummary}`.trim());
-      }
+      setStatusMessage(
+        `Monthly metrics saved successfully.${combinedSummary}${warningSummary}`.trim()
+      );
 
-      if (shouldSubmitDaily) {
-        setDailyMetrics({
-          distanceKm: "",
-          fuelEfficiency: "",
-          equipmentHours: "",
-          equipmentFuelRate: "",
-          incidentCount: "",
-          hoursWorked: "",
-        });
-      }
-
-      if (shouldSubmitMonthly) {
-        setMonthlyMetrics({
-          electricity: "",
-          water: "",
-        });
-        setWasteEntries([]);
-        setNewWasteEntry(createDefaultWasteFormEntry());
-      }
+      setMonthlyMetrics({
+        electricity: "",
+        water: "",
+      });
+      setWasteEntries([]);
+      setNewWasteEntry(createDefaultWasteFormEntry());
     } catch (error) {
-      console.error("Failed to submit daily report", error);
+      console.error("Failed to submit monthly report", error);
       const message =
         error instanceof Error ? error.message : "Unable to submit report.";
       setErrorMessage(message);
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingMonthly(false);
     }
   };
 
@@ -501,28 +530,14 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   ] as const;
 
   const monitoringTitle =
-    activeTab === "monthly"
-      ? "Construction Phase: Monthly ESG Monitoring"
-      : activeTab === "logistics"
+    activeTab === "logistics"
       ? "Construction Phase: Logistics & Delivery Planning"
-      : "Construction Phase: Daily ESG Monitoring";
+      : "Construction Phase: Site Monitoring";
 
   const monitoringDescription =
-    activeTab === "monthly"
-      ? "Review monthly resource usage to stay aligned with pre-construction targets."
-      : activeTab === "logistics"
+    activeTab === "logistics"
       ? "Plan material deliveries and calculate route fuel consumption."
-      : "Log daily metrics to track performance against pre-construction targets.";
-
-  const submitButtonLabel =
-    submissionPeriod === "monthly"
-      ? "Submit Full Monthly Report"
-      : "Submit Full Daily Report";
-
-  const submitButtonBusyLabel =
-    submissionPeriod === "monthly"
-      ? "Submitting Monthly..."
-      : "Submitting Daily...";
+      : "Track daily and monthly environmental metrics and safety performance.";
 
   return (
     <div className="space-y-6">
@@ -549,17 +564,19 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       <Tabs
         value={activeTab}
         onValueChange={(value) =>
-          setActiveTab(value as "daily" | "monthly" | "logistics")
+          setActiveTab(value as "monitoring" | "logistics")
         }
         className="space-y-4"
       >
         <TabsList>
-          <TabsTrigger value="daily">Daily Inputs</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly Inputs</TabsTrigger>
-          <TabsTrigger value="logistics">Material Delivery & Logistics</TabsTrigger>
+          <TabsTrigger value="monitoring">Construction Data</TabsTrigger>
+          <TabsTrigger value="logistics">
+            Material Delivery & Logistics
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="daily">
+        <TabsContent value="monitoring">
           <div className="space-y-6">
+            {/* Daily Inputs Section */}
             <DistanceFuelCard
               equipmentHours={dailyMetrics.equipmentHours}
               equipmentFuelRate={dailyMetrics.equipmentFuelRate}
@@ -581,11 +598,11 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               }
               computedTrir={computedSafetyTrir}
               safetyTarget={preConstructionTargets.safety}
+              onSave={handleSaveDaily}
+              isSaving={isSubmittingDaily}
             />
-          </div>
-        </TabsContent>
-        <TabsContent value="monthly">
-          <div className="space-y-6">
+
+            {/* Monthly Inputs Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {monthlyMetricConfigs.map((metric) => {
                 const isElectricity = metric.id === "electricity";
@@ -620,6 +637,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                       isElectricity || isWater ? "Total CO₂e (kg):" : undefined
                     }
                     secondaryValue={secondaryValue}
+                    onSave={handleSaveMonthly}
+                    isSaving={isSubmittingMonthly}
                   />
                 );
               })}
@@ -635,6 +654,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               totalAllocatedMassKg={totalAllocatedWasteMassKg}
               totalInputMassKg={totalWasteInputMassKg}
               totalEmissionsKg={computedMonthlyWasteEmissions}
+              onSave={handleSaveMonthly}
+              isSaving={isSubmittingMonthly}
             />
           </div>
         </TabsContent>
@@ -645,6 +666,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               sourcingMaterials={sourcingMaterials}
               materialFetchError={materialFetchError}
               onOpenLogisticsModal={handleSelectLogisticsMaterial}
+              projectId={project.id}
+              onMaterialUpdated={refreshMaterials}
             />
             <DeliveryRouteSection
               routeStartQuery={routeStartQuery}
@@ -669,28 +692,22 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               metricsPeriod="daily"
               sourcingMaterials={sourcingMaterials}
               projectLocation={project.location}
-              distanceValue={dailyMetrics.distanceKm} 
+              distanceValue={dailyMetrics.distanceKm}
               efficiencyValue={dailyMetrics.fuelEfficiency}
-              onDistanceChange={(val) => handleDailyInputChange("distanceKm", val)}
-              onEfficiencyChange={(val) => handleDailyInputChange("fuelEfficiency", val)}
+              onDistanceChange={(val) =>
+                handleDailyInputChange("distanceKm", val)
+              }
+              onEfficiencyChange={(val) =>
+                handleDailyInputChange("fuelEfficiency", val)
+              }
               computedFuelLiters={computedFuelLiters}
+              selectedMaterialId={selectedMaterial?.id}
+              onMaterialSelect={handleSelectLogisticsMaterial}
+              isSavingFuel={isSavingFuel}
             />
           </div>
         </TabsContent>
       </Tabs>
-
-      <Card>
-        <CardContent className="pt-6">
-          <Button
-            onClick={handleSubmit}
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            <Send className="mr-2 h-4 w-4" />
-            {isSubmitting ? submitButtonBusyLabel : submitButtonLabel}
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

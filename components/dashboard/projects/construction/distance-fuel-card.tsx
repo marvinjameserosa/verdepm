@@ -7,7 +7,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Construction, ShieldAlert, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Construction, ShieldAlert, Target, Save } from "lucide-react";
 import { EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER } from "@/types/construction";
 
 interface DistanceFuelCardProps {
@@ -26,6 +27,9 @@ interface DistanceFuelCardProps {
   onHoursWorkedChange: (value: string) => void;
   computedTrir: number | null;
   safetyTarget: { goal: string; metric: string };
+
+  onSave: () => void;
+  isSaving?: boolean;
 }
 
 export function DistanceFuelCard({
@@ -41,6 +45,8 @@ export function DistanceFuelCard({
   onHoursWorkedChange,
   computedTrir,
   safetyTarget,
+  onSave,
+  isSaving = false,
 }: DistanceFuelCardProps) {
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl col-span-1 md:col-span-2 lg:col-span-2">
@@ -146,7 +152,7 @@ export function DistanceFuelCard({
             <div className="space-y-2">
               <Label htmlFor="safety-hours">Total Hours Worked</Label>
               <Input
-                id="safety-hours"
+              id="safety-hours"
                 type="number"
                 value={hoursWorked}
                 onChange={(event) => onHoursWorkedChange(event.target.value)}
@@ -165,6 +171,13 @@ export function DistanceFuelCard({
             TRIR is computed as (Incidents × 200,000) ÷ Total Hours Worked. A
             lower value reflects stronger site safety.
           </p>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <Button onClick={onSave} disabled={isSaving}>
+            <Save className="mr-2 h-4 w-4" />
+            {isSaving ? "Saving..." : "Save Daily Inputs"}
+          </Button>
         </div>
       </CardContent>
     </Card>

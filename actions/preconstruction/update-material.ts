@@ -31,12 +31,41 @@ export async function updateMaterialSourcing(
   if (material.specSheetUrl) {
     updates.spec_sheet_url = material.specSheetUrl;
   }
+  if (material.approvalStatus) {
+    updates.approval_status = material.approvalStatus;
+  }
 
   const { data, error } = await supabase
     .from("material")
     .update(updates)
     .eq("id", materialId)
     .eq("project_id", projectId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function addMaterialFuel(materialId: string, fuelToAdd: number) {
+  const supabase = await createClient();
+
+  // First get current fuel summary
+  const { data: currentData, error: fetchError } = await supabase
+    .from("material")
+    .select("fuel_summary")
+    .eq("id", materialId)
+    .single();
+
+  if (fetchError) throw new Error(fetchError.message);
+
+  const currentFuel = currentData.fuel_summary || 0;
+  const newFuel = currentFuel + fuelToAdd;
+
+  const { data, error } = await supabase
+    .from("material")
+    .update({ fuel_summary: newFuel })
+    .eq("id", materialId)
     .select()
     .single();
 

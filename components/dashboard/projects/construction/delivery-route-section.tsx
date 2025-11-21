@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Fuel, Loader2, Truck, MapPin } from "lucide-react";
+import { Fuel, Loader2, Truck, MapPin, Save } from "lucide-react";
 import type { DeliveryRouteMapProps } from "@/components/dashboard/projects/delivery-route-map";
 import { SourcedMaterial } from "@/types/construction";
 
@@ -85,6 +85,9 @@ interface DeliveryRouteSectionProps {
   onDistanceChange: (value: string) => void;
   onEfficiencyChange: (value: string) => void;
   computedFuelLiters: number | null;
+  selectedMaterialId?: string;
+  onMaterialSelect: (material: SourcedMaterial) => void;
+  isSavingFuel?: boolean;
 }
 
 const formatDuration = (minutes: number | null) => {
@@ -135,14 +138,14 @@ export function DeliveryRouteSection({
   onDistanceChange,
   onEfficiencyChange,
   computedFuelLiters,
+  selectedMaterialId,
+  onMaterialSelect,
+  isSavingFuel,
 }: DeliveryRouteSectionProps) {
-  const handleMaterialSelect = (materialId: string) => {
+  const handleSelectChange = (materialId: string) => {
     const material = sourcingMaterials.find((m) => m.id === materialId);
-    if (material && material.warehouse) {
-      setRouteStartQuery(material.warehouse);
-      if (projectLocation) {
-        setRouteEndQuery(projectLocation);
-      }
+    if (material) {
+      onMaterialSelect(material);
     }
   };
 
@@ -162,7 +165,10 @@ export function DeliveryRouteSection({
         {/* Material Selection Section */}
         <div className="space-y-2">
           <Label>Quick Fill from Sourcing Plan</Label>
-          <Select onValueChange={handleMaterialSelect}>
+          <Select
+            value={selectedMaterialId || ""}
+            onValueChange={handleSelectChange}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select a material to load warehouse address..." />
             </SelectTrigger>
@@ -228,7 +234,7 @@ export function DeliveryRouteSection({
             ) : (
               <>
                 <Truck className="mr-2 h-4 w-4" />
-                {isAnimatingRoute ? "Re-Animate Route" : "Calculate & Animate"}
+                {isAnimatingRoute ? "Re-Animate Route" : "Calculate Route"}
               </>
             )}
           </Button>
@@ -301,10 +307,19 @@ export function DeliveryRouteSection({
                 type="button"
                 variant="secondary"
                 onClick={handleApplyRouteFuel}
-                disabled={!routeFuelLiters && computedFuelLiters === null}
-                title="Apply to Daily Log"
+                disabled={
+                  (!routeFuelLiters && computedFuelLiters === null) ||
+                  isSavingFuel
+                }
+                title="Save Fuel to Log"
+                className="gap-2"
               >
-                <Fuel className="h-4 w-4" />
+                {isSavingFuel ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Save Fuel
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">

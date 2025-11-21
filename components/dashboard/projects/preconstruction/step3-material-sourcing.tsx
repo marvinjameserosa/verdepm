@@ -43,6 +43,14 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import LocationPicker from "@/components/ui/location-picker";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Material, MaterialStatus, units } from "./types";
 
 type MaterialDraft = {
@@ -62,12 +70,36 @@ type Props = {
   onBack: () => void;
   onAddMaterial: (
     material: MaterialDraft,
-    specSheet?: File | null
+    specSheet?: File | null,
+    materialId?: string
   ) => Promise<void>;
   onDeleteMaterial: (materialId: string) => Promise<void>;
   materials: Material[];
   isSavingMaterial: boolean;
   deletingMaterialId?: string | null;
+};
+
+const MATERIAL_STATUS_BADGE: Record<string, string> = {
+  Vetted:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
+  Identified: "bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
+  Denied: "bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300",
+  "Not Delivered":
+    "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+};
+
+const formatCurrencyValue = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  const raw =
+    typeof value === "string" ? Number(value.replace(/,/g, "")) : value;
+  if (!Number.isFinite(raw)) {
+    return typeof value === "string" && value.trim().length > 0 ? value : "—";
+  }
+
+  return Number(raw).toLocaleString();
 };
 
 export default function Step3MaterialSourcing({
@@ -92,6 +124,28 @@ export default function Step3MaterialSourcing({
   const [open, setOpen] = React.useState(false);
   const [specSheet, setSpecSheet] = useState<File | null>(null);
   const [credentialInput, setCredentialInput] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleEditMaterial = (material: Material) => {
+    setNewMaterial({
+      category: material.category,
+      name: material.name,
+      supplier: material.supplier,
+      cost: material.cost,
+      unit: material.unit,
+      notes: material.notes,
+      credentials: material.credentials,
+      status: material.status,
+    });
+    setWarehouse(material.warehouse || "");
+    setEditingId(material.id);
+    // Scroll to top to see the form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancelEdit = () => {
+    resetMaterialForm();
+  };
 
   const handleAddCredential = () => {
     const trimmed = credentialInput.trim().replace(/;$/, "");
@@ -170,7 +224,8 @@ export default function Step3MaterialSourcing({
           status: newMaterial.status!,
           warehouse,
         },
-        specSheet
+        specSheet,
+        editingId ?? undefined
       );
       resetMaterialForm();
     } catch (error) {
@@ -192,6 +247,7 @@ export default function Step3MaterialSourcing({
     setWarehouse("");
     setSpecSheet(null);
     setCredentialInput("");
+    setEditingId(null);
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -221,12 +277,15 @@ export default function Step3MaterialSourcing({
             <div className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                Material Sourcing & Due Diligence
+                {editingId
+                  ? "Edit Material"
+                  : "Material Sourcing & Due Diligence"}
               </CardTitle>
             </div>
             <CardDescription>
-              Capture the sourcing pipeline for critical project materials and
-              suppliers.
+              {editingId
+                ? "Update the details for this sourced material."
+                : "Capture the sourcing pipeline for critical project materials and suppliers."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -294,7 +353,7 @@ export default function Step3MaterialSourcing({
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Estimated Cost per Unit ($)</Label>
+                <Label>Budgeted Cost ($)</Label>
                 <Input
                   type="number"
                   placeholder="150000"
@@ -443,7 +502,17 @@ export default function Step3MaterialSourcing({
                 </Select>
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {editingId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelEdit}
+                  disabled={isSavingMaterial}
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
                 type="button"
                 onClick={handleAddMaterial}
@@ -453,7 +522,8 @@ export default function Step3MaterialSourcing({
                   "Saving..."
                 ) : (
                   <span className="flex items-center">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add to Sourcing Plan
+                    <PlusCircle className="mr-2 h-4 w-4" />{" "}
+                    {editingId ? "Update Material" : "Add to Sourcing Plan"}
                   </span>
                 )}
               </Button>
@@ -467,63 +537,98 @@ export default function Step3MaterialSourcing({
                   Log at least one sourced item to complete this stage.
                 </p>
               ) : (
-                <div className="grid gap-3">
-                  {materials.map((material) => (
-                    <div
-                      key={material.id}
-                      className="rounded-lg border border-gray-200 bg-white/80 p-3 text-sm dark:border-gray-800 dark:bg-gray-900/60"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="font-semibold text-emerald-700 dark:text-emerald-200">
+                <div className="border rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Material</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Planned Supplier</TableHead>
+                        <TableHead>Warehouse</TableHead>
+                        <TableHead className="text-right">
+                          Budgeted Cost ($)
+                        </TableHead>
+                        <TableHead>Unit</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {materials.map((material) => (
+                        <TableRow key={material.id}>
+                          <TableCell className="font-medium">
                             {material.name}
-                          </div>
-                          <div className="text-muted-foreground">
-                            {material.supplier} • {material.unit ?? "--"}
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <span>Status: {material.status}</span>
-                            {material.credentials && (
-                              <span>• {material.credentials}</span>
-                            )}
                             {material.specSheetUrl && (
-                              <span>
-                                •{" "}
+                              <div className="mt-1">
                                 <a
                                   href={material.specSheetUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline dark:text-blue-400"
+                                  className="text-xs text-blue-600 hover:underline dark:text-blue-400"
                                 >
                                   View Spec Sheet
                                 </a>
-                              </span>
+                              </div>
                             )}
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
-                          onClick={() => {
-                            void onDeleteMaterial(material.id);
-                          }}
-                          disabled={
-                            isSavingMaterial ||
-                            deletingMaterialId === material.id
-                          }
-                          aria-label="Delete material"
-                        >
-                          {deletingMaterialId === material.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                          </TableCell>
+                          <TableCell>{material.category}</TableCell>
+                          <TableCell>{material.supplier}</TableCell>
+                          <TableCell>{material.warehouse ?? "—"}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrencyValue(material.cost)}
+                          </TableCell>
+                          <TableCell>{material.unit ?? "—"}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`border-transparent ${
+                                MATERIAL_STATUS_BADGE[material.status] ??
+                                "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {material.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditMaterial(material)}
+                                disabled={
+                                  isSavingMaterial ||
+                                  deletingMaterialId === material.id
+                                }
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
+                                onClick={() => {
+                                  void onDeleteMaterial(material.id);
+                                }}
+                                disabled={
+                                  isSavingMaterial ||
+                                  deletingMaterialId === material.id
+                                }
+                                aria-label="Delete material"
+                              >
+                                {deletingMaterialId === material.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </div>

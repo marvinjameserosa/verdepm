@@ -8,32 +8,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
 import {
   CheckCircle,
   AlertTriangle,
   Award,
-  TreePine,
-  Droplets,
-  Trash2,
-  Zap,
-  Target,
   TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -67,25 +46,14 @@ type ConstructionMaterialLog = {
   created_at: string;
 };
 
-const DAILY_TARGETS = {
-  fuel: 500,
+type ProjectTargets = {
+  electricity_consumption: number | null;
+  equipment_usage: number | null;
+  logistics_fuel_consumption: number | null;
+  total_waste_mass: number | null;
+  total_water_consumed: number | null;
+  number_of_incidents: number | null;
 };
-
-const MONTHLY_TARGETS = {
-  electricity: 2000 * 0.507, // kg CO2e equivalent of planned electricity usage
-  water: 10,
-  waste: 250,
-};
-
-const FUEL_CO2_FACTOR = 2.68;
-const PIE_COLORS = [
-  "#10b981",
-  "#3b82f6",
-  "#f59e0b",
-  "#ef4444",
-  "#6366f1",
-  "#22d3ee",
-];
 
 type PostConstructionPhaseProps = {
   project: Project;
@@ -94,13 +62,15 @@ type PostConstructionPhaseProps = {
 export default function PostConstructionPhase({
   project,
 }: PostConstructionPhaseProps) {
-  const [selectedTab, setSelectedTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dailyLogs, setDailyLogs] = useState<ConstructionDailyLog[]>([]);
   const [monthlyLogs, setMonthlyLogs] = useState<ConstructionMonthlyLog[]>([]);
   const [materialLogs, setMaterialLogs] = useState<ConstructionMaterialLog[]>(
     []
+  );
+  const [projectTargets, setProjectTargets] = useState<ProjectTargets | null>(
+    null
   );
 
   useEffect(() => {
@@ -134,11 +104,19 @@ export default function PostConstructionPhase({
         .eq("project_id", project.id)
         .order("created_at", { ascending: true });
 
-      const [dailyResult, monthlyResult, materialResult] = await Promise.all([
-        dailyPromise,
-        monthlyPromise,
-        materialPromise,
-      ]);
+      const targetsPromise = supabase
+        .from("project_targets")
+        .select("*")
+        .eq("project_id", project.id)
+        .maybeSingle();
+
+      const [dailyResult, monthlyResult, materialResult, targetsResult] =
+        await Promise.all([
+          dailyPromise,
+          monthlyPromise,
+          materialPromise,
+          targetsPromise,
+        ]);
 
       if (!isMounted) {
         return;
@@ -189,6 +167,20 @@ export default function PostConstructionPhase({
         setMaterialLogs(materialResult.data ?? []);
       }
 
+      if (targetsResult.error) {
+        console.error("Failed to load project targets", targetsResult.error);
+      } else if (targetsResult.data) {
+        setProjectTargets({
+          electricity_consumption: targetsResult.data.electricity_consumption,
+          equipment_usage: targetsResult.data.equipment_usage,
+          logistics_fuel_consumption:
+            targetsResult.data.logistics_fuel_consumption,
+          total_waste_mass: targetsResult.data.total_waste_mass,
+          total_water_consumed: targetsResult.data.total_water_consumed,
+          number_of_incidents: targetsResult.data.number_of_incidents,
+        });
+      }
+
       setIsLoading(false);
     };
 
@@ -231,285 +223,17 @@ export default function PostConstructionPhase({
     return { fuel, electricity, water, equipment, waste, incidents };
   }, [dailyLogs, monthlyLogs]);
 
-  const totalDays = dailyLogs.length;
-  const totalMonths = monthlyLogs.length;
-
   const targetTotals = useMemo(
     () => ({
-      fuel: totalDays * DAILY_TARGETS.fuel,
-      electricity: totalMonths * MONTHLY_TARGETS.electricity,
-      water: totalMonths * MONTHLY_TARGETS.water,
-      waste: totalMonths * MONTHLY_TARGETS.waste,
+      fuel: projectTargets?.equipment_usage ?? 0,
+      logisticsFuel: projectTargets?.logistics_fuel_consumption ?? 0,
+      electricity: projectTargets?.electricity_consumption ?? 0,
+      water: projectTargets?.total_water_consumed ?? 0,
+      waste: projectTargets?.total_waste_mass ?? 0,
+      incidents: projectTargets?.number_of_incidents ?? 0,
     }),
-    [totalDays, totalMonths]
+    [projectTargets]
   );
-
-  const carbonActualTons = useMemo(() => {
-    const fuelCarbonKg = totals.fuel * FUEL_CO2_FACTOR;
-    const electricityCarbonKg = totals.electricity;
-    return (fuelCarbonKg + electricityCarbonKg) / 1000;
-  }, [totals.electricity, totals.fuel]);
-
-  const carbonTargetTons = useMemo(() => {
-    const fuelTargetKg = targetTotals.fuel * FUEL_CO2_FACTOR;
-    const electricityTargetKg = targetTotals.electricity;
-    return (fuelTargetKg + electricityTargetKg) / 1000;
-  }, [targetTotals.electricity, targetTotals.fuel]);
-
-  const getPerformanceStatus = (
-    actual: number,
-    target: number,
-    lowerIsBetter = true
-  ) => {
-    if (target <= 0) {
-      return actual <= 0 ? "exceeded" : "over";
-    }
-    const ratio = actual / target;
-    if (lowerIsBetter) {
-      if (ratio <= 0.9) return "exceeded";
-      if (ratio <= 1.05) return "near";
-      return "over";
-    }
-    if (ratio >= 1.1) return "exceeded";
-    if (ratio >= 0.95) return "near";
-    return "behind";
-  };
-
-  const esgGoalsData = useMemo(() => {
-    if (totalDays === 0 && totalMonths === 0) {
-      return [];
-    }
-    return [
-      {
-        category: "Fuel Consumption",
-        actual: totals.fuel,
-        target: targetTotals.fuel,
-        unit: "liters",
-        status: getPerformanceStatus(totals.fuel, targetTotals.fuel, true),
-      },
-      {
-        category: "Electricity Emissions",
-        actual: totals.electricity,
-        target: targetTotals.electricity,
-        unit: "kg CO₂e",
-        status: getPerformanceStatus(
-          totals.electricity,
-          targetTotals.electricity,
-          true
-        ),
-      },
-      {
-        category: "Water Consumption",
-        actual: totals.water,
-        target: targetTotals.water,
-        unit: "m³",
-        status: getPerformanceStatus(totals.water, targetTotals.water, true),
-      },
-      {
-        category: "Waste Generated",
-        actual: totals.waste,
-        target: targetTotals.waste,
-        unit: "kg",
-        status: getPerformanceStatus(totals.waste, targetTotals.waste, true),
-      },
-      {
-        category: "Safety TRIR",
-        actual: totals.incidents,
-        target: 0,
-        unit: "TRIR",
-        status: getPerformanceStatus(totals.incidents, 0, true),
-      },
-    ];
-  }, [
-    targetTotals.electricity,
-    targetTotals.fuel,
-    targetTotals.waste,
-    targetTotals.water,
-    totalDays,
-    totalMonths,
-    totals.electricity,
-    totals.fuel,
-    totals.incidents,
-    totals.waste,
-    totals.water,
-  ]);
-
-  const carbonFootprintData = useMemo(() => {
-    if (totalDays === 0 && totalMonths === 0) {
-      return [];
-    }
-    return [
-      {
-        phase: "Fuel Combustion",
-        planned: Number(
-          ((targetTotals.fuel * FUEL_CO2_FACTOR) / 1000).toFixed(2)
-        ),
-        actual: Number(((totals.fuel * FUEL_CO2_FACTOR) / 1000).toFixed(2)),
-      },
-      {
-        phase: "Electricity",
-        planned: Number((targetTotals.electricity / 1000).toFixed(2)),
-        actual: Number((totals.electricity / 1000).toFixed(2)),
-      },
-      {
-        phase: "Waste Handling",
-        planned: Number((targetTotals.waste / 1000).toFixed(2)),
-        actual: Number((totals.waste / 1000).toFixed(2)),
-      },
-    ];
-  }, [
-    targetTotals.electricity,
-    targetTotals.fuel,
-    targetTotals.waste,
-    totalDays,
-    totalMonths,
-    totals.electricity,
-    totals.fuel,
-    totals.waste,
-  ]);
-
-  const supplierMixData = useMemo(() => {
-    if (materialLogs.length === 0) {
-      return [];
-    }
-    const counts = materialLogs.reduce<
-      Record<string, { count: number; cost: number }>
-    >((acc, log) => {
-      const key =
-        log.actual_supplier && log.actual_supplier.trim().length > 0
-          ? log.actual_supplier
-          : "Unspecified Supplier";
-      if (!acc[key]) {
-        acc[key] = { count: 0, cost: 0 };
-      }
-      acc[key].count += 1;
-      acc[key].cost += log.total_cost ?? 0;
-      return acc;
-    }, {});
-    return Object.entries(counts).map(([name, value]) => ({
-      type: name,
-      deliveries: value.count,
-      cost: value.cost,
-    }));
-  }, [materialLogs]);
-
-  const monthlyProgress = useMemo(() => {
-    if (dailyLogs.length === 0 && monthlyLogs.length === 0) {
-      return [];
-    }
-
-    const formatter = new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      year: "2-digit",
-    });
-
-    const map = new Map<
-      string,
-      { carbon: number; waste: number; energy: number; date: Date }
-    >();
-
-    const ensureEntry = (date: Date) => {
-      const normalized = new Date(
-        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)
-      );
-      const label = formatter.format(normalized);
-      if (!map.has(label)) {
-        map.set(label, { carbon: 0, waste: 0, energy: 0, date: normalized });
-      }
-      return map.get(label)!;
-    };
-
-    for (const log of dailyLogs) {
-      const date = new Date(log.log_date);
-      if (Number.isNaN(date.getTime())) {
-        continue;
-      }
-      const entry = ensureEntry(date);
-      const fuelCarbon = (log.fuel_consumption_liters ?? 0) * FUEL_CO2_FACTOR;
-      entry.carbon += fuelCarbon / 1000;
-    }
-
-    for (const log of monthlyLogs) {
-      const date = new Date(log.log_month);
-      if (Number.isNaN(date.getTime())) {
-        continue;
-      }
-      const entry = ensureEntry(date);
-      const electricityEmissionsKg = log.electricity_usage_kwh ?? 0;
-      entry.carbon += electricityEmissionsKg / 1000;
-      entry.waste += log.waste_generated_kg ?? 0;
-      entry.energy += electricityEmissionsKg;
-    }
-
-    return Array.from(map.entries())
-      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
-      .map(([month, data]) => ({
-        month,
-        carbon: Number(data.carbon.toFixed(2)),
-        waste: Number(data.waste.toFixed(2)),
-        energy: Number(data.energy.toFixed(2)),
-      }));
-  }, [dailyLogs, monthlyLogs]);
-
-  const complianceScores = useMemo(() => {
-    if (totalDays === 0 && totalMonths === 0) {
-      return [];
-    }
-    const scoreFor = (actual: number, target: number) => {
-      if (target <= 0) {
-        return actual <= 0 ? 100 : 0;
-      }
-      const ratio = actual / target;
-      if (ratio <= 1) {
-        return 100;
-      }
-      return Math.max(0, Math.round((target / Math.max(actual, 1)) * 100));
-    };
-
-    return [
-      {
-        metric: "Fuel Efficiency",
-        score: scoreFor(totals.fuel, targetTotals.fuel),
-        benchmark: 85,
-      },
-      {
-        metric: "Electricity Emissions",
-        score: scoreFor(totals.electricity, targetTotals.electricity),
-        benchmark: 85,
-      },
-      {
-        metric: "Water Management",
-        score: scoreFor(totals.water, targetTotals.water),
-        benchmark: 80,
-      },
-      {
-        metric: "Waste Diversion",
-        score: scoreFor(totals.waste, targetTotals.waste),
-        benchmark: 90,
-      },
-      {
-        metric: "Site Safety (TRIR)",
-        score: totals.incidents > 0 ? 60 : 100,
-        benchmark: 95,
-      },
-    ];
-  }, [
-    targetTotals.electricity,
-    targetTotals.fuel,
-    targetTotals.waste,
-    targetTotals.water,
-    totalDays,
-    totalMonths,
-    totals.electricity,
-    totals.fuel,
-    totals.incidents,
-    totals.waste,
-    totals.water,
-  ]);
-
-  const totalMaterialsCost = useMemo(() => {
-    return materialLogs.reduce((acc, log) => acc + (log.total_cost ?? 0), 0);
-  }, [materialLogs]);
 
   const totalDeliveryFuel = useMemo(() => {
     return materialLogs.reduce(
@@ -522,60 +246,6 @@ export default function PostConstructionPhase({
     new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(
       value
     );
-
-  const waterEfficiency =
-    targetTotals.water > 0
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((targetTotals.water - totals.water) / targetTotals.water) * 100
-          )
-        )
-      : 0;
-
-  const wasteDiversion =
-    targetTotals.waste > 0
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((targetTotals.waste - totals.waste) / targetTotals.waste) * 100
-          )
-        )
-      : 0;
-
-  const energyReduction =
-    targetTotals.electricity > 0
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((targetTotals.electricity - totals.electricity) /
-              targetTotals.electricity) *
-              100
-          )
-        )
-      : 0;
-
-  const supplierHighlights = supplierMixData
-    .sort((a, b) => b.deliveries - a.deliveries)
-    .slice(0, 4)
-    .map((supplier) => ({
-      name: supplier.type,
-      status: "Supplier",
-      date: `${supplier.deliveries} deliveries • $${formatNumber(
-        supplier.cost,
-        0
-      )}`,
-    }));
-
-  const overallCompliance = complianceScores.length
-    ? Math.round(
-        complianceScores.reduce((acc, curr) => acc + curr.score, 0) /
-          complianceScores.length
-      )
-    : 0;
 
   const strengths: string[] = [];
   if (totals.fuel <= targetTotals.fuel) {
@@ -628,31 +298,6 @@ export default function PostConstructionPhase({
     );
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "exceeded":
-        return <CheckCircle className="h-4 w-4 text-emerald-500" />;
-      case "near":
-        return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-      case "over":
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      case "behind":
-        return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-      default:
-        return <CheckCircle className="h-4 w-4 text-emerald-500" />;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      Supplier:
-        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
-      Default:
-        "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
-    };
-    return colors[status as keyof typeof colors] || colors.Default;
-  };
-
   if (isLoading) {
     return (
       <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
@@ -683,488 +328,210 @@ export default function PostConstructionPhase({
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-              <Award className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                Post-Construction Assessment
-              </CardTitle>
-              <CardDescription>
-                Aggregated ESG performance derived from construction daily
-                reports
-              </CardDescription>
-            </div>
-          </div>
+  const ComparisonCard = ({
+    title,
+    description,
+    target,
+    actual,
+    unit,
+    inverse = false, // if true, higher actual is better (rare for these metrics)
+  }: {
+    title: string;
+    description: string;
+    target: number | null;
+    actual: number;
+    unit: string;
+    inverse?: boolean;
+  }) => {
+    const hasTarget = target !== null && target !== undefined && target > 0;
+    const percentage = hasTarget ? (actual / target!) * 100 : 0;
+    
+    // For consumption/emissions, lower is better.
+    // If actual > target, it's bad (red).
+    // If actual <= target, it's good (green).
+    const isGood = inverse ? actual >= target! : actual <= target!;
+    
+    // Status color logic
+    let statusColor = "text-gray-500";
+    let progressColor = "bg-gray-200";
+    
+    if (hasTarget) {
+      if (isGood) {
+        statusColor = "text-emerald-600 dark:text-emerald-400";
+        progressColor = "bg-emerald-500";
+      } else {
+        // Check how much over
+        const ratio = actual / target!;
+        if (ratio > 1.1) {
+             statusColor = "text-red-600 dark:text-red-400";
+             progressColor = "bg-red-500";
+        } else {
+             statusColor = "text-amber-600 dark:text-amber-400";
+             progressColor = "bg-amber-500";
+        }
+      }
+    }
+
+    return (
+      <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
+            {title}
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            {description}
+          </CardDescription>
         </CardHeader>
-        {errorMessage ? (
-          <CardContent>
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-              {errorMessage}
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Actual
+                </p>
+                <p className="text-2xl font-bold">
+                  {formatNumber(actual)} <span className="text-sm font-normal text-muted-foreground">{unit}</span>
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Target
+                </p>
+                <p className="text-lg font-semibold">
+                  {hasTarget ? formatNumber(target!) : "—"} <span className="text-sm font-normal text-muted-foreground">{unit}</span>
+                </p>
+              </div>
             </div>
-          </CardContent>
-        ) : null}
+
+            {hasTarget && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className={statusColor}>
+                    {percentage.toFixed(1)}% of target
+                  </span>
+                </div>
+                <Progress value={Math.min(percentage, 100)} className={`h-2 ${progressColor}`} />
+              </div>
+            )}
+            
+            {!hasTarget && (
+               <div className="text-xs text-muted-foreground italic">
+                 No target set
+               </div>
+            )}
+          </div>
+        </CardContent>
       </Card>
+    );
+  };
 
-      <div className="flex flex-wrap gap-2">
-        {[
-          { id: "overview", label: "Overview", icon: Target },
-          { id: "metrics", label: "ESG Metrics", icon: TrendingUp },
-          { id: "compliance", label: "Compliance", icon: CheckCircle },
-        ].map((tab) => (
-          <Button
-            key={tab.id}
-            variant={selectedTab === tab.id ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedTab(tab.id)}
-            className={`rounded-xl ${
-              selectedTab === tab.id
-                ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                : "bg-white/50 dark:bg-gray-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
-            }`}
-          >
-            <tab.icon className="h-4 w-4 mr-2" />
-            {tab.label}
-          </Button>
-        ))}
+  return (
+    <div className="space-y-8 pb-12">
+      <header className="space-y-2">
+        <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+          <div className="rounded-lg bg-emerald-100 p-1.5 dark:bg-emerald-900/40">
+            <Award className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h2 className="text-lg font-semibold sm:text-xl">
+            Post-Construction Assessment
+          </h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Compare actual performance against pre-construction targets.
+        </p>
+      </header>
+
+      {errorMessage && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <ComparisonCard
+          title="Electricity Usage"
+          description="Total electricity consumed vs target."
+          target={targetTotals.electricity}
+          actual={totals.electricity}
+          unit="kWh"
+        />
+        
+        <ComparisonCard
+          title="Equipment Fuel"
+          description="Fuel consumed by heavy equipment."
+          target={targetTotals.fuel}
+          actual={totals.fuel}
+          unit="L"
+        />
+
+        <ComparisonCard
+          title="Logistics Fuel"
+          description="Fuel consumed for material delivery."
+          target={targetTotals.logisticsFuel}
+          actual={totalDeliveryFuel}
+          unit="L"
+        />
+
+        <ComparisonCard
+          title="Waste Generated"
+          description="Total waste mass generated."
+          target={targetTotals.waste}
+          actual={totals.waste}
+          unit="kg"
+        />
+
+        <ComparisonCard
+          title="Water Consumption"
+          description="Total water consumed."
+          target={targetTotals.water}
+          actual={totals.water}
+          unit="m³"
+        />
+
+        <ComparisonCard
+          title="Safety Incidents"
+          description="Number of safety incidents recorded."
+          target={targetTotals.incidents}
+          actual={totals.incidents}
+          unit="Incidents"
+        />
       </div>
-
-      {selectedTab === "overview" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                <Target className="h-5 w-5" />
-                ESG Goal Tracking
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+      
+      {/* Additional Insights Section */}
+       <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm mt-8">
+        <CardHeader>
+           <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <TrendingUp className="h-5 w-5" />
+              Performance Summary
+           </CardTitle>
+        </CardHeader>
+        <CardContent>
+           <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
-                {esgGoalsData.map((goal) => {
-                  const percentOfTarget =
-                    goal.target > 0
-                      ? Math.min((goal.actual / goal.target) * 100, 200)
-                      : goal.actual === 0
-                      ? 0
-                      : 200;
-                  return (
-                    <div key={goal.category} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{goal.category}</span>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(goal.status)}
-                          <span className="text-sm font-medium">
-                            {formatNumber(goal.actual, 1)} {goal.unit} /{" "}
-                            {formatNumber(goal.target, 1)} {goal.unit}
-                          </span>
-                        </div>
-                      </div>
-                      <Progress
-                        value={Math.min(100, percentOfTarget)}
-                        className={
-                          percentOfTarget <= 100 ? "h-2" : "h-2 bg-red-200"
-                        }
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Target</span>
-                        <span>{percentOfTarget.toFixed(1)}% of target</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                <TrendingUp className="h-5 w-5" />
-                Key Performance Summary
-              </CardTitle>
-              <CardDescription>
-                Totals based on {totalDays} logged construction day
-                {totalDays === 1 ? "" : "s"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
-                  <TreePine className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-emerald-700">
-                    {formatNumber(
-                      Math.max(carbonTargetTons - carbonActualTons, 0),
-                      1
-                    )}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    tCO₂e below plan
-                  </div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                  <Droplets className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-blue-700">
-                    {formatNumber(waterEfficiency, 0)}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Water efficiency
-                  </div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20">
-                  <Trash2 className="h-8 w-8 text-amber-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-amber-700">
-                    {formatNumber(wasteDiversion, 0)}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Waste diversion
-                  </div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-                  <Zap className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-purple-700">
-                    {formatNumber(energyReduction, 0)}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Electricity emission reduction
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                <div>
-                  <span className="font-semibold text-foreground block">
-                    Fuel Used
-                  </span>
-                  {formatNumber(totals.fuel, 1)} liters
-                </div>
-                <div>
-                  <span className="font-semibold text-foreground block">
-                    Electricity Emissions
-                  </span>
-                  {formatNumber(totals.electricity, 1)} kg CO₂e
-                </div>
-                <div>
-                  <span className="font-semibold text-foreground block">
-                    Material Deliveries
-                  </span>
-                  {materialLogs.length} records
-                </div>
-                <div>
-                  <span className="font-semibold text-foreground block">
-                    Material Spend
-                  </span>
-                  ${formatNumber(totalMaterialsCost, 2)}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {selectedTab === "metrics" && (
-        <div className="space-y-6">
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                Carbon Footprint Comparison
-              </CardTitle>
-              <CardDescription>
-                Planned versus actual emissions by source
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={carbonFootprintData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="phase" />
-                  <YAxis
-                    label={{
-                      value: "tCO₂e",
-                      angle: -90,
-                      position: "insideLeft",
-                    }}
-                  />
-                  <Tooltip />
-                  <Bar
-                    dataKey="planned"
-                    fill="#94a3b8"
-                    name="Planned (tCO₂e)"
-                  />
-                  <Bar dataKey="actual" fill="#10b981" name="Actual (tCO₂e)" />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="font-semibold">
-                    Net carbon delta:{" "}
-                    {formatNumber(carbonTargetTons - carbonActualTons, 2)} tCO₂e
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                Material Delivery Mix
-              </CardTitle>
-              <CardDescription>
-                Distribution of deliveries by supplier
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {supplierMixData.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Log material deliveries in the construction tab to see
-                  supplier statistics.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={supplierMixData}
-                        dataKey="deliveries"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        label={({ type, deliveries }) =>
-                          `${type}: ${deliveries}`
-                        }
-                      >
-                        {supplierMixData.map((entry, index) => (
-                          <Cell
-                            key={entry.type}
-                            fill={PIE_COLORS[index % PIE_COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Supplier Highlights</h4>
-                    {supplierMixData.map((item, index) => (
-                      <div
-                        key={item.type}
-                        className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{
-                              backgroundColor:
-                                PIE_COLORS[index % PIE_COLORS.length],
-                            }}
-                          />
-                          <span className="font-medium">{item.type}</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {item.deliveries} loads • $
-                          {formatNumber(item.cost, 0)}
-                        </span>
-                      </div>
+                 <h3 className="font-semibold text-emerald-800 dark:text-emerald-400">Strengths</h3>
+                 <ul className="space-y-2">
+                    {strengths.map((s, i) => (
+                       <li key={i} className="flex items-start gap-2 text-sm">
+                          <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                          <span>{s}</span>
+                       </li>
                     ))}
-                    <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-sm">
-                      <strong>Total delivery fuel used:</strong>{" "}
-                      {formatNumber(totalDeliveryFuel, 1)} liters
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                Monthly Performance Trends
-              </CardTitle>
-              <CardDescription>
-                Carbon, waste, and electricity emissions progression
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={monthlyProgress}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="carbon"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    name="Carbon (tCO₂e)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="waste"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    name="Waste (kg)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="energy"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    name="Electricity (kg CO₂e)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {selectedTab === "compliance" && (
-        <div className="space-y-6">
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                Environmental Compliance Score
-              </CardTitle>
-              <CardDescription>
-                Derived from actual performance vs project targets
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {complianceScores.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Add daily logs to generate compliance insights.
-                </p>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    {complianceScores.map((item) => (
-                      <div key={item.metric} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{item.metric}</span>
-                          <div className="flex items-center gap-2">
-                            {item.score >= item.benchmark ? (
-                              <CheckCircle className="h-4 w-4 text-emerald-500" />
-                            ) : (
-                              <AlertTriangle className="h-4 w-4 text-amber-500" />
-                            )}
-                            <span className="font-bold text-lg">
-                              {item.score}%
-                            </span>
-                          </div>
-                        </div>
-                        <Progress value={item.score} className="h-3" />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Benchmark: {item.benchmark}%</span>
-                          <span
-                            className={
-                              item.score >= item.benchmark
-                                ? "text-emerald-600"
-                                : "text-amber-600"
-                            }
-                          >
-                            {item.score >= item.benchmark ? "Exceeds" : "Below"}{" "}
-                            requirement
-                          </span>
-                        </div>
-                      </div>
+                 </ul>
+              </div>
+              <div className="space-y-4">
+                 <h3 className="font-semibold text-amber-800 dark:text-amber-400">Areas for Improvement</h3>
+                 <ul className="space-y-2">
+                    {improvements.map((s, i) => (
+                       <li key={i} className="flex items-start gap-2 text-sm">
+                          <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                          <span>{s}</span>
+                       </li>
                     ))}
-                  </div>
-                  <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-center">
-                    <div className="text-3xl font-bold text-emerald-700 mb-1">
-                      {overallCompliance}%
-                    </div>
-                    <div className="text-sm text-emerald-600">
-                      Overall compliance score
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                Top Delivery Partners
-              </CardTitle>
-              <CardDescription>
-                Suppliers contributing most to the project footprint
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {supplierHighlights.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No deliveries logged yet.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {supplierHighlights.map((entry) => (
-                    <div
-                      key={entry.name}
-                      className="p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <Award className="h-6 w-6 text-emerald-600" />
-                          <div>
-                            <div className="font-semibold">{entry.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {entry.date}
-                            </div>
-                          </div>
-                        </div>
-                        <Badge
-                          variant="secondary"
-                          className={getStatusBadge(entry.status)}
-                        >
-                          {entry.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-emerald-700 dark:text-emerald-300">
-                Post-Audit Remarks
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border-l-4 border-emerald-500">
-                <h4 className="font-semibold text-emerald-700 dark:text-emerald-300 mb-2">
-                  Strengths
-                </h4>
-                <ul className="text-sm space-y-1">
-                  {strengths.map((item) => (
-                    <li key={item}>• {item}</li>
-                  ))}
-                </ul>
+                 </ul>
               </div>
-              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-l-4 border-amber-500">
-                <h4 className="font-semibold text-amber-700 dark:text-amber-300 mb-2">
-                  Areas for Improvement
-                </h4>
-                <ul className="text-sm space-y-1">
-                  {improvements.map((item) => (
-                    <li key={item}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+           </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

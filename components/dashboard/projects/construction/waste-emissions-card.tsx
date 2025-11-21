@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, Save } from "lucide-react";
 import {
   WasteFormEntry,
   WasteEntrySummary,
@@ -40,6 +40,8 @@ interface WasteEmissionsCardProps {
   totalAllocatedMassKg: number;
   totalInputMassKg: number;
   totalEmissionsKg: number;
+  onSave: () => void;
+  isSaving?: boolean;
 }
 
 export function WasteEmissionsCard({
@@ -51,6 +53,8 @@ export function WasteEmissionsCard({
   totalAllocatedMassKg,
   totalInputMassKg,
   totalEmissionsKg,
+  onSave,
+  isSaving = false,
 }: WasteEmissionsCardProps) {
   const percentageTotalsByWasteType = entries.reduce<Record<string, number>>(
     (accumulator, entry) => {
@@ -279,6 +283,12 @@ export function WasteEmissionsCard({
             type must add up to 100% before submission.
           </p>
         )}
+        <div className="flex justify-end pt-2">
+          <Button onClick={onSave} disabled={isSaving}>
+            <Save className="mr-2 h-4 w-4" />
+            {isSaving ? "Saving..." : "Save Waste Data"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

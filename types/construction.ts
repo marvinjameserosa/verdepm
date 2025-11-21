@@ -1,4 +1,8 @@
-export type WasteTreatmentMethod = "landfill" | "incineration" | "recycling" | "compost";
+export type WasteTreatmentMethod =
+  | "landfill"
+  | "incineration"
+  | "recycling"
+  | "compost";
 
 export interface WasteEntry {
   id: string;
@@ -36,6 +40,9 @@ export type SourcedMaterial = {
   warehouse?: string;
   status: string; // MaterialStatus is imported in original, but string is fine for now or I can import it
   specSheetPath?: string;
+  approvalStatus?: string;
+  specSheetUrl?: string;
+  fuelSummary?: number;
 };
 
 export type DailyMetricKey =

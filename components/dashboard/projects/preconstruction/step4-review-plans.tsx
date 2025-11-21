@@ -183,7 +183,6 @@ export default function Step4ReviewPlans({
                 >
                   {targets.electricityUsage ? (
                     <div className="space-y-1">
-
                       <MetricRow
                         label="Total Consumed"
                         value={`${targets.electricityUsage.totalElectricityConsumed} kWh`}
@@ -202,7 +201,6 @@ export default function Step4ReviewPlans({
                 >
                   {targets.equipmentUsage ? (
                     <div className="space-y-1">
-
                       <MetricRow
                         label="Total Fuel"
                         value={`${targets.equipmentUsage.totalFuel} L`}
@@ -225,7 +223,6 @@ export default function Step4ReviewPlans({
                 >
                   {targets.fuelConsumption ? (
                     <div className="space-y-1">
-
                       <MetricRow
                         label="Total Fuel"
                         value={`${targets.fuelConsumption.totalFuel} L`}
@@ -248,7 +245,6 @@ export default function Step4ReviewPlans({
                 >
                   {targets.wasteGenerated ? (
                     <div className="space-y-1">
-
                       <MetricRow
                         label="Total Mass"
                         value={`${targets.wasteGenerated.totalWasteMass} kg`}
@@ -271,7 +267,6 @@ export default function Step4ReviewPlans({
                 >
                   {targets.waterSupply ? (
                     <div className="space-y-1">
-
                       <MetricRow
                         label="Total Consumed"
                         value={`${targets.waterSupply.totalWaterConsumed} m³`}
@@ -294,7 +289,6 @@ export default function Step4ReviewPlans({
                 >
                   {targets.safetyIncident ? (
                     <div className="space-y-1">
-
                       <MetricRow
                         label="Incidents"
                         value={targets.safetyIncident.numberOfIncidents}
@@ -434,7 +428,7 @@ export default function Step4ReviewPlans({
                   }}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Submitting..." : "Submit for Approval"}
+                  {isSubmitting ? "Submitting..." : "Submit"}
                 </Button>
               </div>
             </div>
