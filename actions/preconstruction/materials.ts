@@ -37,12 +37,15 @@ export async function addMaterial(setupId: string, material: any) {
 export async function deleteMaterial(materialId: string, setupId: string) {
   const supabase = await createClient();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("preconstruction_material")
     .delete()
     .eq("id", materialId)
-    .eq("project_setup_id", setupId);
+    .eq("project_setup_id", setupId)
+    .select("id");
 
   if (error) throw new Error(error.message);
+  if (!data || data.length === 0)
+    throw new Error("Material not found or access denied.");
   return { success: true };
 }

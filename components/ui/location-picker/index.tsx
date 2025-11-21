@@ -20,7 +20,11 @@ type LocationPickerProps = {
   onSave?: () => void;
 };
 
-export default function LocationPicker({ value, onChange, onSave }: LocationPickerProps) {
+export default function LocationPicker({
+  value,
+  onChange,
+  onSave,
+}: LocationPickerProps) {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -62,8 +66,12 @@ export default function LocationPicker({ value, onChange, onSave }: LocationPick
         );
         const data = await response.json();
         if (data && data.length > 0) {
-          setLat(parseFloat(data[0].lat));
-          setLng(parseFloat(data[0].lon));
+          const newLat = parseFloat(data[0].lat);
+          const newLng = parseFloat(data[0].lon);
+          if (!isNaN(newLat) && !isNaN(newLng)) {
+            setLat(newLat);
+            setLng(newLng);
+          }
         }
       } catch (error) {
         console.error("Failed to restore location from address:", error);
@@ -125,7 +133,11 @@ export default function LocationPicker({ value, onChange, onSave }: LocationPick
         onSave={onSave}
       />
       <div className="h-[300px] w-full rounded-md overflow-hidden border border-input z-0 relative">
-        <LocationMap lat={lat} lng={lng} onPositionChange={handlePositionChange} />
+        <LocationMap
+          lat={lat}
+          lng={lng}
+          onPositionChange={handlePositionChange}
+        />
       </div>
     </div>
   );

@@ -20,12 +20,15 @@ export async function saveTarget(
   };
 
   if (existingId) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from(table)
       .update(dbPayload)
-      .eq("id", existingId);
+      .eq("id", existingId)
+      .select("id");
 
     if (error) throw new Error(error.message);
+    if (!data || data.length === 0)
+      throw new Error("Target not found or access denied.");
     return existingId;
   } else {
     const { data, error } = await supabase

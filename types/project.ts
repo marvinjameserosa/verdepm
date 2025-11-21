@@ -23,6 +23,7 @@ export interface Project {
   budget?: number | null;
   startDate?: string | null;
   endDate?: string | null;
+  buildingPermit?: string | null;
   createdAt: string;
   updatedAt: string;
 }

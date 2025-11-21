@@ -56,14 +56,19 @@ export async function saveProjectSetup(
 
   // Update Project Details
   if (Object.keys(projectUpdates).length > 0) {
-    const { error: projectError } = await supabase
+    const { data, error: projectError } = await supabase
       .from("projects")
       .update(projectUpdates)
-      .eq("project_id", projectId);
+      .eq("project_id", projectId)
+      .select("project_id");
 
     if (projectError) {
       console.error("Failed to update project record:", projectError);
       throw new Error(projectError.message);
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error("Project not found or access denied.");
     }
   }
 
@@ -77,11 +82,14 @@ export async function submitForApproval(
 ) {
   const supabase = await createClient();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("projects")
     .update(updates)
-    .eq("project_id", setupId);
+    .eq("project_id", setupId)
+    .select("project_id");
 
   if (error) throw error;
+  if (!data || data.length === 0)
+    throw new Error("Project not found or access denied.");
   return { success: true };
 }

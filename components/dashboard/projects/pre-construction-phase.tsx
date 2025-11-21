@@ -267,7 +267,6 @@ export function PreConstructionPhase({
 
       if (fetchedProject) {
         setProjectDetails(fetchedProject);
-        // Avoid calling onProjectUpdated here to prevent infinite refresh loops
         // onProjectUpdated?.(fetchedProject);
       }
 
@@ -284,32 +283,31 @@ export function PreConstructionPhase({
       setUserId(user.id);
 
       // Use project ID as setup ID since we streamlined the tables
-      const currentProject = fetchedProject || project;
-      setProjectSetupId(currentProject.id);
+      setProjectSetupId(project.id);
 
       const nextDocPaths: DocumentPathMap = {};
       setDocumentPaths(nextDocPaths);
 
       setStep1Values({
-        projectName: currentProject?.name ?? DEFAULT_STEP1_VALUES.projectName,
+        projectName: project?.name ?? DEFAULT_STEP1_VALUES.projectName,
         projectAddress:
-          currentProject?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
+          project?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
         projectDescription:
-          currentProject?.description ??
-          DEFAULT_STEP1_VALUES.projectDescription,
-        status: currentProject?.status ?? DEFAULT_STEP1_VALUES.status,
-        priority: currentProject?.priority ?? DEFAULT_STEP1_VALUES.priority,
-        startDate: currentProject?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
-        endDate: currentProject?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
-        clientName:
-          currentProject?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
-        category: currentProject?.category ?? DEFAULT_STEP1_VALUES.category,
+          project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
+        status: project?.status ?? DEFAULT_STEP1_VALUES.status,
+        priority: project?.priority ?? DEFAULT_STEP1_VALUES.priority,
+        startDate: project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+        endDate: project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
+        clientName: project?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
+        category: project?.category ?? DEFAULT_STEP1_VALUES.category,
         budget:
-          currentProject?.budget !== undefined &&
-          currentProject?.budget !== null
-            ? currentProject.budget.toString()
+          project?.budget !== undefined && project?.budget !== null
+            ? project.budget.toString()
             : DEFAULT_STEP1_VALUES.budget,
-        documentPaths: nextDocPaths,
+        documentPaths: {
+          ...nextDocPaths,
+          "building-permit": project?.buildingPermit ?? undefined,
+        },
       });
 
       const mappedMaterials: Material[] = materials.map((materialRow: any) => ({
@@ -1093,6 +1091,10 @@ export function PreConstructionPhase({
               formData.append("file", file!);
               formData.append("path", filePath);
 
+              if (key === "building-permit") {
+                formData.append("bucket", "projects");
+              }
+
               const { error: uploadError } = await uploadProjectFile(formData);
 
               if (uploadError) {
@@ -1190,11 +1192,19 @@ export function PreConstructionPhase({
 
           if (trimmedStartDate !== projectDetails.startDate) {
             updates.startDate = trimmedStartDate;
-            serverUpdates.start_date = trimmedStartDate;
+            serverUpdates.start_date = trimmedStartDate || null;
           }
           if (trimmedEndDate !== projectDetails.endDate) {
             updates.endDate = trimmedEndDate;
-            serverUpdates.end_date = trimmedEndDate;
+            serverUpdates.end_date = trimmedEndDate || null;
+          }
+
+          if (
+            nextDocPaths["building-permit"] &&
+            nextDocPaths["building-permit"] !== projectDetails.buildingPermit
+          ) {
+            updates.buildingPermit = nextDocPaths["building-permit"];
+            serverUpdates.building_permit = nextDocPaths["building-permit"];
           }
         }
 

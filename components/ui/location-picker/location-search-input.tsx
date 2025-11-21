@@ -50,7 +50,7 @@ export function LocationSearchInput({
         setResults([]);
         setShowResults(false);
       }
-    }, 300); // 300ms delay
+    }, 800); // 800ms delay
 
     return () => clearTimeout(timer);
   }, [query, value]);
