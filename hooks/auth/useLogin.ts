@@ -29,17 +29,16 @@ export function useLogin() {
 
   // Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
   }, []);
 
-  /**
-   * Handle form submission
-   */
+  // Handle form submission
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setIsLoading(true);
     setErrors({});
     setAuthError(null);
@@ -59,12 +58,10 @@ export function useLogin() {
     try {
       const result = await login(formData);
 
-      if (result && "error" in result && result.error) {
+      if (result?.error) {
         if (isMountedRef.current) {
           setAuthError(result.error);
-          setIsLoading(false);
         }
-        return;
       }
     } catch (error) {
       if (
@@ -76,8 +73,6 @@ export function useLogin() {
       ) {
         throw error;
       }
-
-      console.error("Login failed exception:", error);
       if (isMountedRef.current) {
         setAuthError(
           error instanceof Error
