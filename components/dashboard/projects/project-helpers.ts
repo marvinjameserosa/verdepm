@@ -44,7 +44,8 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     budget,
     start_date: startDate,
     end_date: endDate,
-    building_permit: buildingPermit,
+    building_permit_url: buildingPermitUrl,
+    building_permit_storage_path: buildingPermitStoragePath,
     owner_id,
     created_at: createdAt,
     updated_at: updatedAt,
@@ -80,7 +81,9 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     budget: parsedBudget,
     startDate: (startDate as string | null | undefined) ?? null,
     endDate: (endDate as string | null | undefined) ?? null,
-    buildingPermit: (buildingPermit as string | null | undefined) ?? null,
+    buildingPermitUrl: (buildingPermitUrl as string | null | undefined) ?? null,
+    buildingPermitStoragePath:
+      (buildingPermitStoragePath as string | null | undefined) ?? null,
     createdAt:
       (createdAt as string | null | undefined) ?? new Date().toISOString(),
     updatedAt:

@@ -23,7 +23,8 @@ export interface Project {
   budget?: number | null;
   startDate?: string | null;
   endDate?: string | null;
-  buildingPermit?: string | null;
+  buildingPermitUrl?: string | null;
+  buildingPermitStoragePath?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +46,8 @@ export interface SupabaseProject {
   budget?: number | string | null;
   start_date?: string | null;
   end_date?: string | null;
+  building_permit_url?: string | null;
+  building_permit_storage_path?: string | null;
   created_at: string;
   updated_at: string;
 }

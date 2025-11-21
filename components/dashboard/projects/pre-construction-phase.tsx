@@ -288,25 +288,32 @@ export function PreConstructionPhase({
       const nextDocPaths: DocumentPathMap = {};
       setDocumentPaths(nextDocPaths);
 
+      const effectiveProject = fetchedProject || project;
+
       setStep1Values({
-        projectName: project?.name ?? DEFAULT_STEP1_VALUES.projectName,
+        projectName: effectiveProject?.name ?? DEFAULT_STEP1_VALUES.projectName,
         projectAddress:
-          project?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
+          effectiveProject?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
         projectDescription:
-          project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
-        status: project?.status ?? DEFAULT_STEP1_VALUES.status,
-        priority: project?.priority ?? DEFAULT_STEP1_VALUES.priority,
-        startDate: project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
-        endDate: project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
-        clientName: project?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
-        category: project?.category ?? DEFAULT_STEP1_VALUES.category,
+          effectiveProject?.description ??
+          DEFAULT_STEP1_VALUES.projectDescription,
+        status: effectiveProject?.status ?? DEFAULT_STEP1_VALUES.status,
+        priority: effectiveProject?.priority ?? DEFAULT_STEP1_VALUES.priority,
+        startDate:
+          effectiveProject?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+        endDate: effectiveProject?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
+        clientName:
+          effectiveProject?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
+        category: effectiveProject?.category ?? DEFAULT_STEP1_VALUES.category,
         budget:
-          project?.budget !== undefined && project?.budget !== null
-            ? project.budget.toString()
+          effectiveProject?.budget !== undefined &&
+          effectiveProject?.budget !== null
+            ? effectiveProject.budget.toString()
             : DEFAULT_STEP1_VALUES.budget,
         documentPaths: {
           ...nextDocPaths,
-          "building-permit": project?.buildingPermit ?? undefined,
+          "building-permit":
+            effectiveProject?.buildingPermitStoragePath ?? undefined,
         },
       });
 
@@ -1201,10 +1208,17 @@ export function PreConstructionPhase({
 
           if (
             nextDocPaths["building-permit"] &&
-            nextDocPaths["building-permit"] !== projectDetails.buildingPermit
+            nextDocPaths["building-permit"] !==
+              projectDetails.buildingPermitStoragePath
           ) {
-            updates.buildingPermit = nextDocPaths["building-permit"];
-            serverUpdates.building_permit = nextDocPaths["building-permit"];
+            updates.buildingPermitStoragePath = nextDocPaths["building-permit"];
+            serverUpdates.building_permit_storage_path =
+              nextDocPaths["building-permit"];
+
+            // Construct the public URL
+            const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/projects/${nextDocPaths["building-permit"]}`;
+            updates.buildingPermitUrl = publicUrl;
+            serverUpdates.building_permit_url = publicUrl;
           }
         }
 

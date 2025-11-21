@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { GanttChartSquare } from "lucide-react";
+import { GanttChartSquare, FileText } from "lucide-react";
 import LocationPicker from "@/components/ui/location-picker";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { useProjectSetupForm } from "@/hooks/useProjectSetupForm";
@@ -33,12 +33,37 @@ import {
   statusOptions,
 } from "@/lib/project-options";
 
+import { verifyProjectFile } from "@/actions/preconstruction/storage";
+import { useState } from "react";
+
 export default function Step1ProjectSetup({
   onSubmit,
   onSave,
   initialValues,
   isSubmitting,
 }: Step1ProjectSetupProps) {
+  const [verifyingFile, setVerifyingFile] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isReplacingFile, setIsReplacingFile] = useState(false);
+
+  const handleViewFile = async (path: string) => {
+    setVerifyingFile(path);
+    setFileError(null);
+    try {
+      const { exists, url, error } = await verifyProjectFile(path);
+      if (exists && url) {
+        window.open(url, "_blank");
+      } else {
+        setFileError(error || "File not found in storage.");
+      }
+    } catch (e) {
+      console.error(e);
+      setFileError("Failed to verify file.");
+    } finally {
+      setVerifyingFile(null);
+    }
+  };
+
   const {
     isLoading: isSessionLoading,
     error: sessionError,
@@ -321,31 +346,103 @@ export default function Step1ProjectSetup({
                   <CardContent className="px-6 pb-6 space-y-4 text-sm">
                     <div className="space-y-2">
                       <Label htmlFor="buildingPermit">Building Permit</Label>
-                      <Input
-                        id="buildingPermit"
-                        type="file"
-                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                        className="bg-white/80 dark:bg-gray-800/80"
-                        onChange={(event) =>
-                          registerFile(
-                            "building-permit",
-                            event.target.files?.[0] ?? null
-                          )
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Accepted formats: PDF, DOC, DOCX, PNG, JPG. Uploading a
-                        new file will replace the existing document.
-                      </p>
-                      {files["building-permit"] ? (
-                        <p className="text-xs text-emerald-700 dark:text-emerald-200">
-                          Selected: {files["building-permit"]?.name}
-                        </p>
-                      ) : documentPaths["building-permit"] ? (
-                        <p className="text-xs text-muted-foreground">
-                          Existing file path: {documentPaths["building-permit"]}
-                        </p>
-                      ) : null}
+                      {documentPaths["building-permit"] &&
+                      !isReplacingFile &&
+                      !files["building-permit"] ? (
+                        <div className="rounded-md border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700">
+                                <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                  Document on file
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                  {documentPaths["building-permit"]
+                                    ?.split("/")
+                                    .pop()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleViewFile(
+                                    documentPaths["building-permit"]!
+                                  )
+                                }
+                                disabled={
+                                  verifyingFile ===
+                                  documentPaths["building-permit"]
+                                }
+                              >
+                                {verifyingFile ===
+                                documentPaths["building-permit"] ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                                ) : null}
+                                View
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsReplacingFile(true)}
+                              >
+                                Replace
+                              </Button>
+                            </div>
+                          </div>
+                          {fileError && (
+                            <p className="text-xs text-red-600 dark:text-red-400 mt-2 px-1">
+                              {fileError}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <Input
+                            id="buildingPermit"
+                            type="file"
+                            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                            className="bg-white/80 dark:bg-gray-800/80"
+                            onChange={(event) =>
+                              registerFile(
+                                "building-permit",
+                                event.target.files?.[0] ?? null
+                              )
+                            }
+                          />
+                          <div className="flex justify-between items-start">
+                            <p className="text-xs text-muted-foreground">
+                              Accepted formats: PDF, DOC, DOCX, PNG, JPG.
+                            </p>
+                            {documentPaths["building-permit"] && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => {
+                                  setIsReplacingFile(false);
+                                  registerFile("building-permit", null);
+                                }}
+                              >
+                                Cancel replacement
+                              </Button>
+                            )}
+                          </div>
+                          {files["building-permit"] && (
+                            <p className="text-xs text-emerald-700 dark:text-emerald-200 font-medium">
+                              Selected: {files["building-permit"]?.name}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
