@@ -2,10 +2,6 @@
 
 import { useState } from "react";
 
-/**
- * Custom hook for password visibility toggle
- * Reusable across login, signup, and password reset forms
- */
 export function usePasswordVisibility(initialState = false) {
     const [showPassword, setShowPassword] = useState(initialState);
 

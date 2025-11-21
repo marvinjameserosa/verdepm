@@ -1,6 +1,5 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
 import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useLogin } from "@/hooks/auth/useLogin";
@@ -8,15 +7,13 @@ import { usePasswordVisibility } from "@/hooks/auth/usePasswordVisibility";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
 
 export function LoginForm() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-
-  // Custom hooks for login logic and password visibility
   const { authError, isLoading, errors, handleSubmit } = useLogin();
   const { showPassword, togglePassword } = usePasswordVisibility();
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
       {/* Error Message Alert */}
@@ -47,10 +44,11 @@ export function LoginForm() {
             placeholder="Enter your email"
             required
             disabled={isLoading}
-            className={`pl-9 sm:pl-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${errors.email
-              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-              : ""
-              }`}
+            className={`pl-9 sm:pl-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${
+              errors.email
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                : ""
+            }`}
           />
         </div>
         {errors.email && (
@@ -80,10 +78,11 @@ export function LoginForm() {
             placeholder="Enter your password"
             required
             disabled={isLoading}
-            className={`pl-9 sm:pl-11 pr-9 sm:pr-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${errors.password
-              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-              : ""
-              }`}
+            className={`pl-9 sm:pl-11 pr-9 sm:pr-11 h-10 sm:h-11 text-sm sm:text-base bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 transition-all ${
+              errors.password
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                : ""
+            }`}
           />
           <button
             type="button"
@@ -109,29 +108,14 @@ export function LoginForm() {
         )}
       </div>
 
-      {/* Remember Me */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="remember"
-            disabled={isLoading}
-            className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 h-4 w-4 sm:h-5 sm:w-5"
-          />{" "}
-          <label
-            htmlFor="remember"
-            className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none"
-          >
-            Remember me
-          </label>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowForgotPassword(true)}
-          className="text-xs sm:text-sm font-medium text-emerald-600 hover:text-emerald-500 transition-colors focus:outline-none"
-        >
-          Forgot password?
-        </button>
-      </div>
+      {/* Forgot Password */}
+      <button
+        type="button"
+        onClick={() => setShowForgotPassword(true)}
+        className="text-xs sm:text-sm font-medium text-emerald-600 hover:text-emerald-500 transition-colors focus:outline-none"
+      >
+        Forgot password?
+      </button>
 
       {/* Submit Button */}
       <Button

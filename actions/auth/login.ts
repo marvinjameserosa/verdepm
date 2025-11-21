@@ -13,27 +13,44 @@ type LoginResult = {
  * Server action for user login
  */
 export async function login(formData: FormData): Promise<LoginResult | void> {
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    try {
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
 
-    // Validate input
-    const result = validateLoginInput({ email, password });
+        // Validate input
+        const result = validateLoginInput({ email, password });
 
-    if (!result.success) {
-        return { error: "Invalid email or password" };
+        if (!result.success) {
+            return { error: "Invalid email or password" };
+        }
+
+        // Attempt sign in
+        const authResult = await signInWithPassword(
+            result.data.email,
+            result.data.password
+        );
+
+        if (!authResult.success) {
+            return { error: authResult.error || "Authentication failed" };
+        }
+
+        // Revalidate and redirect on success
+        revalidatePath("/", "layout");
+    } catch (error) {
+        // Allow redirect to propagate
+        if (
+            error &&
+            typeof error === "object" &&
+            ((error as { digest?: string }).digest?.startsWith("NEXT_REDIRECT") ||
+                (error as Error).message === "NEXT_REDIRECT" ||
+                (error as Error).name === "NEXT_REDIRECT")
+        ) {
+            throw error;
+        }
+        
+        console.error("Login action error:", error);
+        return { error: "An unexpected error occurred. Please try again." };
     }
-
-    // Attempt sign in
-    const authResult = await signInWithPassword(
-        result.data.email,
-        result.data.password
-    );
-
-    if (!authResult.success) {
-        return { error: authResult.error || "Authentication failed" };
-    }
-
-    // Revalidate and redirect on success
-    revalidatePath("/", "layout");
+    
     return redirect("/dashboard");
 }
