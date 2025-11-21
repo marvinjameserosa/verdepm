@@ -16,7 +16,7 @@ import { GanttChartSquare } from "lucide-react";
 import LocationPicker from "@/components/ui/location-picker";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { useProjectSetupForm } from "@/hooks/useProjectSetupForm";
-import type { InitialValues, Step1FormValues } from "@/types/forms";
+import type { Step1ProjectSetupProps } from "@/types/components";
 import type { ProjectStatus, ProjectPriority } from "@/types/project";
 import { useSession } from "@/components/auth/SessionProvider";
 import { Loader2 } from "lucide-react";
@@ -33,19 +33,12 @@ import {
   statusOptions,
 } from "@/lib/project-options";
 
-type Props = {
-  onSubmit: (values: Step1FormValues) => Promise<void>;
-  onSave: (values: Step1FormValues) => Promise<void>;
-  initialValues?: InitialValues;
-  isSubmitting: boolean;
-};
-
 export default function Step1ProjectSetup({
   onSubmit,
   onSave,
   initialValues,
   isSubmitting,
-}: Props) {
+}: Step1ProjectSetupProps) {
   const {
     isLoading: isSessionLoading,
     error: sessionError,
@@ -62,8 +55,6 @@ export default function Step1ProjectSetup({
     setStatus,
     priority,
     setPriority,
-    projectManager,
-    setProjectManager,
     startDate,
     setStartDate,
     endDate,
@@ -191,9 +182,14 @@ export default function Step1ProjectSetup({
                       <Label htmlFor="status">Current Status</Label>
                       <Select
                         value={status}
-                        onValueChange={(value) => setStatus(value as ProjectStatus)}
+                        onValueChange={(value) =>
+                          setStatus(value as ProjectStatus)
+                        }
                       >
-                        <SelectTrigger id="status" className="bg-white/80 dark:bg-gray-800/80">
+                        <SelectTrigger
+                          id="status"
+                          className="bg-white/80 dark:bg-gray-800/80"
+                        >
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent className="z-[60] max-h-60">
@@ -209,9 +205,14 @@ export default function Step1ProjectSetup({
                       <Label htmlFor="priority">Priority</Label>
                       <Select
                         value={priority}
-                        onValueChange={(value) => setPriority(value as ProjectPriority)}
+                        onValueChange={(value) =>
+                          setPriority(value as ProjectPriority)
+                        }
                       >
-                        <SelectTrigger id="priority" className="bg-white/80 dark:bg-gray-800/80">
+                        <SelectTrigger
+                          id="priority"
+                          className="bg-white/80 dark:bg-gray-800/80"
+                        >
                           <SelectValue placeholder="Select priority" />
                         </SelectTrigger>
                         <SelectContent className="z-[60] max-h-60">
@@ -229,7 +230,10 @@ export default function Step1ProjectSetup({
                         value={category || undefined}
                         onValueChange={(value) => setCategory(value)}
                       >
-                        <SelectTrigger id="category" className="bg-white/80 dark:bg-gray-800/80">
+                        <SelectTrigger
+                          id="category"
+                          className="bg-white/80 dark:bg-gray-800/80"
+                        >
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent className="z-[60] max-h-60">
@@ -254,16 +258,6 @@ export default function Step1ProjectSetup({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="px-6 pb-6 space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="projectManager">Project Manager</Label>
-                      <Input
-                        id="projectManager"
-                        placeholder="Enter manager or owner"
-                        className="bg-white/80 dark:bg-gray-800/80"
-                        value={projectManager}
-                        onChange={(e) => setProjectManager(e.target.value)}
-                      />
-                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="clientName">Client / Customer</Label>
                       <Input

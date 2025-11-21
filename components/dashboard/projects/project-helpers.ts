@@ -39,7 +39,6 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     status,
     priority,
     category,
-    project_manager: projectManager,
     client_name: clientName,
     location,
     budget,
@@ -63,22 +62,18 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
       ? Number.isFinite(Number(budget))
         ? Number(budget)
         : null
-      : ((budget as number | null | undefined) ?? null);
+      : (budget as number | null | undefined) ?? null;
 
   return {
     id: normalizedId,
     ownerId: (owner_id as string | null | undefined) ?? null,
-    organizationId:
-      (organizationId as string | null | undefined) ?? null,
-    name:
-      (projectName as string | null | undefined) ??
-      "Untitled Project",
+    organizationId: (organizationId as string | null | undefined) ?? null,
+    name: (projectName as string | null | undefined) ?? "Untitled Project",
     slug: (slug as string | null | undefined) ?? normalizedId,
     description: (description as string | null | undefined) ?? null,
     status: status as ProjectStatus,
     priority: priority as ProjectPriority,
     category: (category as string | null | undefined) ?? null,
-    projectManager: (projectManager as string | null | undefined) ?? null,
     clientName: (clientName as string | null | undefined) ?? null,
     location: (location as string | null | undefined) ?? null,
     budget: parsedBudget,

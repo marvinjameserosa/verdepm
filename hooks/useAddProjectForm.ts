@@ -1,16 +1,13 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
-import { addProject } from "@/actions/addProject";
+import { addProject } from "@/actions/projects/addProject";
 import type { Project } from "@/types/project";
 import type { AddProjectData } from "@/types/forms";
-import { z } from "zod";
-import { addProjectSchema } from "@/types/forms";
 
 const defaultFormState: AddProjectData = {
   name: "",
   description: "",
   status: "planning",
   priority: "medium",
-  projectManager: "",
   startDate: "",
   endDate: "",
   clientName: "",

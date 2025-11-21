@@ -1,6 +1,5 @@
 "use client";
 
-import { useSession } from "@/components/auth/SessionProvider";
 import type { AppError } from "@/types/error";
 import type {
   ExistingFileState,
@@ -43,14 +42,10 @@ export function useProjectSetupForm({
   const [priority, setPriority] = useState<ProjectPriority>(
     initialValues?.priority ?? "medium"
   );
-  const [projectManager, setProjectManager] = useState(
-    initialValues?.projectManager ?? ""
-  );
+
   const [startDate, setStartDate] = useState(initialValues?.startDate ?? "");
   const [endDate, setEndDate] = useState(initialValues?.endDate ?? "");
-  const [clientName, setClientName] = useState(
-    initialValues?.clientName ?? ""
-  );
+  const [clientName, setClientName] = useState(initialValues?.clientName ?? "");
   const [category, setCategory] = useState(initialValues?.category ?? "");
   const [budget, setBudget] = useState(initialValues?.budget ?? "");
   const [files, setFiles] = useState<FileState>(EMPTY_FILE_STATE);
@@ -68,7 +63,6 @@ export function useProjectSetupForm({
     setProjectDescription(initialValues.projectDescription ?? "");
     setStatus(initialValues.status ?? "planning");
     setPriority(initialValues.priority ?? "medium");
-    setProjectManager(initialValues.projectManager ?? "");
     setStartDate(initialValues.startDate ?? "");
     setEndDate(initialValues.endDate ?? "");
     setClientName(initialValues.clientName ?? "");
@@ -108,7 +102,6 @@ export function useProjectSetupForm({
         projectDescription,
         status,
         priority,
-        projectManager,
         startDate,
         endDate,
         clientName,
@@ -119,7 +112,6 @@ export function useProjectSetupForm({
       });
       setFiles(EMPTY_FILE_STATE);
     } catch (error) {
-      console.error("Failed to save project setup", error);
       setError({
         title: "Failed to Submit",
         message:
@@ -138,7 +130,6 @@ export function useProjectSetupForm({
         projectDescription,
         status,
         priority,
-        projectManager,
         startDate,
         endDate,
         clientName,
@@ -149,7 +140,6 @@ export function useProjectSetupForm({
       });
       setFiles(EMPTY_FILE_STATE);
     } catch (error) {
-      console.error("Failed to save project setup", error);
       setError({
         title: "Failed to Save",
         message:
@@ -169,8 +159,6 @@ export function useProjectSetupForm({
     setStatus,
     priority,
     setPriority,
-    projectManager,
-    setProjectManager,
     startDate,
     setStartDate,
     endDate,

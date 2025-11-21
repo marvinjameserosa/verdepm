@@ -21,7 +21,6 @@ export const addProjectSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["planning", "in-progress", "on-hold", "completed"]),
   priority: z.enum(["low", "medium", "high"]),
-  projectManager: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   clientName: z.string().optional(),
@@ -32,11 +31,7 @@ export const addProjectSchema = z.object({
 
 export type AddProjectData = z.infer<typeof addProjectSchema>;
 
-export type DocumentKey =
-  | "sec-dti"
-  | "mayors-permit"
-  | "bir"
-  | "building-permit";
+export type DocumentKey = "building-permit";
 
 export type FileState = Partial<Record<DocumentKey, File | null>>;
 
@@ -48,7 +43,6 @@ export type Step1FormValues = {
   projectDescription: string;
   status: ProjectStatus;
   priority: ProjectPriority;
-  projectManager: string;
   startDate?: string;
   endDate?: string;
   clientName: string;
@@ -64,7 +58,6 @@ export type InitialValues = {
   projectDescription?: string;
   status?: ProjectStatus;
   priority?: ProjectPriority;
-  projectManager?: string;
   startDate?: string | null;
   endDate?: string | null;
   clientName?: string;

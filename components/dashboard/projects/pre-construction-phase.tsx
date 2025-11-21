@@ -1,660 +1,69 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Step1ProjectSetup from "./preconstruction/step1-project-setup";
 import Step2TargetSetting from "./preconstruction/step2-target-setting";
 import Step3ReviewPlans from "./preconstruction/step3-review-plans";
 import { type Material, type MaterialStatus } from "./preconstruction/types";
-import { supabase } from "@/lib/supabase/client";
+
 import type { Project } from "@/types/project";
 import {
   type DocumentKey,
   type ExistingFileState,
   type Step1FormValues,
 } from "@/types/forms";
-import { mapProjectFromSupabase } from "./project-helpers";
-import { isMissingRelationError } from "@/lib/supabase/errors";
 import {
-  type ProjectEsgTargets,
+  getPreconstructionData,
+  getTargetColumnMetadata,
+} from "@/actions/preconstruction/fetch";
+import {
+  ensureUniqueProjectSlug,
+  saveProjectSetup as saveProjectSetupAction,
+  submitForApproval,
+} from "@/actions/preconstruction/setup";
+import { saveTarget } from "@/actions/preconstruction/targets";
+import {
+  addMaterial,
+  deleteMaterial,
+} from "@/actions/preconstruction/materials";
+import {
   type TargetSectionKey,
   type TargetSectionValuesMap,
+  type PreConstructionPhaseProps,
+  type Step1InitialValues,
+  type DocumentPathMap,
+  type ColumnMapping,
+  type SectionConfig,
+  type ColumnDescriptor,
+  type ColumnInfo,
+  type ProjectEsgTargets,
 } from "@/types/preconstruction";
-
-type Step1InitialValues = NonNullable<
-  Parameters<typeof Step1ProjectSetup>[0]["initialValues"]
->;
-
-type DocumentPathMap = ExistingFileState;
-
-const createEmptyTargets = (): ProjectEsgTargets => ({
-  electricityUsage: null,
-  equipmentUsage: null,
-  fuelConsumption: null,
-  wasteGenerated: null,
-  waterSupply: null,
-  safetyIncident: null,
-});
-
-type ColumnCandidateMap = Record<string, string[]>;
-
-type SectionConfig = {
-  table: string;
-  candidates: ColumnCandidateMap;
-  heuristics?: Record<string, string[]>;
-};
-
-type ColumnMapping = Record<TargetSectionKey, Record<string, string>>;
-
-type ColumnInfo = {
-  name: string;
-  lower: string;
-};
-
-type ColumnDescriptor = ColumnInfo & {
-  dataType: string;
-};
-
-const TIMEFRAME_COLUMN_CANDIDATES = [
-  "target_timeframe",
-  "targetTimeframe",
-  "timeframe_label",
-  "timeframe_text",
-  "timeframe_display",
-  "time_frame",
-  "reporting_period",
-  "target_period",
-  "timeframe",
-  "timeframe_id",
-  "target_timeframe_id",
-];
-
-const DATE_COLUMN_CANDIDATES = [
-  "date",
-  "target_date",
-  "targetDate",
-  "target_deadline",
-  "deadline",
-];
-
-const ELECTRICITY_TOTAL_CONSUMPTION_CANDIDATES = [
-  "total_electricity_consumed",
-  "total_electricity_consumption",
-  "total_electricity_usage",
-  "total_electricity_usage_kwh",
-  "electricity_consumption",
-  "electricity_consumption_kwh",
-  "electricity_usage",
-  "totalElectricityConsumed",
-  "totalElectricityConsumption",
-  "electricityConsumption",
-  "electricityUsage",
-];
-
-const EQUIPMENT_OPERATION_LOGS_CANDIDATES = [
-  "equipment_operation_logs",
-  "operation_logs",
-  "equipment_logs",
-  "operation_notes",
-  "equipmentOperationLogs",
-];
-
-const EQUIPMENT_FUEL_RATE_CANDIDATES = [
-  "fuel_rate",
-  "fuel_rate_lph",
-  "fuel_rate_liters_per_hour",
-  "fuel_rate_liters_hour",
-  "fuelRate",
-  "fuel_rate_value",
-];
-
-const EQUIPMENT_TOTAL_FUEL_CANDIDATES = [
-  "total_fuel",
-  "total_fuel_liters",
-  "fuel_consumed_total",
-  "fuel_consumed",
-  "totalFuel",
-];
-
-const EQUIPMENT_COMBUSTION_FACTOR_CANDIDATES = [
-  "combustion_emission_factor",
-  "combustion_factor",
-  "emission_factor",
-  "combustionEmissionFactor",
-  "emission_factor_combustion",
-];
-
-const FUEL_TOTAL_DISTANCE_CANDIDATES = [
-  "total_distance",
-  "distance_travelled",
-  "distance_traveled",
-  "total_distance_km",
-  "distance_km",
-  "distance",
-  "route_distance",
-  "totalDistance",
-];
-
-const FUEL_EFFICIENCY_CANDIDATES = [
-  "fuel_efficiency",
-  "fuel_efficiency_km_per_l",
-  "fuel_efficiency_kmpl",
-  "efficiency_km_per_liter",
-  "fuel_efficiency_km_l",
-  "fuelEfficiency",
-  "km_per_liter",
-];
-
-const FUEL_TOTAL_FUEL_CANDIDATES = [
-  "total_fuel",
-  "total_fuel_used",
-  "fuel_used",
-  "fuel_consumed",
-  "fuel_consumption_total",
-  "totalFuel",
-];
-
-const FUEL_EMISSION_FACTOR_CANDIDATES = [
-  "fuel_emission_factor",
-  "fuel_emission_factor_value",
-  "fuel_emission_factor_l",
-  "emission_factor_fuel",
-  "fuelEmissionFactor",
-];
-
-const WASTE_TOTAL_MASS_CANDIDATES = [
-  "total_waste_mass",
-  "total_waste_generated",
-  "waste_mass",
-  "waste_generated_mass",
-  "waste_mass_kg",
-  "totalWasteMass",
-];
-
-const WASTE_PERCENT_TREATMENT_CANDIDATES = [
-  "percent_by_treatment",
-  "treatment_percentage",
-  "treatment_percent",
-  "percent_treatment",
-  "percent_by_method",
-  "percentByTreatment",
-];
-
-const WASTE_EMISSION_FACTOR_CANDIDATES = [
-  "emission_factor",
-  "waste_emission_factor",
-  "emission_factor_waste",
-  "emissionFactor",
-];
-
-const WATER_TOTAL_CONSUMPTION_CANDIDATES = [
-  "total_water_consumed",
-  "water_consumption_total",
-  "total_water_usage",
-  "water_used_total",
-  "water_consumption",
-  "totalWaterConsumed",
-  "water_used",
-];
-
-const WATER_EMISSION_FACTOR_CANDIDATES = [
-  "water_supply_emission_factor",
-  "supply_emission_factor",
-  "water_emission_factor",
-  "emission_factor_water_supply",
-  "waterSupplyEmissionFactor",
-];
-
-const SAFETY_INCIDENT_COUNT_CANDIDATES = [
-  "number_of_incidents",
-  "incident_count",
-  "total_incidents",
-  "incidents_total",
-  "incidentNumber",
-  "numberOfIncidents",
-];
-
-const SAFETY_EMPLOYEE_HOURS_CANDIDATES = [
-  "total_employee_hours",
-  "employee_hours_total",
-  "hours_worked_total",
-  "total_hours_worked",
-  "employee_hours",
-  "totalEmployeeHours",
-];
-
-const FIXED_EMISSION_FACTOR = 2.68;
-const FIXED_EMISSION_FACTOR_STRING = FIXED_EMISSION_FACTOR.toString();
-
-const TARGET_SECTION_CONFIG: Record<TargetSectionKey, SectionConfig> = {
-  electricityUsage: {
-    table: "dim_electricity_usage_target",
-    candidates: {
-      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
-      date: DATE_COLUMN_CANDIDATES,
-      totalElectricityConsumed: ELECTRICITY_TOTAL_CONSUMPTION_CANDIDATES,
-    },
-    heuristics: {
-      timeframe: ["time", "frame"],
-      totalElectricityConsumed: ["electricity", "consum"],
-    },
-  },
-  equipmentUsage: {
-    table: "dim_equipment_usage_target",
-    candidates: {
-      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
-      date: DATE_COLUMN_CANDIDATES,
-      equipmentOperationLogs: EQUIPMENT_OPERATION_LOGS_CANDIDATES,
-      fuelRate: EQUIPMENT_FUEL_RATE_CANDIDATES,
-      totalFuel: EQUIPMENT_TOTAL_FUEL_CANDIDATES,
-      combustionEmissionFactor: EQUIPMENT_COMBUSTION_FACTOR_CANDIDATES,
-    },
-    heuristics: {
-      timeframe: ["time", "frame"],
-      equipmentOperationLogs: ["operation", "log"],
-      fuelRate: ["fuel", "rate"],
-      totalFuel: ["fuel", "total"],
-      combustionEmissionFactor: ["emission", "factor"],
-    },
-  },
-  fuelConsumption: {
-    table: "dim_fuel_consumption_target",
-    candidates: {
-      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
-      date: DATE_COLUMN_CANDIDATES,
-      totalDistance: FUEL_TOTAL_DISTANCE_CANDIDATES,
-      fuelEfficiency: FUEL_EFFICIENCY_CANDIDATES,
-      totalFuel: FUEL_TOTAL_FUEL_CANDIDATES,
-      fuelEmissionFactor: FUEL_EMISSION_FACTOR_CANDIDATES,
-    },
-    heuristics: {
-      timeframe: ["time", "frame"],
-      totalDistance: ["distance"],
-      fuelEfficiency: ["efficiency"],
-      totalFuel: ["total", "fuel"],
-      fuelEmissionFactor: ["emission", "factor"],
-    },
-  },
-  wasteGenerated: {
-    table: "dim_waste_generated_target",
-    candidates: {
-      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
-      date: DATE_COLUMN_CANDIDATES,
-      totalWasteMass: WASTE_TOTAL_MASS_CANDIDATES,
-      percentByTreatment: WASTE_PERCENT_TREATMENT_CANDIDATES,
-      emissionFactor: WASTE_EMISSION_FACTOR_CANDIDATES,
-    },
-    heuristics: {
-      timeframe: ["time", "frame"],
-      totalWasteMass: ["waste", "mass"],
-      percentByTreatment: ["treatment", "percent"],
-      emissionFactor: ["emission", "factor"],
-    },
-  },
-  waterSupply: {
-    table: "dim_water_supply_target",
-    candidates: {
-      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
-      date: DATE_COLUMN_CANDIDATES,
-      totalWaterConsumed: WATER_TOTAL_CONSUMPTION_CANDIDATES,
-      waterSupplyEmissionFactor: WATER_EMISSION_FACTOR_CANDIDATES,
-    },
-    heuristics: {
-      timeframe: ["time", "frame"],
-      totalWaterConsumed: ["water", "consum"],
-      waterSupplyEmissionFactor: ["emission", "factor"],
-    },
-  },
-  safetyIncident: {
-    table: "projects_safety_incident_targets",
-    candidates: {
-      timeframe: TIMEFRAME_COLUMN_CANDIDATES,
-      date: DATE_COLUMN_CANDIDATES,
-      numberOfIncidents: SAFETY_INCIDENT_COUNT_CANDIDATES,
-      totalEmployeeHours: SAFETY_EMPLOYEE_HOURS_CANDIDATES,
-    },
-    heuristics: {
-      timeframe: ["time", "frame"],
-      numberOfIncidents: ["incident"],
-      totalEmployeeHours: ["employee", "hour"],
-    },
-  },
-};
-
-const MISSING_TABLE_MESSAGES: Record<TargetSectionKey, string> = {
-  electricityUsage: "Electricity usage targets table is not configured.",
-  equipmentUsage: "Equipment usage targets table is not configured.",
-  fuelConsumption: "Fuel consumption targets table is not configured.",
-  wasteGenerated: "Waste generated targets table is not configured.",
-  waterSupply: "Water supply targets table is not configured.",
-  safetyIncident: "Safety incident targets table is not configured.",
-};
-
-const buildDefaultColumnMapping = (): ColumnMapping => {
-  return Object.fromEntries(
-    Object.entries(TARGET_SECTION_CONFIG).map(([section, config]) => {
-      const mapping: Record<string, string> = {};
-      for (const [canonicalKey, candidates] of Object.entries(
-        config.candidates
-      )) {
-        mapping[canonicalKey] = candidates[0];
-      }
-      return [section, mapping];
-    })
-  ) as ColumnMapping;
-};
-
-const selectColumnName = (
-  available: ColumnInfo[],
-  candidates: string[],
-  heuristics?: string[]
-): string => {
-  if (available.length > 0) {
-    for (const candidate of candidates) {
-      const lowerCandidate = candidate.toLowerCase();
-      const directMatch = available.find(
-        (column) => column.lower === lowerCandidate
-      );
-      if (directMatch) {
-        return directMatch.name;
-      }
-    }
-
-    if (heuristics && heuristics.length > 0) {
-      const heuristicMatch = available.find((column) =>
-        heuristics.every((keyword) => column.lower.includes(keyword))
-      );
-      if (heuristicMatch) {
-        return heuristicMatch.name;
-      }
-    }
-  }
-
-  return candidates[0];
-};
-
-const isMissingColumnError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const candidate = error as { code?: string; message?: string };
-  if (candidate.code === "PGRST204") {
-    return true;
-  }
-
-  if (typeof candidate.message === "string") {
-    const normalized = candidate.message.toLowerCase();
-    return normalized.includes("column") && normalized.includes("schema cache");
-  }
-
-  return false;
-};
-
-const isForeignKeyTimeframeError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const candidate = error as {
-    code?: string;
-    message?: string;
-    details?: string;
-  };
-
-  const normalize = (value?: string): string =>
-    typeof value === "string" ? value.toLowerCase() : "";
-
-  const message = normalize(candidate.message);
-  const details = normalize(candidate.details);
-
-  if (candidate.code === "23503") {
-    if (message.includes("timeframe") || details.includes("timeframe")) {
-      return true;
-    }
-  }
-
-  if (message.includes("foreign key") && message.includes("timeframe")) {
-    return true;
-  }
-
-  if (details.includes("foreign key") && details.includes("timeframe")) {
-    return true;
-  }
-
-  return false;
-};
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  if (error && typeof error === "object" && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim().length > 0) {
-      return message;
-    }
-  }
-
-  return fallback;
-};
-
-const toStringOrEmpty = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-  return String(value);
-};
-
-const hasAnyValue = (...values: string[]): boolean =>
-  values.some((value) => value.trim().length > 0);
-
-const DATE_INPUT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-const normalizeDateInput = (value: string, fieldLabel: string): string | null => {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return null;
-  }
-
-  if (!DATE_INPUT_REGEX.test(trimmed)) {
-    throw new Error(`${fieldLabel} must be in YYYY-MM-DD format.`);
-  }
-
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`${fieldLabel} is not a valid date.`);
-  }
-
-  return trimmed;
-};
-
-const formatDateForInput = (value: unknown): string => {
-  if (!value) {
-    return "";
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed.length === 0) {
-      return "";
-    }
-
-    if (DATE_INPUT_REGEX.test(trimmed)) {
-      return trimmed;
-    }
-
-    const parsed = new Date(trimmed);
-    if (Number.isNaN(parsed.getTime())) {
-      return "";
-    }
-
-    return parsed.toISOString().slice(0, 10);
-  }
-
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) {
-      return "";
-    }
-
-    return value.toISOString().slice(0, 10);
-  }
-
-  return "";
-};
-
-const parseNumeric = (value: string, fieldLabel: string): number => {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new Error(`${fieldLabel} is required.`);
-  }
-
-  const numeric = Number(trimmed);
-  if (!Number.isFinite(numeric)) {
-    throw new Error(`${fieldLabel} must be a valid number.`);
-  }
-
-  return numeric;
-};
-
-const DEFAULT_STEP1_VALUES: Step1InitialValues = {
-  projectName: "Greenwood Tower",
-  projectAddress: "123 Sustainable Ave, Eco City",
-  projectDescription: "",
-  status: "planning",
-  priority: "medium",
-  projectManager: "",
-  startDate: "",
-  endDate: "",
-  clientName: "",
-  category: "",
-  budget: "",
-  documentPaths: {},
-};
-
-const generateSlug = (input: string) =>
-  input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-const buildSlugFallback = (identifier: string) =>
-  `project-${
-    identifier
-      .replace(/[^a-z0-9]+/gi, "")
-      .slice(0, 12)
-      .toLowerCase() || crypto.randomUUID().slice(0, 12)
-  }`;
-
-const getDefaultStep1Values = (
-  project?: Project,
-  documentPaths: DocumentPathMap = {}
-): Step1InitialValues => ({
-  projectName: project?.name ?? DEFAULT_STEP1_VALUES.projectName,
-  projectAddress: project?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
-  projectDescription:
-    project?.description ?? DEFAULT_STEP1_VALUES.projectDescription,
-  status: project?.status ?? DEFAULT_STEP1_VALUES.status,
-  priority: project?.priority ?? DEFAULT_STEP1_VALUES.priority,
-  projectManager: project?.projectManager ?? DEFAULT_STEP1_VALUES.projectManager,
-  startDate: project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
-  endDate: project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
-  clientName: project?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
-  category: project?.category ?? DEFAULT_STEP1_VALUES.category,
-  budget:
-    project?.budget !== undefined && project?.budget !== null
-      ? project.budget.toString()
-      : DEFAULT_STEP1_VALUES.budget,
-  documentPaths,
-});
-
-const STEP_DEFINITIONS = [
-  {
-    id: 1,
-    title: "Project Setup",
-    description: "Define basics, upload compliance files.",
-  },
-  {
-    id: 2,
-    title: "Target Setting",
-    description: "Capture ESG targets & sourcing notes.",
-  },
-  {
-    id: 3,
-    title: "Review Plans",
-    description: "Validate and submit for approvals.",
-  },
-];
-
-const StepIndicator = ({ currentStep }: { currentStep: number }) => {
-  const totalSteps = STEP_DEFINITIONS.length;
-  const progressPercent = Math.round((currentStep / totalSteps) * 100);
-
-  return (
-    <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white/90 dark:bg-gray-900/70 p-4 space-y-4 shadow-sm">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          Step {currentStep} of {totalSteps}
-        </span>
-        <span>{progressPercent}% complete</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-emerald-500 transition-all"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-      <ol className="space-y-3">
-        {STEP_DEFINITIONS.map((stepDef) => {
-          const isActive = currentStep === stepDef.id;
-          const isComplete = currentStep > stepDef.id;
-          return (
-            <li
-              key={stepDef.id}
-              className="flex items-start gap-3 rounded-xl p-2"
-            >
-              <div
-                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
-                  isComplete
-                    ? "border-emerald-500 bg-emerald-500 text-white"
-                    : isActive
-                    ? "border-emerald-500 text-emerald-700 dark:text-emerald-200"
-                    : "border-gray-300 text-gray-500"
-                }`}
-                aria-label={
-                  isActive ? "Current step" : `Step ${stepDef.id} indicator`
-                }
-              >
-                {isComplete ? "✓" : stepDef.id}
-              </div>
-              <div>
-                <p
-                  className={`text-sm font-medium ${
-                    isActive || isComplete
-                      ? "text-emerald-700 dark:text-emerald-200"
-                      : "text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  {stepDef.title}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {stepDef.description}
-                </p>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-};
-
-type PreConstructionPhaseProps = {
-  project?: Project;
-  onProjectUpdated?: (project: Project) => void;
-  step2ReadOnly?: boolean;
-};
+import { isMissingRelationError } from "@/lib/supabase/errors";
+
+import {
+  createEmptyTargets,
+  getDefaultStep1Values,
+  buildDefaultColumnMapping,
+  selectColumnName,
+  isMissingColumnError,
+  isForeignKeyTimeframeError,
+  getErrorMessage,
+  toStringOrEmpty,
+  hasAnyValue,
+  normalizeDateInput,
+  formatDateForInput,
+  parseNumeric,
+  generateSlug,
+  buildSlugFallback,
+  STEP_DEFINITIONS,
+  TARGET_SECTION_CONFIG,
+  MISSING_TABLE_MESSAGES,
+  DEFAULT_STEP1_VALUES,
+  FIXED_EMISSION_FACTOR,
+  FIXED_EMISSION_FACTOR_STRING,
+} from "@/lib/preconstruction";
+import { StepIndicator } from "./preconstruction/step-indicator";
+import { uploadProjectFile } from "@/actions/preconstruction/storage";
 
 export function PreConstructionPhase({
   project,
@@ -700,42 +109,33 @@ export function PreConstructionPhase({
       ...columnTypesRef.current,
     };
 
-    await Promise.all(
-      (Object.entries(TARGET_SECTION_CONFIG) as Array<
-        [TargetSectionKey, SectionConfig]
-      >).map(async ([section, config]) => {
-        const { data, error } = await supabase
-          .from("information_schema.columns")
-          .select("column_name,data_type")
-          .eq("table_schema", "public")
-          .eq("table_name", config.table);
+    try {
+      const metadata = await getTargetColumnMetadata();
 
-        if (error || !data) {
-          console.warn(
-            `Unable to load column metadata for ${config.table}`,
-            error
-          );
-          return;
-        }
+      Object.entries(metadata).forEach(([table, columns]) => {
+        updatedTypes[table] = columns;
+      });
 
-        const columns: ColumnDescriptor[] = data.map(
-          (row: { column_name: string; data_type?: string | null }) => {
-            const name = String(row.column_name);
-            const dataType = row.data_type ? String(row.data_type) : "";
-            return {
-              name,
-              lower: name.toLowerCase(),
-              dataType,
-            };
-          }
-        );
+      // Update column mapping based on metadata
+      (
+        Object.entries(TARGET_SECTION_CONFIG) as Array<
+          [TargetSectionKey, SectionConfig]
+        >
+      ).forEach(([section, config]) => {
+        if (!metadata[config.table]) return;
 
-        const available: ColumnInfo[] = columns.map(
-          (column: ColumnDescriptor) => ({
-            name: column.name,
-            lower: column.lower,
+        const columns = Object.entries(metadata[config.table]).map(
+          ([name, dataType]) => ({
+            name,
+            lower: name.toLowerCase(),
+            dataType,
           })
         );
+
+        const available: ColumnInfo[] = columns.map((c) => ({
+          name: c.name,
+          lower: c.lower,
+        }));
 
         const mapping = { ...columnMapRef.current[section] };
         for (const [canonicalKey, candidates] of Object.entries(
@@ -749,14 +149,12 @@ export function PreConstructionPhase({
           );
         }
         columnMapRef.current[section] = mapping;
+      });
 
-        updatedTypes[config.table] = Object.fromEntries(
-          columns.map((column: ColumnDescriptor) => [column.name, column.dataType])
-        );
-      })
-    );
-
-    columnTypesRef.current = updatedTypes;
+      columnTypesRef.current = updatedTypes;
+    } catch (error) {
+      console.warn("Failed to load target column metadata", error);
+    }
   }, []);
 
   const ensureColumnMetadataLoaded = useCallback(async () => {
@@ -860,27 +258,17 @@ export function PreConstructionPhase({
     setErrorMessage(null);
     try {
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        user,
+        setup,
+        materials,
+        targets,
+        project: fetchedProject,
+      } = await getPreconstructionData(project.id);
 
-      if (userError) {
-        const isSessionMissing =
-          userError.message?.toLowerCase().includes("auth session missing") ||
-          userError.name === "AuthSessionMissingError" ||
-          userError.status === 401;
-
-        if (!isSessionMissing) {
-          throw userError;
-        }
-
-        setUserId(null);
-        setProjectSetupId(null);
-        setStep1Values(getDefaultStep1Values(project));
-        setDocumentPaths({});
-        setMaterials([]);
-        setTargets(createEmptyTargets());
-        return;
+      if (fetchedProject) {
+        setProjectDetails(fetchedProject);
+        // Avoid calling onProjectUpdated here to prevent infinite refresh loops
+        // onProjectUpdated?.(fetchedProject);
       }
 
       if (!user) {
@@ -895,474 +283,284 @@ export function PreConstructionPhase({
 
       setUserId(user.id);
 
-      const { data: setupData, error: setupError } = await supabase
-        .from("preconstruction_project_setup")
-        .select(
-          "id, project_id, project_name, project_address, project_description, sec_dti_path, mayors_permit_path, bir_registration_path"
-        )
-        .eq("user_id", user.id)
-        .eq("project_id", project.id)
-        .limit(1)
-        .maybeSingle();
-
-      const isMultipleRowError =
-        setupError?.code === "PGRST116" ||
-        (typeof setupError?.message === "string" &&
-          setupError.message.toLowerCase().includes("multiple rows"));
-
-      if (setupError && !isMultipleRowError) {
-        throw setupError;
-      }
-
-      const normalizedSetup = setupData ?? null;
-
-      if (!normalizedSetup) {
-        setProjectSetupId(null);
-        setStep1Values(getDefaultStep1Values(project));
-        setDocumentPaths({});
-        setMaterials([]);
-        setTargets(createEmptyTargets());
-        return;
-      }
-
-      setProjectSetupId(normalizedSetup.id);
+      // Use project ID as setup ID since we streamlined the tables
+      const currentProject = fetchedProject || project;
+      setProjectSetupId(currentProject.id);
 
       const nextDocPaths: DocumentPathMap = {};
-      if (normalizedSetup.sec_dti_path) {
-        nextDocPaths["sec-dti"] = normalizedSetup.sec_dti_path;
-      }
-      if (normalizedSetup.mayors_permit_path) {
-        nextDocPaths["mayors-permit"] = normalizedSetup.mayors_permit_path;
-      }
-      if (normalizedSetup.bir_registration_path) {
-        nextDocPaths.bir = normalizedSetup.bir_registration_path;
-      }
       setDocumentPaths(nextDocPaths);
 
       setStep1Values({
-        projectName:
-          normalizedSetup.project_name ??
-          project?.name ??
-          DEFAULT_STEP1_VALUES.projectName,
+        projectName: currentProject?.name ?? DEFAULT_STEP1_VALUES.projectName,
         projectAddress:
-          normalizedSetup.project_address ??
-          project?.location ??
-          DEFAULT_STEP1_VALUES.projectAddress,
+          currentProject?.location ?? DEFAULT_STEP1_VALUES.projectAddress,
         projectDescription:
-          normalizedSetup.project_description ??
-          project?.description ??
+          currentProject?.description ??
           DEFAULT_STEP1_VALUES.projectDescription,
-        status: project?.status ?? DEFAULT_STEP1_VALUES.status,
-        priority: project?.priority ?? DEFAULT_STEP1_VALUES.priority,
-        projectManager:
-          project?.projectManager ?? DEFAULT_STEP1_VALUES.projectManager,
-        startDate: project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
-        endDate: project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
-        clientName: project?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
-        category: project?.category ?? DEFAULT_STEP1_VALUES.category,
+        status: currentProject?.status ?? DEFAULT_STEP1_VALUES.status,
+        priority: currentProject?.priority ?? DEFAULT_STEP1_VALUES.priority,
+        startDate: currentProject?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+        endDate: currentProject?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
+        clientName:
+          currentProject?.clientName ?? DEFAULT_STEP1_VALUES.clientName,
+        category: currentProject?.category ?? DEFAULT_STEP1_VALUES.category,
         budget:
-          project?.budget !== undefined && project?.budget !== null
-            ? project.budget.toString()
+          currentProject?.budget !== undefined &&
+          currentProject?.budget !== null
+            ? currentProject.budget.toString()
             : DEFAULT_STEP1_VALUES.budget,
         documentPaths: nextDocPaths,
       });
 
-      if (normalizedSetup.id) {
-        const {
-          data: materialRows,
-          error: materialsError,
-        } = await supabase
-          .from("preconstruction_material")
-          .select(
-            "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status"
-          )
-          .eq("project_setup_id", normalizedSetup.id)
-          .order("created_at", { ascending: true });
+      const mappedMaterials: Material[] = materials.map((materialRow: any) => ({
+        id: materialRow.id,
+        category: materialRow.material_category,
+        name: materialRow.material_name,
+        supplier: materialRow.planned_supplier,
+        cost:
+          materialRow.budgeted_cost !== null
+            ? materialRow.budgeted_cost.toString()
+            : "",
+        unit: materialRow.unit ?? undefined,
+        notes: materialRow.supplier_vetting_notes ?? "",
+        credentials: materialRow.sustainability_credentials ?? undefined,
+        status: materialRow.vetting_status,
+        warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
+        specSheetPath: materialRow.spec_sheet_path ?? undefined,
+      }));
+      setMaterials(mappedMaterials);
 
-        if (materialsError) {
-          if (!isMissingRelationError(materialsError)) {
-            throw materialsError;
-          }
-          setMaterials([]);
-        } else {
-          const mappedMaterials: Material[] = materialRows
-            ? (materialRows as Array<{
-                id: string;
-                material_category: string;
-                planned_supplier: string;
-                material_name: string;
-                warehouse_of_the_supplier: string | null;
-                budgeted_cost: number | null;
-                unit: string | null;
-                sustainability_credentials: string | null;
-                supplier_vetting_notes: string | null;
-                spec_sheet_path: string | null;
-                vetting_status: MaterialStatus;
-              }>).map((materialRow) => ({
-                id: materialRow.id,
-                category: materialRow.material_category,
-                name: materialRow.material_name,
-                supplier: materialRow.planned_supplier,
-                cost:
-                  materialRow.budgeted_cost !== null
-                    ? materialRow.budgeted_cost.toString()
-                    : "",
-                unit: materialRow.unit ?? undefined,
-                notes: materialRow.supplier_vetting_notes ?? "",
-                credentials:
-                  materialRow.sustainability_credentials ?? undefined,
-                status: materialRow.vetting_status,
-                warehouse: materialRow.warehouse_of_the_supplier ?? undefined,
-                specSheetPath: materialRow.spec_sheet_path ?? undefined,
-              }))
-            : [];
-
-          setMaterials(mappedMaterials);
-        }
-      } else {
-        setMaterials([]);
-      }
-
-      const projectIdForTargets = project?.id ?? null;
-
-      if (projectIdForTargets) {
-        const [
-          electricityResponse,
-          equipmentResponse,
-          fuelResponse,
-          wasteResponse,
-          waterResponse,
-          safetyResponse,
-        ] = await Promise.all([
-          supabase
-            .from("dim_electricity_usage_target")
-            .select("*")
-            .eq("project_id", projectIdForTargets)
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("dim_equipment_usage_target")
-            .select("*")
-            .eq("project_id", projectIdForTargets)
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("dim_fuel_consumption_target")
-            .select("*")
-            .eq("project_id", projectIdForTargets)
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("dim_waste_generated_target")
-            .select("*")
-            .eq("project_id", projectIdForTargets)
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("dim_water_supply_target")
-            .select("*")
-            .eq("project_id", projectIdForTargets)
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("projects_safety_incident_targets")
-            .select("*")
-            .eq("project_id", projectIdForTargets)
-            .limit(1)
-            .maybeSingle(),
-        ]);
-
+      if (targets) {
         const nextTargets = createEmptyTargets();
 
-        if (electricityResponse.error) {
-          if (!isMissingRelationError(electricityResponse.error)) {
-            throw electricityResponse.error;
-          }
-        } else if (electricityResponse.data) {
-          const data = electricityResponse.data as Record<string, unknown>;
-          registerColumnsFromRecord("electricityUsage", data);
-          const timeframe = toStringOrEmpty(
-            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
-          );
-          const targetDate = formatDateForInput(
-            (data.date as unknown) ?? (data.target_date as unknown)
-          );
-          const totalElectricityConsumed = toStringOrEmpty(
-            (data.total_electricity_consumed as unknown) ??
-              (data.totalElectricityConsumed as unknown) ??
-              ""
-          );
+        // Process targets using helper function to avoid repetition
+        const processTarget = (section: TargetSectionKey, data: any) => {
+          if (!data) return;
+          registerColumnsFromRecord(section, data);
 
-          if (hasAnyValue(timeframe, totalElectricityConsumed, targetDate)) {
-            nextTargets.electricityUsage = {
-              id: data.id != null ? String(data.id) : null,
-              timeframe,
-              date: targetDate,
-              totalElectricityConsumed,
-            };
-          }
-        }
-
-        if (equipmentResponse.error) {
-          if (!isMissingRelationError(equipmentResponse.error)) {
-            throw equipmentResponse.error;
-          }
-        } else if (equipmentResponse.data) {
-          const data = equipmentResponse.data as Record<string, unknown>;
-          registerColumnsFromRecord("equipmentUsage", data);
-          const timeframe = toStringOrEmpty(
-            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
-          );
-          const targetDate = formatDateForInput(
-            (data.date as unknown) ?? (data.target_date as unknown)
-          );
-          const equipmentOperationLogs = toStringOrEmpty(
-            (data.equipment_operation_logs as unknown) ??
-              (data.equipmentOperationLogs as unknown) ??
-              ""
-          );
-          const fuelRate = toStringOrEmpty(
-            (data.fuel_rate as unknown) ?? (data.fuelRate as unknown) ?? ""
-          );
-          const totalFuel = toStringOrEmpty(
-            (data.total_fuel as unknown) ?? (data.totalFuel as unknown) ?? ""
-          );
-          const combustionEmissionFactor =
-            toStringOrEmpty(
-              (data.combustion_emission_factor as unknown) ??
-                (data.combustionEmissionFactor as unknown) ??
+          // Map fields based on section type
+          if (section === "electricityUsage") {
+            const timeframe = toStringOrEmpty(
+              data.timeframe ?? data.target_timeframe ?? ""
+            );
+            const targetDate = formatDateForInput(
+              data.date ?? data.target_date
+            );
+            const totalElectricityConsumed = toStringOrEmpty(
+              data.total_electricity_consumed ??
+                data.totalElectricityConsumed ??
                 ""
-            ) || FIXED_EMISSION_FACTOR_STRING;
+            );
 
-          if (
-            hasAnyValue(
-              timeframe,
-              equipmentOperationLogs,
-              fuelRate,
-              totalFuel,
-              combustionEmissionFactor,
-              targetDate
-            )
-          ) {
-            nextTargets.equipmentUsage = {
-              id: data.id != null ? String(data.id) : null,
-              timeframe,
-              date: targetDate,
-              equipmentOperationLogs,
-              fuelRate,
-              totalFuel,
-              combustionEmissionFactor,
-            };
-          }
-        }
-
-        if (fuelResponse.error) {
-          if (!isMissingRelationError(fuelResponse.error)) {
-            throw fuelResponse.error;
-          }
-        } else if (fuelResponse.data) {
-          const data = fuelResponse.data as Record<string, unknown>;
-          registerColumnsFromRecord("fuelConsumption", data);
-          const timeframe = toStringOrEmpty(
-            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
-          );
-          const targetDate = formatDateForInput(
-            (data.date as unknown) ?? (data.target_date as unknown)
-          );
-          const totalDistance = toStringOrEmpty(
-            (data.total_distance as unknown) ??
-              (data.totalDistance as unknown) ??
-              ""
-          );
-          const fuelEfficiency = toStringOrEmpty(
-            (data.fuel_efficiency as unknown) ??
-              (data.fuelEfficiency as unknown) ??
-              ""
-          );
-          const rawTotalFuel = toStringOrEmpty(
-            (data.total_fuel as unknown) ?? (data.totalFuel as unknown) ?? ""
-          );
-          const computedTotalFuel = (() => {
-            if (rawTotalFuel.trim().length > 0) {
-              return rawTotalFuel;
+            if (hasAnyValue(timeframe, totalElectricityConsumed, targetDate)) {
+              nextTargets.electricityUsage = {
+                id: String(data.id),
+                timeframe: timeframe || null,
+                date: targetDate,
+                totalElectricityConsumed,
+              };
             }
-            const distanceValue = Number(totalDistance);
-            const efficiencyValue = Number(fuelEfficiency);
+          } else if (section === "equipmentUsage") {
+            const timeframe = toStringOrEmpty(
+              data.timeframe ?? data.target_timeframe ?? ""
+            );
+            const targetDate = formatDateForInput(
+              data.date ?? data.target_date
+            );
+            const equipmentOperationLogs = toStringOrEmpty(
+              data.equipment_operation_logs ?? data.equipmentOperationLogs ?? ""
+            );
+            const fuelRate = toStringOrEmpty(
+              data.fuel_rate ?? data.fuelRate ?? ""
+            );
+            const totalFuel = toStringOrEmpty(
+              data.total_fuel ?? data.totalFuel ?? ""
+            );
+            const combustionEmissionFactor =
+              toStringOrEmpty(
+                data.combustion_emission_factor ??
+                  data.combustionEmissionFactor ??
+                  ""
+              ) || FIXED_EMISSION_FACTOR_STRING;
+
             if (
-              Number.isFinite(distanceValue) &&
-              Number.isFinite(efficiencyValue)
+              hasAnyValue(
+                timeframe,
+                equipmentOperationLogs,
+                fuelRate,
+                totalFuel,
+                combustionEmissionFactor,
+                targetDate
+              )
             ) {
-              const product = distanceValue * efficiencyValue;
-              if (Number.isFinite(product)) {
-                return product.toString();
+              nextTargets.equipmentUsage = {
+                id: String(data.id),
+                timeframe: timeframe || null,
+                date: targetDate,
+                equipmentOperationLogs,
+                fuelRate,
+                totalFuel,
+                combustionEmissionFactor,
+              };
+            }
+          } else if (section === "fuelConsumption") {
+            const timeframe = toStringOrEmpty(
+              data.timeframe ?? data.target_timeframe ?? ""
+            );
+            const targetDate = formatDateForInput(
+              data.date ?? data.target_date
+            );
+            const totalDistance = toStringOrEmpty(
+              data.total_distance ?? data.totalDistance ?? ""
+            );
+            const fuelEfficiency = toStringOrEmpty(
+              data.fuel_efficiency ?? data.fuelEfficiency ?? ""
+            );
+            const rawTotalFuel = toStringOrEmpty(
+              data.total_fuel ?? data.totalFuel ?? ""
+            );
+            const fuelEmissionFactor =
+              toStringOrEmpty(
+                data.fuel_emission_factor ?? data.fuelEmissionFactor ?? ""
+              ) || FIXED_EMISSION_FACTOR_STRING;
+
+            // Recompute total fuel if missing but components exist
+            let computedTotalFuel = rawTotalFuel;
+            if (!computedTotalFuel && totalDistance && fuelEfficiency) {
+              const dist = parseFloat(totalDistance);
+              const eff = parseFloat(fuelEfficiency);
+              if (!isNaN(dist) && !isNaN(eff)) {
+                computedTotalFuel = (dist * eff).toString();
               }
             }
-            return "";
-          })();
-          const fuelEmissionFactor =
-            toStringOrEmpty(
-              (data.fuel_emission_factor as unknown) ??
-                (data.fuelEmissionFactor as unknown) ??
+
+            if (
+              hasAnyValue(
+                timeframe,
+                totalDistance,
+                fuelEfficiency,
+                computedTotalFuel,
+                targetDate
+              )
+            ) {
+              nextTargets.fuelConsumption = {
+                id: String(data.id),
+                timeframe: timeframe || null,
+                date: targetDate,
+                totalDistance,
+                fuelEfficiency,
+                totalFuel: computedTotalFuel,
+                fuelEmissionFactor,
+              };
+            }
+          } else if (section === "wasteGenerated") {
+            const timeframe = toStringOrEmpty(
+              data.timeframe ?? data.target_timeframe ?? ""
+            );
+            const targetDate = formatDateForInput(
+              data.date ?? data.target_date
+            );
+            const totalWasteMass = toStringOrEmpty(
+              data.total_waste_mass ?? data.totalWasteMass ?? ""
+            );
+            const percentByTreatment = toStringOrEmpty(
+              data.percent_by_treatment ?? data.percentByTreatment ?? ""
+            );
+            const emissionFactor = toStringOrEmpty(
+              data.emission_factor ?? data.emissionFactor ?? ""
+            );
+
+            if (
+              hasAnyValue(
+                timeframe,
+                totalWasteMass,
+                percentByTreatment,
+                emissionFactor,
+                targetDate
+              )
+            ) {
+              nextTargets.wasteGenerated = {
+                id: String(data.id),
+                timeframe: timeframe || null,
+                date: targetDate,
+                totalWasteMass,
+                percentByTreatment,
+                emissionFactor,
+              };
+            }
+          } else if (section === "waterSupply") {
+            const timeframe = toStringOrEmpty(
+              data.timeframe ?? data.target_timeframe ?? ""
+            );
+            const targetDate = formatDateForInput(
+              data.date ?? data.target_date
+            );
+            const totalWaterConsumed = toStringOrEmpty(
+              data.total_water_consumed ?? data.totalWaterConsumed ?? ""
+            );
+            const waterSupplyEmissionFactor = toStringOrEmpty(
+              data.water_supply_emission_factor ??
+                data.waterSupplyEmissionFactor ??
                 ""
-            ) || FIXED_EMISSION_FACTOR_STRING;
+            );
 
-          if (
-            hasAnyValue(
-              timeframe,
-              totalDistance,
-              fuelEfficiency,
-              computedTotalFuel,
-              targetDate
-            )
-          ) {
-            nextTargets.fuelConsumption = {
-              id: data.id != null ? String(data.id) : null,
-              timeframe,
-              date: targetDate,
-              totalDistance,
-              fuelEfficiency,
-              totalFuel: computedTotalFuel,
-              fuelEmissionFactor,
-            };
-          }
-        }
+            if (
+              hasAnyValue(
+                timeframe,
+                totalWaterConsumed,
+                waterSupplyEmissionFactor,
+                targetDate
+              )
+            ) {
+              nextTargets.waterSupply = {
+                id: String(data.id),
+                timeframe: timeframe || null,
+                date: targetDate,
+                totalWaterConsumed,
+                waterSupplyEmissionFactor,
+              };
+            }
+          } else if (section === "safetyIncident") {
+            const timeframe = toStringOrEmpty(
+              data.timeframe ?? data.target_timeframe ?? ""
+            );
+            const targetDate = formatDateForInput(
+              data.date ?? data.target_date
+            );
+            const numberOfIncidents = toStringOrEmpty(
+              data.number_of_incidents ?? data.numberOfIncidents ?? ""
+            );
+            const totalEmployeeHours = toStringOrEmpty(
+              data.total_employee_hours ?? data.totalEmployeeHours ?? ""
+            );
 
-        if (wasteResponse.error) {
-          if (!isMissingRelationError(wasteResponse.error)) {
-            throw wasteResponse.error;
+            if (
+              hasAnyValue(
+                timeframe,
+                numberOfIncidents,
+                totalEmployeeHours,
+                targetDate
+              )
+            ) {
+              nextTargets.safetyIncident = {
+                id: String(data.id),
+                timeframe: timeframe || null,
+                date: targetDate,
+                numberOfIncidents,
+                totalEmployeeHours,
+              };
+            }
           }
-        } else if (wasteResponse.data) {
-          const data = wasteResponse.data as Record<string, unknown>;
-          registerColumnsFromRecord("wasteGenerated", data);
-          const timeframe = toStringOrEmpty(
-            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
-          );
-          const targetDate = formatDateForInput(
-            (data.date as unknown) ?? (data.target_date as unknown)
-          );
-          const totalWasteMass = toStringOrEmpty(
-            (data.total_waste_mass as unknown) ??
-              (data.totalWasteMass as unknown) ??
-              ""
-          );
-          const percentByTreatment = toStringOrEmpty(
-            (data.percent_by_treatment as unknown) ??
-              (data.percentByTreatment as unknown) ??
-              ""
-          );
-          const emissionFactor = toStringOrEmpty(
-            (data.emission_factor as unknown) ??
-              (data.emissionFactor as unknown) ??
-              ""
-          );
+        };
 
-          if (
-            hasAnyValue(
-              timeframe,
-              totalWasteMass,
-              percentByTreatment,
-              emissionFactor,
-              targetDate
-            )
-          ) {
-            nextTargets.wasteGenerated = {
-              id: data.id != null ? String(data.id) : null,
-              timeframe,
-              date: targetDate,
-              totalWasteMass,
-              percentByTreatment,
-              emissionFactor,
-            };
-          }
-        }
-
-        if (waterResponse.error) {
-          if (!isMissingRelationError(waterResponse.error)) {
-            throw waterResponse.error;
-          }
-        } else if (waterResponse.data) {
-          const data = waterResponse.data as Record<string, unknown>;
-          registerColumnsFromRecord("waterSupply", data);
-          const timeframe = toStringOrEmpty(
-            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
-          );
-          const targetDate = formatDateForInput(
-            (data.date as unknown) ?? (data.target_date as unknown)
-          );
-          const totalWaterConsumed = toStringOrEmpty(
-            (data.total_water_consumed as unknown) ??
-              (data.totalWaterConsumed as unknown) ??
-              ""
-          );
-          const waterSupplyEmissionFactor = toStringOrEmpty(
-            (data.water_supply_emission_factor as unknown) ??
-              (data.waterSupplyEmissionFactor as unknown) ??
-              ""
-          );
-
-          if (
-            hasAnyValue(
-              timeframe,
-              totalWaterConsumed,
-              waterSupplyEmissionFactor,
-              targetDate
-            )
-          ) {
-            nextTargets.waterSupply = {
-              id: data.id != null ? String(data.id) : null,
-              timeframe,
-              date: targetDate,
-              totalWaterConsumed,
-              waterSupplyEmissionFactor,
-            };
-          }
-        }
-
-        if (safetyResponse.error) {
-          if (!isMissingRelationError(safetyResponse.error)) {
-            throw safetyResponse.error;
-          }
-        } else if (safetyResponse.data) {
-          const data = safetyResponse.data as Record<string, unknown>;
-          registerColumnsFromRecord("safetyIncident", data);
-          const timeframe = toStringOrEmpty(
-            (data.timeframe as unknown) ?? (data.target_timeframe as unknown) ?? ""
-          );
-          const targetDate = formatDateForInput(
-            (data.date as unknown) ?? (data.target_date as unknown)
-          );
-          const numberOfIncidents = toStringOrEmpty(
-            (data.number_of_incidents as unknown) ??
-              (data.numberOfIncidents as unknown) ??
-              ""
-          );
-          const totalEmployeeHours = toStringOrEmpty(
-            (data.total_employee_hours as unknown) ??
-              (data.totalEmployeeHours as unknown) ??
-              ""
-          );
-
-          if (
-            hasAnyValue(
-              timeframe,
-              numberOfIncidents,
-              totalEmployeeHours,
-              targetDate
-            )
-          ) {
-            nextTargets.safetyIncident = {
-              id: data.id != null ? String(data.id) : null,
-              timeframe,
-              date: targetDate,
-              numberOfIncidents,
-              totalEmployeeHours,
-            };
-          }
-        }
+        processTarget("electricityUsage", targets.electricityUsage);
+        processTarget("equipmentUsage", targets.equipmentUsage);
+        processTarget("fuelConsumption", targets.fuelConsumption);
+        processTarget("wasteGenerated", targets.wasteGenerated);
+        processTarget("waterSupply", targets.waterSupply);
+        processTarget("safetyIncident", targets.safetyIncident);
 
         setTargets(nextTargets);
-      } else {
-        setTargets(createEmptyTargets());
       }
 
       setErrorMessage(null);
@@ -1376,16 +574,29 @@ export function PreConstructionPhase({
       }
 
       console.error("Failed to load pre-construction data", error);
-      const derivedMessage =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message: unknown }).message ?? "")
-          : "";
 
-      setErrorMessage(
-        derivedMessage.trim().length > 0
-          ? derivedMessage
-          : "Failed to load data."
-      );
+      let message = "Failed to load data.";
+
+      if (error instanceof Error) {
+        message = error.message;
+        // Try to parse if it looks like a JSON stringified Supabase error
+        if (message.startsWith("{") && message.includes('"message":')) {
+          try {
+            const parsed = JSON.parse(message);
+            if (parsed.message) {
+              message = parsed.message;
+            }
+          } catch (e) {
+            // ignore parse error
+          }
+        }
+      } else if (typeof error === "string") {
+        message = error;
+      } else if (error && typeof error === "object" && "message" in error) {
+        message = String((error as { message: unknown }).message);
+      }
+
+      setErrorMessage(message);
     } finally {
       setIsLoading(false);
     }
@@ -1415,12 +626,10 @@ export function PreConstructionPhase({
         status: prev.status ?? project?.status ?? DEFAULT_STEP1_VALUES.status,
         priority:
           prev.priority ?? project?.priority ?? DEFAULT_STEP1_VALUES.priority,
-        projectManager:
-          prev.projectManager ??
-          project?.projectManager ??
-          DEFAULT_STEP1_VALUES.projectManager,
         startDate:
-          prev.startDate ?? project?.startDate ?? DEFAULT_STEP1_VALUES.startDate,
+          prev.startDate ??
+          project?.startDate ??
+          DEFAULT_STEP1_VALUES.startDate,
         endDate:
           prev.endDate ?? project?.endDate ?? DEFAULT_STEP1_VALUES.endDate,
         clientName:
@@ -1428,9 +637,7 @@ export function PreConstructionPhase({
           project?.clientName ??
           DEFAULT_STEP1_VALUES.clientName,
         category:
-          prev.category ??
-          project?.category ??
-          DEFAULT_STEP1_VALUES.category,
+          prev.category ?? project?.category ?? DEFAULT_STEP1_VALUES.category,
         budget:
           prev.budget ??
           (project?.budget !== undefined && project?.budget !== null
@@ -1521,51 +728,16 @@ export function PreConstructionPhase({
               canonicalValues
             );
           }
-          const payload = {
-            project_id: activeProjectId,
-            ...mappedValues,
-          };
 
-          if (currentId) {
-            const { error } = await supabase
-              .from(table)
-              .update(payload)
-              .eq("id", currentId);
-
-            if (error) {
-              if (isMissingRelationError(error)) {
-                throw new Error(missingTableMessage);
-              }
-              if (
-                isMissingColumnError(error) &&
-                !retry &&
-                !options?.useDirectColumnNames
-              ) {
-                metadataLoadedRef.current = false;
-                metadataPromiseRef.current = null;
-                return persist(currentId, true);
-              }
-              if (
-                isForeignKeyTimeframeError(error) &&
-                !retry &&
-                !options?.useDirectColumnNames &&
-                applyTimeframeFallback()
-              ) {
-                return persist(currentId, true);
-              }
-              throw error;
-            }
-
-            return currentId;
-          }
-
-          const { data, error } = await supabase
-            .from(table)
-            .insert([payload])
-            .select("id")
-            .single();
-
-          if (error) {
+          try {
+            const recordId = await saveTarget(
+              targetSection,
+              activeProjectId,
+              mappedValues,
+              currentId
+            );
+            return recordId;
+          } catch (error) {
             if (isMissingRelationError(error)) {
               throw new Error(missingTableMessage);
             }
@@ -1576,7 +748,7 @@ export function PreConstructionPhase({
             ) {
               metadataLoadedRef.current = false;
               metadataPromiseRef.current = null;
-              return persist(null, true);
+              return persist(currentId, true);
             }
             if (
               isForeignKeyTimeframeError(error) &&
@@ -1584,12 +756,10 @@ export function PreConstructionPhase({
               !options?.useDirectColumnNames &&
               applyTimeframeFallback()
             ) {
-              return persist(null, true);
+              return persist(currentId, true);
             }
             throw error;
           }
-
-          return data && data.id != null ? String(data.id) : null;
         };
 
         return persist(existingId, false);
@@ -1599,8 +769,7 @@ export function PreConstructionPhase({
         if (section === "electricityUsage") {
           const values =
             sectionValues as TargetSectionValuesMap["electricityUsage"];
-          const totalElectricityInput =
-            values.totalElectricityConsumed.trim();
+          const totalElectricityInput = values.totalElectricityConsumed.trim();
           if (!totalElectricityInput) {
             throw new Error(
               "Provide the total electricity consumed before saving."
@@ -1787,10 +956,8 @@ export function PreConstructionPhase({
         }
 
         if (section === "waterSupply") {
-          const values =
-            sectionValues as TargetSectionValuesMap["waterSupply"];
-          const totalWaterConsumedInput =
-            values.totalWaterConsumed.trim();
+          const values = sectionValues as TargetSectionValuesMap["waterSupply"];
+          const totalWaterConsumedInput = values.totalWaterConsumed.trim();
           const waterSupplyEmissionFactorInput =
             values.waterSupplyEmissionFactor.trim();
           const normalizedDate = normalizeDateInput(
@@ -1906,54 +1073,9 @@ export function PreConstructionPhase({
       setIsSavingStep1(true);
 
       try {
-        const setupId = projectSetupId ?? crypto.randomUUID();
-        const storage = supabase.storage.from("preconstruction-docs");
-
-        const ensureUniqueProjectSlug = async () => {
-          if (!projectDetails?.id) {
-            return null;
-          }
-
-          const baseSlug =
-            generateSlug(values.projectName) ||
-            projectDetails.slug ||
-            buildSlugFallback(projectDetails.id);
-
-          const { data, error } = await supabase
-            .from("projects")
-            .select("project_id, slug")
-            .ilike("slug", `${baseSlug}%`);
-
-          if (error) {
-            throw error;
-          }
-
-          const slugRows = (data ?? []) as Array<{
-            project_id: string | null;
-            slug: string | null;
-          }>;
-
-          const conflictingSlugs = slugRows
-            .filter(
-              (row) =>
-                row.project_id !== projectDetails.id &&
-                typeof row.slug === "string"
-            )
-            .map((row) => row.slug as string);
-
-          if (!conflictingSlugs.includes(baseSlug)) {
-            return baseSlug;
-          }
-
-          let suffix = 2;
-          let candidate = `${baseSlug}-${suffix}`;
-          while (conflictingSlugs.includes(candidate)) {
-            suffix += 1;
-            candidate = `${baseSlug}-${suffix}`;
-          }
-
-          return candidate;
-        };
+        const projectIdForSetup = projectDetails?.id ?? project?.id;
+        const setupId =
+          projectSetupId ?? projectIdForSetup ?? crypto.randomUUID();
 
         const uploads = await Promise.all(
           (
@@ -1966,16 +1088,15 @@ export function PreConstructionPhase({
             .map(async ([key, file]) => {
               const extension = file!.name.split(".").pop() || "pdf";
               const filePath = `project/${setupId}/compliance/${key}.${extension}`;
-              const { error: uploadError } = await storage.upload(
-                filePath,
-                file!,
-                {
-                  contentType: file!.type || "application/pdf",
-                  upsert: true,
-                }
-              );
+
+              const formData = new FormData();
+              formData.append("file", file!);
+              formData.append("path", filePath);
+
+              const { error: uploadError } = await uploadProjectFile(formData);
+
               if (uploadError) {
-                throw uploadError;
+                throw new Error(uploadError);
               }
               return [key, filePath] as const;
             })
@@ -1989,13 +1110,10 @@ export function PreConstructionPhase({
         const trimmedProjectName = values.projectName.trim();
         const trimmedProjectAddress = values.projectAddress.trim();
         const trimmedProjectDescription = values.projectDescription.trim();
-        const trimmedProjectManager = values.projectManager.trim();
         const trimmedStartDate = values.startDate
           ? values.startDate.trim()
           : "";
-        const trimmedEndDate = values.endDate
-          ? values.endDate.trim()
-          : "";
+        const trimmedEndDate = values.endDate ? values.endDate.trim() : "";
         const normalizedStatus = values.status;
         const normalizedPriority = values.priority;
         const trimmedClientName = values.clientName.trim();
@@ -2005,14 +1123,9 @@ export function PreConstructionPhase({
         const parsedBudget =
           trimmedBudgetInput.length > 0 ? Number(trimmedBudgetInput) : null;
 
-        if (
-          trimmedBudgetInput.length > 0 &&
-          Number.isNaN(parsedBudget)
-        ) {
+        if (trimmedBudgetInput.length > 0 && Number.isNaN(parsedBudget)) {
           throw new Error("Budget must be a valid number.");
         }
-
-        const projectIdForSetup = projectDetails?.id ?? project?.id;
 
         if (!projectIdForSetup) {
           throw new Error(
@@ -2020,128 +1133,84 @@ export function PreConstructionPhase({
           );
         }
 
-        const payload = {
-          user_id: userId,
-          project_id: projectIdForSetup,
-          project_name: trimmedProjectName,
-          project_address: trimmedProjectAddress,
-          project_description: trimmedProjectDescription,
-          sec_dti_path: nextDocPaths["sec-dti"] ?? null,
-          mayors_permit_path: nextDocPaths["mayors-permit"] ?? null,
-          bir_registration_path: nextDocPaths.bir ?? null,
-        };
-
-        if (projectSetupId) {
-          const { error } = await supabase
-            .from("preconstruction_project_setup")
-            .update(payload)
-            .eq("id", projectSetupId);
-
-          if (error) {
-            throw error;
-          }
-        } else {
-          const { data, error } = await supabase
-            .from("preconstruction_project_setup")
-            .insert([{ id: setupId, ...payload }])
-            .select("id")
-            .single();
-
-          if (error) {
-            throw error;
-          }
-          setProjectSetupId(data.id);
-        }
-
-        let nextProjectState: Project | null = null;
+        // Calculate project updates
+        const updates: Record<string, string | number | null> = {};
+        const serverUpdates: Record<string, string | number | null> = {};
+        let nextSlug: string | null = null;
 
         if (projectDetails?.id) {
-          const nextSlug = await ensureUniqueProjectSlug();
-          const updates: Record<string, string | number | null> = {};
+          // Check slug uniqueness on server
+          nextSlug = await ensureUniqueProjectSlug(
+            trimmedProjectName,
+            projectDetails.id,
+            projectDetails.slug
+          );
 
           if (projectDetails.name !== trimmedProjectName) {
-            updates.project_name = trimmedProjectName;
+            updates.name = trimmedProjectName;
+            serverUpdates.project_name = trimmedProjectName;
           }
-
           if (projectDetails.location !== trimmedProjectAddress) {
             updates.location = trimmedProjectAddress;
+            serverUpdates.location = trimmedProjectAddress;
           }
-
-          const incomingDescription = trimmedProjectDescription || null;
-          if ((projectDetails.description ?? null) !== incomingDescription) {
-            updates.description = incomingDescription;
+          if (
+            (projectDetails.description ?? null) !==
+            (trimmedProjectDescription || null)
+          ) {
+            updates.description = trimmedProjectDescription || null;
+            serverUpdates.description = trimmedProjectDescription || null;
           }
-
           if (projectDetails.status !== normalizedStatus) {
             updates.status = normalizedStatus;
+            serverUpdates.status = normalizedStatus;
           }
-
           if (projectDetails.priority !== normalizedPriority) {
             updates.priority = normalizedPriority;
+            serverUpdates.priority = normalizedPriority;
           }
-
-          const incomingClientName = trimmedClientName || null;
-          if ((projectDetails.clientName ?? null) !== incomingClientName) {
-            updates.client_name = incomingClientName;
-          }
-
-          const incomingCategory = trimmedCategory || null;
-          if ((projectDetails.category ?? null) !== incomingCategory) {
-            updates.category = incomingCategory;
-          }
-
           if (
-            (projectDetails.budget ?? null) !==
-            (parsedBudget === null ? null : parsedBudget)
+            (projectDetails.clientName ?? null) !== (trimmedClientName || null)
           ) {
-            updates.budget = parsedBudget;
+            updates.clientName = trimmedClientName || null;
+            serverUpdates.client_name = trimmedClientName || null;
           }
-
+          if ((projectDetails.category ?? null) !== (trimmedCategory || null)) {
+            updates.category = trimmedCategory || null;
+            serverUpdates.category = trimmedCategory || null;
+          }
+          if ((projectDetails.budget ?? null) !== parsedBudget) {
+            updates.budget = parsedBudget;
+            serverUpdates.budget = parsedBudget;
+          }
           if (nextSlug && nextSlug !== projectDetails.slug) {
             updates.slug = nextSlug;
+            serverUpdates.slug = nextSlug;
           }
 
-          if (Object.keys(updates).length > 0) {
-            const { data: updatedProjectRow, error: projectUpdateError } =
-              await supabase
-                .from("projects")
-                .update(updates)
-                .eq("project_id", projectDetails.id)
-                .select(
-                  "project_id, organization_id, project_name, slug, description, status, priority, category, client_name, location, budget, created_at, updated_at"
-                )
-                .maybeSingle();
-
-            if (projectUpdateError) {
-              throw projectUpdateError;
-            }
-
-            if (!updatedProjectRow) {
-              throw new Error(
-                "Project could not be updated. Check permissions or that the project still exists."
-              );
-            }
-
-            const mappedProject = mapProjectFromSupabase(updatedProjectRow);
-            nextProjectState = mappedProject;
-            setProjectDetails(mappedProject);
-          } else {
-            nextProjectState = {
-              ...projectDetails,
-              name: trimmedProjectName,
-              location: trimmedProjectAddress,
-              description: trimmedProjectDescription || null,
-              status: normalizedStatus,
-              priority: normalizedPriority,
-              clientName: trimmedClientName || null,
-              category: trimmedCategory || null,
-              budget: parsedBudget,
-              projectManager: trimmedProjectManager || null,
-              startDate: trimmedStartDate || null,
-              endDate: trimmedEndDate || null,
-            };
-            setProjectDetails(nextProjectState);
+          if (trimmedStartDate !== projectDetails.startDate) {
+            updates.startDate = trimmedStartDate;
+            serverUpdates.start_date = trimmedStartDate;
           }
+          if (trimmedEndDate !== projectDetails.endDate) {
+            updates.endDate = trimmedEndDate;
+            serverUpdates.end_date = trimmedEndDate;
+          }
+        }
+
+        const { setupId: savedSetupId } = await saveProjectSetupAction(
+          userId,
+          projectIdForSetup,
+          serverUpdates
+        );
+
+        setProjectSetupId(savedSetupId);
+
+        // Update local project details state if we have updates
+        if (projectDetails && Object.keys(updates).length > 0) {
+          const nextProjectState = { ...projectDetails, ...updates } as Project;
+          setProjectDetails(nextProjectState);
+          onProjectUpdated?.(nextProjectState);
         }
 
         setDocumentPaths(nextDocPaths);
@@ -2151,7 +1220,6 @@ export function PreConstructionPhase({
           projectDescription: trimmedProjectDescription,
           status: normalizedStatus,
           priority: normalizedPriority,
-          projectManager: trimmedProjectManager,
           startDate: trimmedStartDate,
           endDate: trimmedEndDate,
           clientName: trimmedClientName,
@@ -2159,10 +1227,6 @@ export function PreConstructionPhase({
           budget: trimmedBudgetInput,
           documentPaths: nextDocPaths,
         });
-
-        if (nextProjectState) {
-          onProjectUpdated?.(nextProjectState);
-        }
 
         setSuccessMessage("Project details saved.");
         if (goToNext) {
@@ -2235,15 +1299,7 @@ export function PreConstructionPhase({
         return;
       }
 
-      const { error } = await supabase
-        .from("preconstruction_project_setup")
-        .update(updates)
-        .eq("id", projectSetupId)
-        .eq("user_id", userId);
-
-      if (error) {
-        throw error;
-      }
+      await submitForApproval(userId, projectSetupId, updates);
 
       setSubmittedForApprovalAt(
         supportsSubmittedAtColumn
@@ -2307,48 +1363,26 @@ export function PreConstructionPhase({
           const extension = specSheet.name.split(".").pop() || "pdf";
           const fileName = `spec-${crypto.randomUUID()}.${extension}`;
           const storagePath = `project/${projectSetupId}/materials/${fileName}`;
-          const { error } = await supabase.storage
-            .from("preconstruction-docs")
-            .upload(storagePath, specSheet, {
-              contentType: specSheet.type || "application/pdf",
-              upsert: true,
-            });
+
+          const formData = new FormData();
+          formData.append("file", specSheet);
+          formData.append("path", storagePath);
+
+          const { error } = await uploadProjectFile(formData);
 
           if (error) {
-            throw error;
+            console.warn("Failed to upload spec sheet", error);
+            // Continue even if upload fails
+          } else {
+            specSheetPath = storagePath;
           }
-
-          specSheetPath = storagePath;
         }
 
-        const { data, error } = await supabase
-          .from("preconstruction_material")
-          .insert([
-            {
-              project_setup_id: projectSetupId,
-              material_category: material.category,
-              planned_supplier: material.supplier,
-              material_name: material.name,
-              warehouse_of_the_supplier:
-                material.warehouse && material.warehouse.trim().length > 0
-                  ? material.warehouse
-                  : null,
-              budgeted_cost: parsedCost,
-              unit: material.unit,
-              sustainability_credentials: material.credentials ?? null,
-              supplier_vetting_notes: material.notes,
-              spec_sheet_path: specSheetPath,
-              vetting_status: material.status,
-            },
-          ])
-          .select(
-            "id, material_category, planned_supplier, material_name, warehouse_of_the_supplier, budgeted_cost, unit, sustainability_credentials, supplier_vetting_notes, spec_sheet_path, vetting_status"
-          )
-          .single();
-
-        if (error) {
-          throw error;
-        }
+        const data = await addMaterial(projectSetupId, {
+          ...material,
+          cost: parsedCost,
+          specSheetPath,
+        });
 
         setMaterials((prev) => [
           ...prev,
@@ -2400,15 +1434,7 @@ export function PreConstructionPhase({
       setDeletingMaterialId(materialId);
 
       try {
-        const { error } = await supabase
-          .from("preconstruction_material")
-          .delete()
-          .eq("id", materialId)
-          .eq("project_setup_id", projectSetupId);
-
-        if (error) {
-          throw error;
-        }
+        await deleteMaterial(materialId, projectSetupId);
 
         setMaterials((prev) =>
           prev.filter((material) => material.id !== materialId)
@@ -2479,7 +1505,10 @@ export function PreConstructionPhase({
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <span>{savedTargetCount} ESG target{savedTargetCount === 1 ? "" : "s"} saved</span>
+          <span>
+            {savedTargetCount} ESG target{savedTargetCount === 1 ? "" : "s"}{" "}
+            saved
+          </span>
           <span className="hidden h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-700 sm:inline-flex" />
           <span>{materials.length} materials tracked</span>
         </div>

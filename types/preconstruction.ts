@@ -1,3 +1,7 @@
+import type { ExistingFileState } from "@/types/forms";
+import type { Project } from "@/types/project";
+import type { Step1FormValues } from "@/types/forms";
+
 export type TargetSectionKey =
   | "electricityUsage"
   | "equipmentUsage"
@@ -63,3 +67,33 @@ export type TargetSectionValuesMap = {
   waterSupply: WaterSupplyTarget;
   safetyIncident: SafetyIncidentTarget;
 };
+
+export type DocumentPathMap = ExistingFileState;
+
+export type ColumnCandidateMap = Record<string, string[]>;
+
+export type SectionConfig = {
+  table: string;
+  candidates: ColumnCandidateMap;
+  heuristics?: Record<string, string[]>;
+};
+
+export type ColumnMapping = Record<TargetSectionKey, Record<string, string>>;
+
+export type ColumnInfo = {
+  name: string;
+  lower: string;
+};
+
+export type ColumnDescriptor = ColumnInfo & {
+  dataType: string;
+};
+
+export type PreConstructionPhaseProps = {
+  project?: Project;
+  onProjectUpdated?: (project: Project) => void;
+  step2ReadOnly?: boolean;
+};
+
+import type { InitialValues } from "@/types/forms";
+export type Step1InitialValues = InitialValues;

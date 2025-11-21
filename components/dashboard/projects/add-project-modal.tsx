@@ -167,22 +167,6 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="projectManager"
-                className="text-sm font-medium text-foreground"
-              >
-                Project Manager / Owner
-              </Label>
-              <Input
-                id="projectManager"
-                value={formState.projectManager}
-                onChange={handleInputChange}
-                placeholder="Enter project manager's name..."
-                className="rounded-xl"
-              />
-            </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label
