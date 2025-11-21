@@ -11,8 +11,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Fuel, Loader2, Truck } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Fuel, Loader2, Truck, MapPin } from "lucide-react";
 import type { DeliveryRouteMapProps } from "@/components/dashboard/projects/delivery-route-map";
+import { SourcedMaterial } from "@/types/construction";
 
 const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
   () =>
@@ -55,6 +63,7 @@ interface DeliveryRouteSectionProps {
   routeEndQuery: string;
   setRouteEndQuery: (value: string) => void;
   routeFuelLiters: string;
+  setRouteFuelLiters: (value: string) => void;
   routeDistanceKm: number | null;
   routeDurationMinutes: number | null;
   startLabel: string | null;
@@ -69,6 +78,13 @@ interface DeliveryRouteSectionProps {
   handleAnimateRoute: () => void;
   handleApplyRouteFuel: () => void;
   metricsPeriod: "daily" | "monthly";
+  sourcingMaterials: SourcedMaterial[];
+  projectLocation?: string | null;
+  distanceValue: string;
+  efficiencyValue: string;
+  onDistanceChange: (value: string) => void;
+  onEfficiencyChange: (value: string) => void;
+  computedFuelLiters: number | null;
 }
 
 const formatDuration = (minutes: number | null) => {
@@ -97,6 +113,7 @@ export function DeliveryRouteSection({
   routeEndQuery,
   setRouteEndQuery,
   routeFuelLiters,
+  setRouteFuelLiters,
   routeDistanceKm,
   routeDurationMinutes,
   startLabel,
@@ -111,122 +128,114 @@ export function DeliveryRouteSection({
   handleAnimateRoute,
   handleApplyRouteFuel,
   metricsPeriod,
+  sourcingMaterials,
+  projectLocation,
+  distanceValue,
+  efficiencyValue,
+  onDistanceChange,
+  onEfficiencyChange,
+  computedFuelLiters,
 }: DeliveryRouteSectionProps) {
-  const routeMetricsGridClass =
-    metricsPeriod === "monthly"
-      ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-      : "grid grid-cols-1 gap-4";
+  const handleMaterialSelect = (materialId: string) => {
+    const material = sourcingMaterials.find((m) => m.id === materialId);
+    if (material && material.warehouse) {
+      setRouteStartQuery(material.warehouse);
+      if (projectLocation) {
+        setRouteEndQuery(projectLocation);
+      }
+    }
+  };
 
   return (
     <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
       <CardHeader>
-        <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-          Delivery Route
+        <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+          <Truck className="h-4 w-4" />
+          Logistics & Route Fuel Planning
         </CardTitle>
         <CardDescription>
-          Visualize a material delivery, capture distance travelled, and feed the
-          truck&apos;s fuel usage into today&apos;s log.
+          Plan material deliveries, visualize routes, and calculate fuel
+          consumption for your daily log.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Material Selection Section */}
+        <div className="space-y-2">
+          <Label>Quick Fill from Sourcing Plan</Label>
+          <Select onValueChange={handleMaterialSelect}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a material to load warehouse address..." />
+            </SelectTrigger>
+            <SelectContent>
+              {sourcingMaterials.length > 0 ? (
+                sourcingMaterials.map((material) => (
+                  <SelectItem key={material.id} value={material.id}>
+                    {material.name} ({material.warehouse || "No Warehouse"})
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="none" disabled>
+                  No sourcing materials found
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Route Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="route-start">From</Label>
-            <Input
-              id="route-start"
-              value={routeStartQuery}
-              onChange={(event) => setRouteStartQuery(event.target.value)}
-              placeholder="e.g. 123 Port Rd, Manila or 14.5995, 120.9842"
-              autoComplete="street-address"
-            />
+            <Label htmlFor="route-start">Origin (Warehouse)</Label>
+            <div className="relative">
+              <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="route-start"
+                value={routeStartQuery}
+                onChange={(event) => setRouteStartQuery(event.target.value)}
+                placeholder="e.g. 123 Port Rd, Manila"
+                className="pl-9"
+              />
+            </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="route-end">To</Label>
-            <Input
-              id="route-end"
-              value={routeEndQuery}
-              onChange={(event) => setRouteEndQuery(event.target.value)}
-              placeholder="e.g. 456 Logistics Hub, Taguig or 14.6760, 121.0437"
-              autoComplete="street-address"
-            />
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {startLabel && endLabel
-            ? `Resolved route: ${startLabel} -> ${endLabel}`
-            : "Type full street addresses or decimal coordinates (lat,lng) for both locations."}
-        </p>
-
-        <div className={routeMetricsGridClass}>
-          {metricsPeriod === "monthly" ? (
-            <div className="space-y-2">
-              <Label htmlFor="route-fuel">Fuel Consumption (liters)</Label>
+            <Label htmlFor="route-end">Destination (Site)</Label>
+            <div className="relative">
+              <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                id="route-fuel"
-                value={routeFuelLiters}
-                placeholder="Enter or accept suggestion"
-                inputMode="decimal"
-                disabled
+                id="route-end"
+                value={routeEndQuery}
+                onChange={(event) => setRouteEndQuery(event.target.value)}
+                placeholder="e.g. Project Site Address"
+                className="pl-9"
               />
-              <p className="text-xs text-muted-foreground">
-                A suggested value is provided after calculating the route using an
-                average 0.35 L/km factor.
-              </p>
-            </div>
-          ) : null}
-          <div className="flex flex-col justify-between gap-2">
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Distance Travelled
-                </p>
-                <p className="text-2xl font-semibold text-emerald-600">
-                  {routeDistanceKm !== null
-                    ? `${routeDistanceKm.toFixed(2)} km`
-                    : "--"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Estimated Drive Time
-                </p>
-                <p className="text-lg font-medium text-muted-foreground">
-                  {formatDuration(routeDurationMinutes)}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                onClick={handleAnimateRoute}
-                disabled={isFetchingRoute}
-              >
-                {isFetchingRoute ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Finding Route...
-                  </>
-                ) : (
-                  <>
-                    <Truck className="mr-2 h-4 w-4" />
-                    {isAnimatingRoute ? "Animating..." : "Plan & Animate"}
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleApplyRouteFuel}
-                disabled={!routeFuelLiters}
-              >
-                <Fuel className="mr-2 h-4 w-4" />
-                Apply Fuel to Daily Log
-              </Button>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl overflow-hidden border border-white/30 dark:border-gray-700/30">
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            onClick={handleAnimateRoute}
+            disabled={isFetchingRoute}
+            className="w-full md:w-auto"
+          >
+            {isFetchingRoute ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Calculating Route...
+              </>
+            ) : (
+              <>
+                <Truck className="mr-2 h-4 w-4" />
+                {isAnimatingRoute ? "Re-Animate Route" : "Calculate & Animate"}
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Map Display */}
+        <div className="rounded-xl overflow-hidden border border-white/30 dark:border-gray-700/30 h-[300px] w-full relative">
           {typeof window !== "undefined" ? (
             <DeliveryRouteMap
               center={mapDisplayCenter}
@@ -237,13 +246,72 @@ export function DeliveryRouteSection({
               truckPosition={truckPosition}
               polyline={routePoints}
             />
-          ) : null}
+          ) : (
+            <div className="flex items-center justify-center h-full bg-muted/20">
+              <p className="text-sm text-muted-foreground">Map Loading...</p>
+            </div>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Enter street addresses or decimal coordinates to snap the truck along
-          real driving roads. Use the animation to capture the delivery distance
-          and associated fuel usage for today&apos;s report.
-        </p>
+
+        {/* Route Stats & Fuel Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
+          {/* Route Stats */}
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">
+              Route Distance
+            </p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {routeDistanceKm !== null
+                ? `${routeDistanceKm.toFixed(2)} km`
+                : "--"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Est. Time: {formatDuration(routeDurationMinutes)}
+            </p>
+          </div>
+
+          {/* Fuel Efficiency Input */}
+          <div className="space-y-2">
+            <Label htmlFor="fuel-efficiency">Fuel Efficiency (L/km)</Label>
+            <Input
+              id="fuel-efficiency"
+              type="number"
+              placeholder="0.35"
+              value={efficiencyValue}
+              onChange={(e) => onEfficiencyChange(e.target.value)}
+            />
+          </div>
+
+          {/* Calculated Fuel */}
+          <div className="space-y-2">
+            <Label>Total Fuel (Liters)</Label>
+            <div className="flex gap-2">
+              <Input
+                value={
+                  computedFuelLiters !== null
+                    ? computedFuelLiters.toFixed(2)
+                    : routeFuelLiters || ""
+                }
+                onChange={(e) => setRouteFuelLiters(e.target.value)}
+                placeholder="Calculated..."
+                readOnly={computedFuelLiters !== null}
+                className={computedFuelLiters !== null ? "bg-muted" : ""}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleApplyRouteFuel}
+                disabled={!routeFuelLiters && computedFuelLiters === null}
+                title="Apply to Daily Log"
+              >
+                <Fuel className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Auto-calculated if distance & efficiency are set.
+            </p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

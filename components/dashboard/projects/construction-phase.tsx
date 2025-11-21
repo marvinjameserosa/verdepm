@@ -25,7 +25,6 @@ import { useSourcingMaterials } from "@/hooks/use-sourcing-materials";
 import { submitConstructionLog } from "@/actions/construction/submit";
 
 import { MetricCard } from "./construction/metric-card";
-import { DistanceFuelCard } from "./construction/distance-fuel-card";
 import { EquipmentEmissionsCard } from "./construction/equipment-emissions-card";
 import { SafetyTrirCard } from "./construction/safety-trir-card";
 import { WasteEmissionsCard } from "./construction/waste-emissions-card";
@@ -57,9 +56,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [metricsPeriod, setMetricsPeriod] = useState<
-    "daily" | "monthly" | "sourcing"
-  >("daily");
+  const [metricsPeriod, setMetricsPeriod] = useState<"daily" | "monthly">(
+    "daily"
+  );
 
   const {
     dailyMetrics,
@@ -96,6 +95,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     routeEndQuery,
     setRouteEndQuery,
     routeFuelLiters,
+    setRouteFuelLiters,
     routeDistanceKm,
     routeDurationMinutes,
     startLabel,
@@ -124,50 +124,42 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       setErrorMessage("Calculate a valid route before applying fuel data.");
       return;
     }
-    if (!routeFuelLiters) {
-      setErrorMessage(
-        "Enter the truck's fuel consumption before applying it to the log."
+    
+    // If computedFuelLiters is available (from distance * efficiency), use that.
+    // Otherwise check if routeFuelLiters (manual input) is set.
+    const fuelToApply = computedFuelLiters !== null ? computedFuelLiters : Number(routeFuelLiters);
+
+    if (!fuelToApply && fuelToApply !== 0) {
+       setErrorMessage(
+        "Ensure fuel consumption is calculated or entered before applying."
       );
       return;
     }
-    const parsedFuel = Number(routeFuelLiters);
-    if (Number.isNaN(parsedFuel) || parsedFuel < 0) {
+
+    if (Number.isNaN(fuelToApply) || fuelToApply < 0) {
       setErrorMessage("Fuel consumption must be a valid non-negative number.");
       return;
     }
 
-    setDailyMetrics((prev) => {
-      const safeNumeric = (value: string) => {
-        if (!value) {
-          return 0;
-        }
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : 0;
-      };
+    // We don't need to update state here because the inputs in DeliveryRouteSection
+    // are already bound to dailyMetrics (distanceKm, fuelEfficiency).
+    // However, if the user manually entered fuel liters without efficiency,
+    // we might want to back-calculate efficiency or just store the liters?
+    // The current logic relies on distance * efficiency.
+    // If we have a manual fuel entry but no efficiency, we should probably update efficiency.
+    
+    if (dailyMetrics.fuelEfficiency === "" && routeDistanceKm > 0) {
+        const impliedEfficiency = fuelToApply / routeDistanceKm;
+        handleDailyInputChange("fuelEfficiency", impliedEfficiency.toFixed(3));
+    }
+    
+    // Also ensure distance is synced if it came from the route
+    if (dailyMetrics.distanceKm === "" || Number(dailyMetrics.distanceKm) !== routeDistanceKm) {
+        handleDailyInputChange("distanceKm", routeDistanceKm.toFixed(2));
+    }
 
-      const existingDistance = safeNumeric(prev.distanceKm);
-      const existingEfficiency = safeNumeric(prev.fuelEfficiency);
-      const existingFuelLiters =
-        existingDistance > 0 ? existingDistance * existingEfficiency : 0;
-
-      const updatedDistance = existingDistance + routeDistanceKm;
-      const updatedFuelLiters = existingFuelLiters + parsedFuel;
-      const updatedEfficiency =
-        updatedDistance > 0 ? updatedFuelLiters / updatedDistance : 0;
-
-      return {
-        ...prev,
-        distanceKm: updatedDistance > 0 ? updatedDistance.toFixed(2) : "",
-        fuelEfficiency:
-          updatedDistance > 0 && updatedFuelLiters > 0
-            ? updatedEfficiency.toFixed(3)
-            : updatedDistance > 0
-            ? "0"
-            : "",
-      };
-    });
     setStatusMessage(
-      "Route fuel has been factored into today's distance and efficiency totals."
+      "Route fuel data has been applied to the daily log."
     );
   };
 
@@ -481,19 +473,15 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     },
   ] as const;
 
-  let monitoringTitle = "Construction Phase: Daily ESG Monitoring";
-  let monitoringDescription =
-    "Log daily metrics to track performance against pre-construction targets.";
+  const monitoringTitle =
+    metricsPeriod === "daily"
+      ? "Construction Phase: Daily ESG Monitoring"
+      : "Construction Phase: Monthly ESG Monitoring";
 
-  if (metricsPeriod === "monthly") {
-    monitoringTitle = "Construction Phase: Monthly ESG Monitoring";
-    monitoringDescription =
-      "Review monthly resource usage to stay aligned with pre-construction targets.";
-  } else if (metricsPeriod === "sourcing") {
-    monitoringTitle = "Construction Phase: Material Sourcing Plan";
-    monitoringDescription =
-      "Review the material sourcing commitments and status.";
-  }
+  const monitoringDescription =
+    metricsPeriod === "daily"
+      ? "Log daily metrics to track performance against pre-construction targets."
+      : "Review monthly resource usage to stay aligned with pre-construction targets.";
 
   const submitButtonLabel =
     metricsPeriod === "monthly"
@@ -530,28 +518,16 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       <Tabs
         value={metricsPeriod}
         onValueChange={(value) =>
-          setMetricsPeriod(value as "daily" | "monthly" | "sourcing")
+          setMetricsPeriod(value as "daily" | "monthly")
         }
         className="space-y-4"
       >
         <TabsList>
           <TabsTrigger value="daily">Daily Inputs</TabsTrigger>
           <TabsTrigger value="monthly">Monthly Inputs</TabsTrigger>
-          <TabsTrigger value="sourcing">Material Sourcing</TabsTrigger>
         </TabsList>
         <TabsContent value="daily">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <DistanceFuelCard
-              distanceValue={dailyMetrics.distanceKm}
-              efficiencyValue={dailyMetrics.fuelEfficiency}
-              onDistanceChange={(value) =>
-                handleDailyInputChange("distanceKm", value)
-              }
-              onEfficiencyChange={(value) =>
-                handleDailyInputChange("fuelEfficiency", value)
-              }
-              computedFuelLiters={computedFuelLiters}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <EquipmentEmissionsCard
               hoursValue={dailyMetrics.equipmentHours}
               fuelRateValue={dailyMetrics.equipmentFuelRate}
@@ -584,6 +560,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               routeEndQuery={routeEndQuery}
               setRouteEndQuery={setRouteEndQuery}
               routeFuelLiters={routeFuelLiters}
+              setRouteFuelLiters={setRouteFuelLiters}
               routeDistanceKm={routeDistanceKm}
               routeDurationMinutes={routeDurationMinutes}
               startLabel={startLabel}
@@ -598,6 +575,17 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               handleAnimateRoute={() => handleAnimateRoute(setErrorMessage)}
               handleApplyRouteFuel={handleApplyRouteFuel}
               metricsPeriod="daily"
+              sourcingMaterials={sourcingMaterials}
+              projectLocation={project.location}
+              distanceValue={dailyMetrics.distanceKm}
+              efficiencyValue={dailyMetrics.fuelEfficiency}
+              onDistanceChange={(value) =>
+                handleDailyInputChange("distanceKm", value)
+              }
+              onEfficiencyChange={(value) =>
+                handleDailyInputChange("fuelEfficiency", value)
+              }
+              computedFuelLiters={computedFuelLiters}
             />
           </div>
         </TabsContent>
@@ -655,29 +643,28 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
             />
           </div>
         </TabsContent>
-        <TabsContent value="sourcing">
-          <MaterialSourcingSection
-            materialLoading={materialLoading}
-            sourcingMaterials={sourcingMaterials}
-            materialFetchError={materialFetchError}
-          />
-        </TabsContent>
       </Tabs>
 
-      {metricsPeriod !== "sourcing" && (
-        <Card>
-          <CardContent className="pt-6">
-            <Button
-              onClick={handleSubmit}
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {isSubmitting ? submitButtonBusyLabel : submitButtonLabel}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <div className="mt-8">
+        <MaterialSourcingSection
+          materialLoading={materialLoading}
+          sourcingMaterials={sourcingMaterials}
+          materialFetchError={materialFetchError}
+        />
+      </div>
+
+      <Card>
+        <CardContent className="pt-6">
+          <Button
+            onClick={handleSubmit}
+            className="w-full"
+            disabled={isSubmitting}
+          >
+            <Send className="mr-2 h-4 w-4" />
+            {isSubmitting ? submitButtonBusyLabel : submitButtonLabel}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
