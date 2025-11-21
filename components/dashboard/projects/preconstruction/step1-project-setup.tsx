@@ -17,6 +17,7 @@ import LocationPicker from "@/components/ui/location-picker";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { useProjectSetupForm } from "@/hooks/useProjectSetupForm";
 import type { InitialValues, Step1FormValues } from "@/types/forms";
+import type { ProjectStatus, ProjectPriority } from "@/types/project";
 import { useSession } from "@/components/auth/SessionProvider";
 import { Loader2 } from "lucide-react";
 import {
@@ -190,7 +191,7 @@ export default function Step1ProjectSetup({
                       <Label htmlFor="status">Current Status</Label>
                       <Select
                         value={status}
-                        onValueChange={(value) => setStatus(value)}
+                        onValueChange={(value) => setStatus(value as ProjectStatus)}
                       >
                         <SelectTrigger id="status" className="bg-white/80 dark:bg-gray-800/80">
                           <SelectValue placeholder="Select status" />
@@ -208,7 +209,7 @@ export default function Step1ProjectSetup({
                       <Label htmlFor="priority">Priority</Label>
                       <Select
                         value={priority}
-                        onValueChange={(value) => setPriority(value)}
+                        onValueChange={(value) => setPriority(value as ProjectPriority)}
                       >
                         <SelectTrigger id="priority" className="bg-white/80 dark:bg-gray-800/80">
                           <SelectValue placeholder="Select priority" />

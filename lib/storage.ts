@@ -275,7 +275,7 @@ export class StorageService {
         "construction-docs",
         "esg-reports",
       ];
-      const existingBucketNames = buckets?.map((b) => b.name) || [];
+      const existingBucketNames = buckets?.map((b: { name: string }) => b.name) || [];
 
       const exists = requiredBuckets.filter((bucket) =>
         existingBucketNames.includes(bucket)

@@ -6,6 +6,7 @@ import ProjectPhases from "./project-phases";
 import type { Project } from "@/types/project";
 import { mapProjectFromSupabase } from "./project-helpers";
 import { supabase } from "@/lib/supabase/client";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type ProjectPageContentProps = {
   initialProject: Project;
@@ -32,7 +33,7 @@ export default function ProjectPageContent({
           table: "projects",
           filter: `id=eq.${initialProject.id}`,
         },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (!payload.new) {
             return;
           }

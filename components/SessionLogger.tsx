@@ -1,11 +1,12 @@
 "use client";
 import { useEffect } from "react";
-import { supabase } from "@/lib/supabase/client"; // adjust path if needed
+import { type Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client"; 
 
 export function SessionLogger() {
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Current session:", session);
+    supabase.auth.getSession().then((response: { data: { session: Session | null } }) => {
+      console.log("Current session:", response.data.session);
     });
   }, []);
   return null;

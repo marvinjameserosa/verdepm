@@ -653,11 +653,13 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 type PreConstructionPhaseProps = {
   project?: Project;
   onProjectUpdated?: (project: Project) => void;
+  step2ReadOnly?: boolean;
 };
 
 export function PreConstructionPhase({
   project,
   onProjectUpdated,
+  step2ReadOnly,
 }: PreConstructionPhaseProps) {
   const [projectDetails, setProjectDetails] = useState<Project | null>(
     project ?? null
