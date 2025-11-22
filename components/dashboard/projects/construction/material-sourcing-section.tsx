@@ -7,6 +7,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -15,10 +25,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, PackageCheck, Truck, Edit, ExternalLink } from "lucide-react";
+import {
+  Loader2,
+  PackageCheck,
+  Truck,
+  Edit,
+  ExternalLink,
+  Calendar,
+} from "lucide-react";
 import { SourcedMaterial } from "@/types/construction";
 import { useState } from "react";
 import { EditMaterialModal } from "./edit-material-modal";
+import { updateMaterialDelivery } from "@/actions/material-actions";
 
 interface MaterialSourcingSectionProps {
   materialLoading: boolean;
@@ -50,6 +68,29 @@ const formatCurrencyValue = (value: string | number | null | undefined) => {
   return Number(raw).toLocaleString();
 };
 
+const parseMaterialDate = (
+  value: Date | string | null | undefined
+): Date | null => {
+  if (!value) return null;
+  const instance = typeof value === "string" ? new Date(value) : value;
+  return Number.isNaN(instance.getTime()) ? null : instance;
+};
+
+const formatDateValue = (value: Date | string | null | undefined) => {
+  const parsed = parseMaterialDate(value);
+  if (!parsed) return "—";
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const toDateInputValue = (value: Date | string | null | undefined) => {
+  const parsed = parseMaterialDate(value);
+  return parsed ? parsed.toISOString().split("T")[0] : "";
+};
+
 export function MaterialSourcingSection({
   materialLoading,
   sourcingMaterials,
@@ -60,6 +101,78 @@ export function MaterialSourcingSection({
 }: MaterialSourcingSectionProps) {
   const [editingMaterial, setEditingMaterial] =
     useState<SourcedMaterial | null>(null);
+  const [deliveryDateModalMaterial, setDeliveryDateModalMaterial] =
+    useState<SourcedMaterial | null>(null);
+  const [deliveryDateInput, setDeliveryDateInput] = useState("");
+  const [deliveryDateError, setDeliveryDateError] = useState<string | null>(
+    null
+  );
+  const [isSavingDeliveryDate, setIsSavingDeliveryDate] = useState(false);
+
+  const resetDeliveryDateModal = () => {
+    setDeliveryDateModalMaterial(null);
+    setDeliveryDateInput("");
+    setDeliveryDateError(null);
+    setIsSavingDeliveryDate(false);
+  };
+
+  const handleOpenDeliveryDateModal = (material: SourcedMaterial) => {
+    setDeliveryDateModalMaterial(material);
+    setDeliveryDateInput(toDateInputValue(material.deliveryDate));
+    setDeliveryDateError(null);
+    setIsSavingDeliveryDate(false);
+  };
+
+  const handleDeliveryDateSave = async () => {
+    if (!deliveryDateModalMaterial) {
+      return;
+    }
+
+    setDeliveryDateError(null);
+    const dateValue = deliveryDateInput.trim();
+    const normalizedDate =
+      dateValue.length === 0 ? null : new Date(`${dateValue}T00:00:00`);
+
+    if (normalizedDate && Number.isNaN(normalizedDate.getTime())) {
+      setDeliveryDateError("Enter a valid delivery date.");
+      return;
+    }
+
+    setIsSavingDeliveryDate(true);
+
+    try {
+      const result = await updateMaterialDelivery(
+        deliveryDateModalMaterial.id,
+        {
+          delivery_date: normalizedDate,
+        }
+      );
+
+      if (!result.success) {
+        setDeliveryDateError(
+          result.error ?? "Failed to update the delivery date."
+        );
+        return;
+      }
+
+      onMaterialUpdated();
+      resetDeliveryDateModal();
+    } catch (error) {
+      setDeliveryDateError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update the delivery date."
+      );
+    } finally {
+      setIsSavingDeliveryDate(false);
+    }
+  };
+
+  const handleDeliveryDateDialogChange = (open: boolean) => {
+    if (!open && !isSavingDeliveryDate) {
+      resetDeliveryDateModal();
+    }
+  };
 
   return (
     <>
@@ -97,6 +210,7 @@ export function MaterialSourcingSection({
                   <TableHead>Unit</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Delivery Status</TableHead>
+                  <TableHead>Delivery Date</TableHead>
                   <TableHead>Approval</TableHead>
                   <TableHead>Fuel Summary (L)</TableHead>
                   <TableHead>Credentials</TableHead>
@@ -109,7 +223,7 @@ export function MaterialSourcingSection({
               <TableBody>
                 {materialLoading ? (
                   <TableRow>
-                    <TableCell colSpan={15} className="text-center">
+                    <TableCell colSpan={16} className="text-center">
                       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading sourcing plan…
@@ -141,6 +255,9 @@ export function MaterialSourcingSection({
                         </Badge>
                       </TableCell>
                       <TableCell>{material.deliveryStatus ?? "—"}</TableCell>
+                      <TableCell>
+                        {formatDateValue(material.deliveryDate)}
+                      </TableCell>
                       <TableCell>{material.approvalStatus ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         {material.fuelSummary
@@ -212,7 +329,7 @@ export function MaterialSourcingSection({
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={15}
+                      colSpan={16}
                       className="text-center text-sm text-muted-foreground"
                     >
                       {materialFetchError ??
@@ -225,6 +342,65 @@ export function MaterialSourcingSection({
           </div>
         </CardContent>
       </Card>
+      <Dialog
+        open={!!deliveryDateModalMaterial}
+        onOpenChange={handleDeliveryDateDialogChange}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Delivery Date</DialogTitle>
+            <DialogDescription>
+              {deliveryDateModalMaterial
+                ? `Adjust the delivery date for ${deliveryDateModalMaterial.name}.`
+                : "Adjust the delivery date for this material."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="material-delivery-date-input">
+                Delivery Date
+              </Label>
+              <Input
+                id="material-delivery-date-input"
+                type="date"
+                value={deliveryDateInput}
+                onChange={(event) => {
+                  setDeliveryDateInput(event.target.value);
+                  setDeliveryDateError(null);
+                }}
+                disabled={isSavingDeliveryDate}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave blank to clear the delivery date.
+              </p>
+            </div>
+            {deliveryDateError && (
+              <p className="text-sm text-rose-600">{deliveryDateError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetDeliveryDateModal}
+              disabled={isSavingDeliveryDate}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeliveryDateSave}
+              disabled={isSavingDeliveryDate}
+              className="gap-2"
+            >
+              {isSavingDeliveryDate ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Calendar className="h-4 w-4" />
+              )}
+              Save Date
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <EditMaterialModal
         isOpen={!!editingMaterial}
         onClose={() => setEditingMaterial(null)}

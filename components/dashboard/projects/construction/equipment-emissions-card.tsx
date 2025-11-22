@@ -28,10 +28,10 @@ export function EquipmentEmissionsCard({
   computedCo2Kg,
 }: EquipmentEmissionsCardProps) {
   return (
-    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+    <Card className="glassmorphism card-hover border-l-4 border-l-chart-1">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div>
-          <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          <CardTitle className="text-lg font-bold text-chart-1">
             Equipment Emissions Summary
           </CardTitle>
           <CardDescription className="mt-1">
@@ -39,8 +39,8 @@ export function EquipmentEmissionsCard({
             combustion emissions.
           </CardDescription>
         </div>
-        <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
-          <Construction className="h-4 w-4 text-muted-foreground" />
+        <div className="p-2 rounded-lg bg-chart-1/10">
+          <Construction className="h-5 w-5 text-chart-1" />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

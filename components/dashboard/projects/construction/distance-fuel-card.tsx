@@ -91,10 +91,10 @@ export function DistanceFuelCard({
   const totalEmissions = totalFuel * EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
 
   return (
-    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl col-span-1 md:col-span-2 lg:col-span-2">
+    <Card className="glassmorphism card-hover border-l-4 border-l-chart-1 col-span-1 md:col-span-2 lg:col-span-2">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div>
-          <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          <CardTitle className="text-lg font-bold text-chart-1">
             Equipment Emissions Summary and Safety Performance (TRIR)
           </CardTitle>
           <CardDescription className="mt-1">
@@ -102,18 +102,18 @@ export function DistanceFuelCard({
           </CardDescription>
         </div>
         <div className="flex gap-2">
-          <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
-            <Construction className="h-4 w-4 text-muted-foreground" />
+          <div className="p-2 rounded-lg bg-chart-1/10">
+            <Construction className="h-5 w-5 text-chart-1" />
           </div>
-          <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
-            <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+          <div className="p-2 rounded-lg bg-chart-5/10">
+            <ShieldAlert className="h-5 w-5 text-chart-5" />
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Equipment Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 border-b pb-2">
+          <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
             Equipment Emissions
           </h3>
 
@@ -232,7 +232,7 @@ export function DistanceFuelCard({
 
         {/* Safety Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 border-b pb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
             <span>Safety Performance (TRIR)</span>
             <div className="flex items-center text-xs text-muted-foreground font-normal">
               <Target className="h-3 w-3 mr-1" />

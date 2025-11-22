@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from"@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -46,12 +46,12 @@ export function MetricCard({
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
 
   return (
-    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+    <Card className="glassmorphism card-hover border-l-4 border-l-chart-2">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+        <CardTitle className="text-lg font-bold text-chart-2">
           {title}
         </CardTitle>
-        <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/40">
+        <div className="p-2 rounded-lg bg-chart-2/10">
           {icon}
         </div>
       </CardHeader>
@@ -98,9 +98,6 @@ export function MetricCard({
                   <tr>
                     <th className="px-3 py-2 font-medium text-gray-500 dark:text-gray-400">
                       Month
-                    </th>
-                    <th className="px-3 py-2 font-medium text-gray-500 dark:text-gray-400">
-                      Value ({unit})
                     </th>
                     <th className="px-3 py-2 font-medium text-gray-500 dark:text-gray-400">
                       Value ({unit})

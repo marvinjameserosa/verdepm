@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { Zap, Droplets, Send, Save } from "lucide-react";
+import { Zap, Droplets, Send, Save, TrendingUp } from "lucide-react";
 import type { Project } from "@/types/project";
 import {
   MonthlyMetricKey,
@@ -670,12 +670,19 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+      <Card className="glassmorphism card-hover border-l-4 border-l-chart-1">
         <CardHeader>
-          <CardTitle className="text-emerald-700 dark:text-emerald-300">
-            {monitoringTitle}
-          </CardTitle>
-          <CardDescription>{monitoringDescription}</CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-chart-1/10">
+              <TrendingUp className="h-5 w-5 text-chart-1" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl font-bold text-chart-1">
+                {monitoringTitle}
+              </CardTitle>
+              <CardDescription className="mt-1">{monitoringDescription}</CardDescription>
+            </div>
+          </div>
         </CardHeader>
       </Card>
 
@@ -708,7 +715,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           <div className="space-y-6">
             {/* Daily Inputs Section */}
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                 Daily Logs
               </h3>
@@ -740,7 +747,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
           <div className="space-y-6">
             {/* Monthly Inputs Section */}
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-blue-500"></span>
                 Monthly Logs
               </h3>
