@@ -104,13 +104,14 @@ export function MaterialSourcingSection({
                   <TableHead>Credentials</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Spec Sheet</TableHead>
+                  <TableHead>Receipt</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {materialLoading ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center">
+                    <TableCell colSpan={15} className="text-center">
                       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading sourcing plan…
@@ -175,6 +176,20 @@ export function MaterialSourcingSection({
                         )}
                       </TableCell>
                       <TableCell>
+                        {material.receiptUrl ? (
+                          <a
+                            href={material.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            View <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
@@ -199,7 +214,7 @@ export function MaterialSourcingSection({
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={13}
+                      colSpan={15}
                       className="text-center text-sm text-muted-foreground"
                     >
                       {materialFetchError ??

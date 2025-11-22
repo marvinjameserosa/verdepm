@@ -22,6 +22,7 @@ import {
   saveProjectSetup as saveProjectSetupAction,
   submitForApproval,
 } from "@/actions/preconstruction/setup";
+import { saveSimplifiedTargets } from "@/actions/preconstruction/save-targets";
 import {
   saveTarget,
   saveProjectTarget,
@@ -42,11 +43,11 @@ import {
   type ColumnDescriptor,
   type ColumnInfo,
   type ProjectEsgTargets,
+  type ProjectTargets,
 } from "@/types/preconstruction";
 import { isMissingRelationError } from "@/lib/supabase/errors";
 
 import {
-  createEmptyTargets,
   getDefaultStep1Values,
   buildDefaultColumnMapping,
   selectColumnName,
@@ -84,9 +85,7 @@ export function PreConstructionPhase({
   const [step1Values, setStep1Values] = useState<Step1InitialValues>(() =>
     getDefaultStep1Values(projectDetails ?? undefined)
   );
-  const [targets, setTargets] = useState<ProjectEsgTargets>(() =>
-    createEmptyTargets()
-  );
+  const [targets, setTargets] = useState<ProjectTargets | null>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [documentPaths, setDocumentPaths] = useState<DocumentPathMap>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -97,8 +96,7 @@ export function PreConstructionPhase({
   const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(
     null
   );
-  const [savingTargetSection, setSavingTargetSection] =
-    useState<TargetSectionKey | null>(null);
+  const [isSavingTargets, setIsSavingTargets] = useState(false);
   const [isSubmittingForApproval, setIsSubmittingForApproval] = useState(false);
   const [, setSubmittedForApprovalAt] = useState<string | null>(null);
   const supportsSubmittedAtColumn = false;
@@ -253,7 +251,7 @@ export function PreConstructionPhase({
       setStep1Values(getDefaultStep1Values(project));
       setDocumentPaths({});
       setMaterials([]);
-      setTargets(createEmptyTargets());
+      setTargets(null);
       setUserId(null);
       setIsLoading(false);
       return;
@@ -281,7 +279,7 @@ export function PreConstructionPhase({
         setStep1Values(getDefaultStep1Values(project));
         setDocumentPaths({});
         setMaterials([]);
-        setTargets(createEmptyTargets());
+        setTargets(null);
         return;
       }
 
@@ -343,236 +341,9 @@ export function PreConstructionPhase({
       setMaterials(mappedMaterials);
 
       if (targets) {
-        const nextTargets = createEmptyTargets();
-
-        // Process targets using helper function to avoid repetition
-        const processTarget = (section: TargetSectionKey, data: any) => {
-          if (!data) return;
-          registerColumnsFromRecord(section, data);
-
-          // Map fields based on section type
-          if (section === "electricityUsage") {
-            const timeframe = toStringOrEmpty(
-              data.timeframe ?? data.target_timeframe ?? ""
-            );
-            const targetDate = formatDateForInput(
-              data.date ?? data.target_date
-            );
-            const totalElectricityConsumed = toStringOrEmpty(
-              data.total_electricity_consumed ??
-                data.totalElectricityConsumed ??
-                ""
-            );
-
-            if (hasAnyValue(timeframe, totalElectricityConsumed, targetDate)) {
-              nextTargets.electricityUsage = {
-                id: String(data.id),
-                timeframe: timeframe || null,
-                date: targetDate,
-                totalElectricityConsumed,
-              };
-            }
-          } else if (section === "equipmentUsage") {
-            const timeframe = toStringOrEmpty(
-              data.timeframe ?? data.target_timeframe ?? ""
-            );
-            const targetDate = formatDateForInput(
-              data.date ?? data.target_date
-            );
-            const equipmentOperationLogs = toStringOrEmpty(
-              data.equipment_operation_logs ?? data.equipmentOperationLogs ?? ""
-            );
-            const fuelRate = toStringOrEmpty(
-              data.fuel_rate ?? data.fuelRate ?? ""
-            );
-            const totalFuel = toStringOrEmpty(
-              data.total_fuel ?? data.totalFuel ?? ""
-            );
-            const combustionEmissionFactor =
-              toStringOrEmpty(
-                data.combustion_emission_factor ??
-                  data.combustionEmissionFactor ??
-                  ""
-              ) || FIXED_EMISSION_FACTOR_STRING;
-
-            if (
-              hasAnyValue(
-                timeframe,
-                equipmentOperationLogs,
-                fuelRate,
-                totalFuel,
-                combustionEmissionFactor,
-                targetDate
-              )
-            ) {
-              nextTargets.equipmentUsage = {
-                id: String(data.id),
-                timeframe: timeframe || null,
-                date: targetDate,
-                equipmentOperationLogs,
-                fuelRate,
-                totalFuel,
-                combustionEmissionFactor,
-              };
-            }
-          } else if (section === "fuelConsumption") {
-            const timeframe = toStringOrEmpty(
-              data.timeframe ?? data.target_timeframe ?? ""
-            );
-            const targetDate = formatDateForInput(
-              data.date ?? data.target_date
-            );
-            const totalDistance = toStringOrEmpty(
-              data.total_distance ?? data.totalDistance ?? ""
-            );
-            const fuelEfficiency = toStringOrEmpty(
-              data.fuel_efficiency ?? data.fuelEfficiency ?? ""
-            );
-            const rawTotalFuel = toStringOrEmpty(
-              data.total_fuel ?? data.totalFuel ?? ""
-            );
-            const fuelEmissionFactor =
-              toStringOrEmpty(
-                data.fuel_emission_factor ?? data.fuelEmissionFactor ?? ""
-              ) || FIXED_EMISSION_FACTOR_STRING;
-
-            // Recompute total fuel if missing but components exist
-            let computedTotalFuel = rawTotalFuel;
-            if (!computedTotalFuel && totalDistance && fuelEfficiency) {
-              const dist = parseFloat(totalDistance);
-              const eff = parseFloat(fuelEfficiency);
-              if (!isNaN(dist) && !isNaN(eff)) {
-                computedTotalFuel = (dist * eff).toString();
-              }
-            }
-
-            if (
-              hasAnyValue(
-                timeframe,
-                totalDistance,
-                fuelEfficiency,
-                computedTotalFuel,
-                targetDate
-              )
-            ) {
-              nextTargets.fuelConsumption = {
-                id: String(data.id),
-                timeframe: timeframe || null,
-                date: targetDate,
-                totalDistance,
-                fuelEfficiency,
-                totalFuel: computedTotalFuel,
-                fuelEmissionFactor,
-              };
-            }
-          } else if (section === "wasteGenerated") {
-            const timeframe = toStringOrEmpty(
-              data.timeframe ?? data.target_timeframe ?? ""
-            );
-            const targetDate = formatDateForInput(
-              data.date ?? data.target_date
-            );
-            const totalWasteMass = toStringOrEmpty(
-              data.total_waste_mass ?? data.totalWasteMass ?? ""
-            );
-            const percentByTreatment = toStringOrEmpty(
-              data.percent_by_treatment ?? data.percentByTreatment ?? ""
-            );
-            const emissionFactor = toStringOrEmpty(
-              data.emission_factor ?? data.emissionFactor ?? ""
-            );
-
-            if (
-              hasAnyValue(
-                timeframe,
-                totalWasteMass,
-                percentByTreatment,
-                emissionFactor,
-                targetDate
-              )
-            ) {
-              nextTargets.wasteGenerated = {
-                id: String(data.id),
-                timeframe: timeframe || null,
-                date: targetDate,
-                totalWasteMass,
-                percentByTreatment,
-                emissionFactor,
-              };
-            }
-          } else if (section === "waterSupply") {
-            const timeframe = toStringOrEmpty(
-              data.timeframe ?? data.target_timeframe ?? ""
-            );
-            const targetDate = formatDateForInput(
-              data.date ?? data.target_date
-            );
-            const totalWaterConsumed = toStringOrEmpty(
-              data.total_water_consumed ?? data.totalWaterConsumed ?? ""
-            );
-            const waterSupplyEmissionFactor = toStringOrEmpty(
-              data.water_supply_emission_factor ??
-                data.waterSupplyEmissionFactor ??
-                ""
-            );
-
-            if (
-              hasAnyValue(
-                timeframe,
-                totalWaterConsumed,
-                waterSupplyEmissionFactor,
-                targetDate
-              )
-            ) {
-              nextTargets.waterSupply = {
-                id: String(data.id),
-                timeframe: timeframe || null,
-                date: targetDate,
-                totalWaterConsumed,
-                waterSupplyEmissionFactor,
-              };
-            }
-          } else if (section === "safetyIncident") {
-            const timeframe = toStringOrEmpty(
-              data.timeframe ?? data.target_timeframe ?? ""
-            );
-            const targetDate = formatDateForInput(
-              data.date ?? data.target_date
-            );
-            const numberOfIncidents = toStringOrEmpty(
-              data.number_of_incidents ?? data.numberOfIncidents ?? ""
-            );
-            const totalEmployeeHours = toStringOrEmpty(
-              data.total_employee_hours ?? data.totalEmployeeHours ?? ""
-            );
-
-            if (
-              hasAnyValue(
-                timeframe,
-                numberOfIncidents,
-                totalEmployeeHours,
-                targetDate
-              )
-            ) {
-              nextTargets.safetyIncident = {
-                id: String(data.id),
-                timeframe: timeframe || null,
-                date: targetDate,
-                numberOfIncidents,
-                totalEmployeeHours,
-              };
-            }
-          }
-        };
-
-        processTarget("electricityUsage", targets.electricityUsage);
-        processTarget("equipmentUsage", targets.equipmentUsage);
-        processTarget("fuelConsumption", targets.fuelConsumption);
-        processTarget("wasteGenerated", targets.wasteGenerated);
-        processTarget("waterSupply", targets.waterSupply);
-        processTarget("safetyIncident", targets.safetyIncident);
-
-        setTargets(nextTargets);
+        setTargets(targets);
+      } else {
+        setTargets(null);
       }
 
       setErrorMessage(null);
@@ -672,11 +443,8 @@ export function PreConstructionPhase({
     warehouse?: string;
   };
 
-  const handleSaveTargetSection = useCallback(
-    async <K extends TargetSectionKey>(
-      section: K,
-      sectionValues: TargetSectionValuesMap[K]
-    ) => {
+  const handleSaveTargets = useCallback(
+    async (values: ProjectTargets) => {
       const activeProjectId = projectDetails?.id ?? project?.id ?? null;
 
       if (!activeProjectId) {
@@ -687,37 +455,27 @@ export function PreConstructionPhase({
       }
 
       resetFeedback();
-      setSavingTargetSection(section);
+      setIsSavingTargets(true);
 
       try {
-        const recordId = await saveProjectTarget(
-          activeProjectId,
-          section,
-          sectionValues
-        );
+        const recordId = await saveSimplifiedTargets(activeProjectId, values);
 
-        setTargets((prev) => {
-          const updated = { ...prev };
-          // @ts-ignore
-          updated[section] = {
-            ...updated[section],
-            ...sectionValues,
-            id: recordId,
-          };
-          return updated;
+        setTargets({
+          ...values,
+          id: recordId,
         });
 
-        setSuccessMessage("Target saved successfully.");
+        setSuccessMessage("Targets saved successfully.");
       } catch (error) {
-        console.error("Failed to save target", error);
+        console.error("Failed to save targets", error);
         setErrorMessage(
-          error instanceof Error ? error.message : "Failed to save target."
+          error instanceof Error ? error.message : "Failed to save targets."
         );
       } finally {
-        setSavingTargetSection(null);
+        setIsSavingTargets(false);
       }
     },
-    [projectDetails?.id, project?.id]
+    [projectDetails?.id, project?.id, resetFeedback]
   );
 
   const handleTargetsError = useCallback((message: string) => {
@@ -1213,11 +971,6 @@ export function PreConstructionPhase({
     [step1Values]
   );
 
-  const savedTargetCount = useMemo(
-    () => Object.values(targets).filter(Boolean).length,
-    [targets]
-  );
-
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
@@ -1309,8 +1062,8 @@ export function PreConstructionPhase({
               onBack={prevStep}
               projectId={projectDetails?.id ?? project?.id ?? null}
               targets={targets}
-              onSaveTargetSection={handleSaveTargetSection}
-              savingSection={savingTargetSection}
+              onSaveTargets={handleSaveTargets}
+              isSaving={isSavingTargets}
               onError={handleTargetsError}
               onResetFeedback={resetFeedback}
             />

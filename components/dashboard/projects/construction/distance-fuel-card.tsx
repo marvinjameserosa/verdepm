@@ -152,7 +152,7 @@ export function DistanceFuelCard({
             <div className="space-y-2">
               <Label htmlFor="safety-hours">Total Hours Worked</Label>
               <Input
-              id="safety-hours"
+                id="safety-hours"
                 type="number"
                 value={hoursWorked}
                 onChange={(event) => onHoursWorkedChange(event.target.value)}
@@ -174,9 +174,19 @@ export function DistanceFuelCard({
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button onClick={onSave} disabled={isSaving}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? "Saving..." : "Save Daily Inputs"}
+          <Button
+            onClick={onSave}
+            disabled={isSaving}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {isSaving ? (
+              "Saving..."
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Daily Report
+              </>
+            )}
           </Button>
         </div>
       </CardContent>

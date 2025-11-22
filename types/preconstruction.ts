@@ -50,6 +50,15 @@ export type SafetyIncidentTarget = BaseTargetRecord & {
   totalEmployeeHours: string;
 };
 
+// Simplified project targets structure
+export type ProjectTargets = {
+  id?: string | null;
+  scopeOne: string;    // Logistics + Equipment (tCO2e)
+  scopeTwo: string;    // Electricity (tCO2e)
+  scopeThree: string;  // Waste + Water (tCO2e)
+  trir: string;        // Total Recordable Incident Rate
+};
+
 export type ProjectEsgTargets = {
   electricityUsage: ElectricityUsageTarget | null;
   equipmentUsage: EquipmentUsageTarget | null;

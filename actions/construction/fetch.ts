@@ -37,7 +37,7 @@ export async function getSourcingMaterials(
     const { data: materialsData, error: materialsError } = await supabase
       .from("material")
       .select(
-        "id, material_category, supplier, material_name, warehouse, estimated_cost, unit, sustainability_credentials, supplier_vetting_notes, vetting, spec_sheet_path, approval_status, spec_sheet_url, fuel_summary"
+        "id, material_category, supplier, material_name, warehouse, estimated_cost, unit, sustainability_credentials, supplier_vetting_notes, vetting, spec_sheet_path, approval_status, spec_sheet_url, fuel_summary, receipt_url, receipt_path"
       )
       .eq("project_id", projectId)
       .order("created_at", { ascending: true });
@@ -69,6 +69,8 @@ export async function getSourcingMaterials(
       specSheetUrl: material.spec_sheet_url ?? undefined,
       fuelSummary: material.fuel_summary ?? 0,
       deliveryStatus: "Not Delivered",
+      receiptUrl: material.receipt_url ?? undefined,
+      receiptPath: material.receipt_path ?? undefined,
     }));
 
     return { data, error: null };

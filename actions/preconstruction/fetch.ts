@@ -88,72 +88,20 @@ export async function getPreconstructionData(projectId: string) {
     .eq("project_id", projectId)
     .maybeSingle();
 
-  const targetsData = {
-    electricityUsage: pt
-      ? {
-          id: pt.id,
-          timeframe: null,
-          date: "",
-          totalElectricityConsumed:
-            pt.electricity_consumption?.toString() ?? "",
-        }
-      : null,
-    equipmentUsage: pt
-      ? {
-          id: pt.id,
-          timeframe: null,
-          date: "",
-          equipmentOperationLogs: "",
-          fuelRate: "",
-          totalFuel: pt.equipment_usage?.toString() ?? "",
-          combustionEmissionFactor: "",
-        }
-      : null,
-    fuelConsumption: pt
-      ? {
-          id: pt.id,
-          timeframe: null,
-          date: "",
-          totalDistance: "",
-          fuelEfficiency: "",
-          totalFuel: pt.logistics_fuel_consumption?.toString() ?? "",
-          fuelEmissionFactor: "",
-        }
-      : null,
-    wasteGenerated: pt
-      ? {
-          id: pt.id,
-          timeframe: null,
-          date: "",
-          totalWasteMass: pt.total_waste_mass?.toString() ?? "",
-          percentByTreatment: pt.percentage_by_treatment?.toString() ?? "",
-          emissionFactor: pt.waste_emission_factor?.toString() ?? "",
-        }
-      : null,
-    waterSupply: pt
-      ? {
-          id: pt.id,
-          timeframe: null,
-          date: "",
-          totalWaterConsumed: pt.total_water_consumed?.toString() ?? "",
-          waterSupplyEmissionFactor: pt.water_emmision_factor?.toString() ?? "",
-        }
-      : null,
-    safetyIncident: pt
-      ? {
-          id: pt.id,
-          timeframe: null,
-          date: "",
-          numberOfIncidents: pt.number_of_incidents?.toString() ?? "",
-          totalEmployeeHours: pt.total_employee_hours?.toString() ?? "",
-        }
-      : null,
-  };
+  const targetsData = pt
+    ? {
+        id: pt.id,
+        scopeOne: pt.scope_one?.toString() ?? "",
+        scopeTwo: pt.scope_two?.toString() ?? "",
+        scopeThree: pt.scope_three?.toString() ?? "",
+        trir: pt.trir?.toString() ?? "",
+      }
+    : null;
 
   return {
     user,
-    setup: null,
-    materials: materials || [],
+    setup: null, // Deprecated
+    materials,
     targets: targetsData,
     project,
   };
@@ -181,5 +129,27 @@ export async function getReviewPlansData(projectId: string) {
   return {
     materials,
     targets: data.targets,
+  };
+}
+
+export async function getSimplifiedTargets(projectId: string) {
+  const supabase = await createClient();
+
+  const { data: pt } = await supabase
+    .from("project_targets")
+    .select("*")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (!pt) {
+    return null;
+  }
+
+  return {
+    id: pt.id,
+    scopeOne: pt.scope_one?.toString() ?? "",
+    scopeTwo: pt.scope_two?.toString() ?? "",
+    scopeThree: pt.scope_three?.toString() ?? "",
+    trir: pt.trir?.toString() ?? "",
   };
 }

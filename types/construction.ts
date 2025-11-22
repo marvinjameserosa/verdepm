@@ -44,6 +44,8 @@ export type SourcedMaterial = {
   specSheetUrl?: string;
   fuelSummary?: number;
   deliveryStatus?: string;
+  receiptUrl?: string;
+  receiptPath?: string;
 };
 
 export type DailyMetricKey =

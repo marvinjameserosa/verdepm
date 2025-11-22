@@ -38,13 +38,15 @@ export interface BucketInfo {
   allowed_mime_types?: string[];
 }
 
-export type FileDownloadResponse = {
-  data: Blob;
-  error: null;
-} | {
-  data: null;
-  error: Error;
-}
+export type FileDownloadResponse =
+  | {
+      data: Blob;
+      error: null;
+    }
+  | {
+      data: null;
+      error: Error;
+    };
 
 export interface FileListResponse {
   name: string;
@@ -55,7 +57,12 @@ export interface FileListResponse {
   metadata?: Record<string, any>;
 }
 
-export type StorageBucket = 'preconstruction-docs' | 'construction-docs' | 'esg-reports' | 'esg-files';
+export type StorageBucket =
+  | "preconstruction-docs"
+  | "construction-docs"
+  | "esg-reports"
+  | "esg-files"
+  | "receipts";
 
 export interface ProjectDocument {
   id: string;
@@ -68,7 +75,12 @@ export interface ProjectDocument {
   mimeType: string;
   uploadedAt: string;
   uploadedBy?: string;
-  category?: 'preconstruction' | 'construction' | 'esg' | 'compliance' | 'other';
+  category?:
+    | "preconstruction"
+    | "construction"
+    | "esg"
+    | "compliance"
+    | "other";
   tags?: string[];
   description?: string;
 }

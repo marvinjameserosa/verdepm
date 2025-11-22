@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/select";
 import { SourcedMaterial } from "@/types/construction";
 import { updateMaterialSourcing } from "@/actions/preconstruction/update-material";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
+import { StorageService } from "@/lib/storage";
+import { createClient } from "@/lib/supabase/client";
 
 interface EditMaterialModalProps {
   isOpen: boolean;
@@ -39,10 +41,14 @@ export function EditMaterialModal({
 }: EditMaterialModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<SourcedMaterial>>({});
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [specSheetFile, setSpecSheetFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (material) {
       setFormData({ ...material });
+      setReceiptFile(null);
+      setSpecSheetFile(null);
     }
   }, [material]);
 
@@ -54,7 +60,56 @@ export function EditMaterialModal({
     if (!material) return;
     setIsLoading(true);
     try {
-      await updateMaterialSourcing(material.id, projectId, formData);
+      let receiptUrl = formData.receiptUrl;
+      let receiptPath = formData.receiptPath;
+      let specSheetUrl = formData.specSheetUrl;
+      let specSheetPath = formData.specSheetPath;
+
+      const supabase = createClient();
+
+      if (receiptFile) {
+        const path = `materials/${projectId}/${material.id}/${Date.now()}_${
+          receiptFile.name
+        }`;
+        const { path: uploadedPath } = await StorageService.uploadFile(
+          "receipts",
+          path,
+          receiptFile
+        );
+        receiptPath = uploadedPath;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("receipts").getPublicUrl(uploadedPath);
+        receiptUrl = publicUrl;
+      }
+
+      if (specSheetFile) {
+        const path = `materials/${projectId}/${material.id}/${Date.now()}_${
+          specSheetFile.name
+        }`;
+        const { path: uploadedPath } = await StorageService.uploadFile(
+          "construction-docs",
+          path,
+          specSheetFile
+        );
+        specSheetPath = uploadedPath;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage
+          .from("construction-docs")
+          .getPublicUrl(uploadedPath);
+        specSheetUrl = publicUrl;
+      }
+
+      await updateMaterialSourcing(material.id, projectId, {
+        ...formData,
+        receiptUrl,
+        receiptPath,
+        specSheetUrl,
+        specSheetPath,
+      });
       onMaterialUpdated();
       onClose();
     } catch (error) {
@@ -175,12 +230,68 @@ export function EditMaterialModal({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="specSheetUrl">Spec Sheet URL</Label>
-            <Input
-              id="specSheetUrl"
-              value={formData.specSheetUrl || ""}
-              onChange={(e) => handleChange("specSheetUrl", e.target.value)}
-            />
+            <Label>Spec Sheet Upload</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx,image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setSpecSheetFile(file);
+                }}
+                className="text-sm"
+              />
+              {specSheetFile && (
+                <span className="text-xs text-emerald-600 font-medium">
+                  Selected: {specSheetFile.name}
+                </span>
+              )}
+            </div>
+            {formData.specSheetUrl && !specSheetFile && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Current spec sheet:{" "}
+                <a
+                  href={formData.specSheetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  View
+                </a>
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>Receipt Upload</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setReceiptFile(file);
+                }}
+                className="text-sm"
+              />
+              {receiptFile && (
+                <span className="text-xs text-emerald-600 font-medium">
+                  Selected: {receiptFile.name}
+                </span>
+              )}
+            </div>
+            {formData.receiptUrl && !receiptFile && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Current receipt:{" "}
+                <a
+                  href={formData.receiptUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  View
+                </a>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>

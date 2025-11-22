@@ -177,7 +177,7 @@ export async function submitConstructionLog({
       if (monthlyError) {
         throw monthlyError;
       }
-      
+
       return { success: true, warnings, sumElec, sumWater, sumWaste };
     }
 
@@ -187,9 +187,7 @@ export async function submitConstructionLog({
     return {
       success: false,
       error:
-        error instanceof Error
-          ? error.message
-          : "Unable to submit report.",
+        error instanceof Error ? error.message : "Unable to submit report.",
     };
   }
 }

@@ -34,6 +34,12 @@ export async function updateMaterialSourcing(
   if (material.approvalStatus) {
     updates.approval_status = material.approvalStatus;
   }
+  if (material.receiptUrl) {
+    updates.receipt_url = material.receiptUrl;
+  }
+  if (material.receiptPath) {
+    updates.receipt_path = material.receiptPath;
+  }
 
   const { data, error } = await supabase
     .from("material")

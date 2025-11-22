@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { Zap, Droplets, Send } from "lucide-react";
 import type { Project } from "@/types/project";
@@ -33,6 +35,8 @@ import { DistanceFuelCard } from "./construction/distance-fuel-card";
 import { WasteEmissionsCard } from "./construction/waste-emissions-card";
 import { DeliveryRouteSection } from "./construction/delivery-route-section";
 import { MaterialSourcingSection } from "./construction/material-sourcing-section";
+import { StorageService } from "@/lib/storage";
+import { createClient } from "@/lib/supabase/client";
 
 // --- Default Targets from Pre-Construction Phase ---
 const preConstructionTargets = {
@@ -125,6 +129,11 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     materialLoading,
     refreshMaterials,
   } = useSourcingMaterials(project?.id);
+
+  const [dailyReceiptFile, setDailyReceiptFile] = useState<File | null>(null);
+  const [monthlyReceiptFile, setMonthlyReceiptFile] = useState<File | null>(
+    null
+  );
 
   const resetMessages = () => {
     setStatusMessage(null);
@@ -286,6 +295,27 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         throw new Error("Total hours worked must be greater than zero.");
       }
 
+      let receiptUrl = null;
+      let receiptPath = null;
+
+      if (dailyReceiptFile) {
+        const supabase = createClient();
+        const path = `daily/${project.id}/${Date.now()}_${
+          dailyReceiptFile.name
+        }`;
+        const { path: uploadedPath } = await StorageService.uploadFile(
+          "receipts",
+          path,
+          dailyReceiptFile
+        );
+        receiptPath = uploadedPath;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("receipts").getPublicUrl(uploadedPath);
+        receiptUrl = publicUrl;
+      }
+
       const fuelConsumptionLiters =
         distanceValue !== null && efficiencyValue !== null
           ? Number((distanceValue * efficiencyValue).toFixed(4))
@@ -444,6 +474,27 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         (wasteEmissionsKg !== null ? wasteEmissionsKg : 0) +
         (waterEmissionsKg !== null ? waterEmissionsKg : 0);
 
+      let receiptUrl = null;
+      let receiptPath = null;
+
+      if (monthlyReceiptFile) {
+        const supabase = createClient();
+        const path = `monthly/${project.id}/${Date.now()}_${
+          monthlyReceiptFile.name
+        }`;
+        const { path: uploadedPath } = await StorageService.uploadFile(
+          "receipts",
+          path,
+          monthlyReceiptFile
+        );
+        receiptPath = uploadedPath;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("receipts").getPublicUrl(uploadedPath);
+        receiptUrl = publicUrl;
+      }
+
       const monthlyData = {
         rawElectricityKwh,
         rawWaterCubicM,
@@ -453,6 +504,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         wasteEmissionsKg,
         scope2,
         scope3,
+        receiptUrl,
+        receiptPath,
       };
 
       const result = await submitConstructionLog({
