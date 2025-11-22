@@ -32,10 +32,7 @@ export async function addProject(
       throw new Error("You must be signed in to create a project.");
     }
 
-    const {
-      data: membershipRows,
-      error: membershipError,
-    } = await supabase
+    const { data: membershipRows, error: membershipError } = await supabase
       .from("organization_member")
       .select("organization_id, role")
       .eq("user_id", user.id);
@@ -51,7 +48,9 @@ export async function addProject(
         typeof membership?.role === "string"
           ? membership.role.toLowerCase()
           : "";
-      return role === "owner" && typeof membership?.organization_id === "string";
+      return (
+        role === "owner" && typeof membership?.organization_id === "string"
+      );
     });
 
     const firstMembershipWithOrganization = membershipList.find(
@@ -88,19 +87,15 @@ export async function addProject(
     }
 
     if (!resolvedOrganizationId) {
-      throw new Error(
-        "Unable to determine an organization for this account."
-      );
+      throw new Error("Unable to determine an organization for this account.");
     }
 
-    const {
-      data: organizationRecord,
-      error: organizationLookupError,
-    } = await supabase
-      .from("organizations")
-      .select("organization_id, organization_name")
-      .eq("organization_id", resolvedOrganizationId)
-      .maybeSingle();
+    const { data: organizationRecord, error: organizationLookupError } =
+      await supabase
+        .from("organizations")
+        .select("organization_id, organization_name")
+        .eq("organization_id", resolvedOrganizationId)
+        .maybeSingle();
 
     if (organizationLookupError) {
       throw new Error(organizationLookupError.message);
@@ -144,10 +139,12 @@ export async function addProject(
           budget: budgetValue,
           location: (projectData.location || "").trim() || null,
           organization_id: resolvedOrganizationId,
+          start_date: projectData.startDate || null,
+          end_date: projectData.endDate || null,
         },
       ])
       .select(
-        "project_id, organization_id, project_name, slug, description, status, priority, category, client_name, location, budget, created_at, updated_at"
+        "project_id, organization_id, project_name, slug, description, status, priority, category, client_name, location, budget, created_at, updated_at, start_date, end_date"
       )
       .single();
 
