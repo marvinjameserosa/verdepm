@@ -463,11 +463,11 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       });
       setEquipmentList([]);
 
-      // Refresh history
-      const { daily, monthly } = await getConstructionMetricsHistory(
-        project.id
-      );
-      setMetricsHistory({ daily, monthly });
+      // Refresh history removed as per request
+      // const { daily, monthly } = await getConstructionMetricsHistory(
+      //   project.id
+      // );
+      // setMetricsHistory({ daily, monthly });
     } catch (error) {
       console.error("Failed to submit daily report", error);
       let message = "Unable to submit report.";

@@ -357,7 +357,8 @@ export default function Step3MaterialSourcing({
               <div className="space-y-2">
                 <Label>Cost per Unit</Label>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="150000"
                   value={newMaterial.cost || ""}
                   onChange={(event) =>
@@ -547,7 +548,7 @@ export default function Step3MaterialSourcing({
                         <TableHead>Planned Supplier</TableHead>
                         <TableHead>Warehouse</TableHead>
                         <TableHead className="text-right">
-                          Budgeted Cost ($)
+                          Cost per Unit
                         </TableHead>
                         <TableHead>Unit</TableHead>
                         <TableHead>Status</TableHead>
