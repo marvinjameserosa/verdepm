@@ -202,6 +202,13 @@
       radial-gradient(at 0% 0%, hsl(158 70% 10%) 0px, transparent 50%),
       radial-gradient(at 100% 100%, hsl(195 70% 10%) 0px, transparent 50%);
   }
+
+  /* Ensure Recharts axis ticks remain legible in dark mode */
+  .dark .recharts-cartesian-axis-tick text,
+  .dark .recharts-polar-angle-axis-tick text,
+  .dark .recharts-polar-radius-axis-tick text {
+    fill: var(--foreground);
+  }
   input,
   textarea,
   select {
@@ -211,6 +218,24 @@
   textarea:focus,
   select:focus {
     @apply ring-2 ring-primary/20 border-primary;
+  }
+
+  .legend-pill {
+    @apply text-muted-foreground dark:text-white px-2 py-1 rounded-md transition-colors duration-200;
+  }
+
+  .legend-pill--strong {
+    @apply text-foreground font-semibold dark:text-white/90;
+  }
+
+  .legend-pill:hover,
+  .legend-pill--strong:hover {
+    background-color: hsl(var(--muted) / 0.6);
+  }
+
+  .dark .legend-pill:hover,
+  .dark .legend-pill--strong:hover {
+    background-color: hsl(var(--card) / 0.35);
   }
 }
 

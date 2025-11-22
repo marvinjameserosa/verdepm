@@ -66,6 +66,13 @@ const COLORS = [
 const WATER_EMISSION_FACTOR = 0.000264; // tCO2e per m3 (0.264 kg/m3)
 const WASTE_EMISSION_FACTOR_AVG = 0.0005; // tCO2e per kg (Estimate: 0.5 kg/kg)
 
+const chartTextColor = "var(--foreground)";
+const axisTickProps = { fill: chartTextColor };
+const legendWrapperStyle = { color: chartTextColor };
+const legendFormatter = (value: string) => (
+  <span className="text-foreground dark:text-white">{value}</span>
+);
+
 // Custom Tooltip Component
 const CustomEmissionsTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -125,6 +132,72 @@ const CustomEmissionsTooltip = ({ active, payload, label }: any) => {
     );
   }
   return null;
+};
+
+const CompactTooltip = ({
+  active,
+  payload,
+  label,
+  unit = "",
+  decimals = 2,
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  unit?: string;
+  decimals?: number;
+}) => {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+
+  const formatValue = (value: unknown) => {
+    if (typeof value === "number") {
+      return `${value.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: decimals,
+      })}${unit ? ` ${unit}` : ""}`;
+    }
+    if (value === null || value === undefined) {
+      return unit ? `0 ${unit}` : "0";
+    }
+    return `${value}${unit ? ` ${unit}` : ""}`;
+  };
+
+  return (
+    <div className="min-w-[180px] rounded-xl border border-border bg-card/90 p-4 shadow-xl backdrop-blur-sm">
+      {label ? (
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+      ) : null}
+      <div className="mt-3 space-y-2">
+        {payload.map((entry, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between gap-3 text-sm"
+          >
+            <div className="flex items-center gap-2">
+              {(entry.color || entry.payload?.fill) && (
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-sm"
+                  style={{
+                    backgroundColor: entry.color || entry.payload?.fill,
+                  }}
+                />
+              )}
+              <span className="text-muted-foreground">
+                {entry.name || entry.dataKey}
+              </span>
+            </div>
+            <span className="font-semibold text-foreground">
+              {formatValue(entry.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export default function ESGDashboard() {
@@ -500,22 +573,22 @@ export default function ESGDashboard() {
             <div className="flex flex-wrap gap-4 mt-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(180deg, hsl(158 70% 45%) 0%, hsl(158 70% 45% / 0.2) 100%)' }}></div>
-                <span className="text-muted-foreground">Scope 1:</span>
-                <strong className="text-foreground">Direct Emissions (Equipment, Fuel)</strong>
+                <span className="legend-pill">Scope 1:</span>
+                <strong className="legend-pill legend-pill--strong">Direct Emissions (Equipment, Fuel)</strong>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(180deg, hsl(195 85% 55%) 0%, hsl(195 85% 55% / 0.2) 100%)' }}></div>
-                <span className="text-muted-foreground">Scope 2:</span>
-                <strong className="text-foreground">Indirect Emissions (Electricity)</strong>
+                <span className="legend-pill">Scope 2:</span>
+                <strong className="legend-pill legend-pill--strong">Indirect Emissions (Electricity)</strong>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(180deg, hsl(265 75% 65%) 0%, hsl(265 75% 65% / 0.2) 100%)' }}></div>
-                <span className="text-muted-foreground">Scope 3:</span>
-                <strong className="text-foreground">Value Chain (Water, Waste, Logistics)</strong>
+                <span className="legend-pill">Scope 3:</span>
+                <strong className="legend-pill legend-pill--strong">Value Chain (Water, Waste, Logistics)</strong>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-12 h-0.5 bg-chart-5" style={{ backgroundImage: 'repeating-linear-gradient(90deg, hsl(320 75% 60%), hsl(320 75% 60%) 5px, transparent 5px, transparent 10px)' }}></div>
-                <span className="text-muted-foreground">Trend Line</span>
+                <span className="legend-pill">Trend Line</span>
               </div>
             </div>
           </CardHeader>
@@ -668,6 +741,7 @@ export default function ESGDashboard() {
                       type="number"
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
+                      tick={axisTickProps}
                     />
                     <YAxis
                       dataKey="name"
@@ -675,15 +749,16 @@ export default function ESGDashboard() {
                       width={100}
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
+                      tick={axisTickProps}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
+                      content={<CompactTooltip unit="tCO₂e" />}
+                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
                     />
-                    <Legend />
+                    <Legend
+                      formatter={legendFormatter}
+                      wrapperStyle={legendWrapperStyle}
+                    />
                     <Bar
                       dataKey="value"
                       name="Emissions (tCO2e)"
@@ -724,19 +799,21 @@ export default function ESGDashboard() {
                       dataKey="month"
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
+                      tick={axisTickProps}
                     />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
+                      tick={axisTickProps}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
+                      content={<CompactTooltip unit="tCO₂e" />}
+                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
                     />
-                    <Legend />
+                    <Legend
+                      formatter={legendFormatter}
+                      wrapperStyle={legendWrapperStyle}
+                    />
                     <Bar
                       dataKey="equipment"
                       fill="hsl(158 70% 45%)"
@@ -789,6 +866,7 @@ export default function ESGDashboard() {
                       type="number" 
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
+                      tick={axisTickProps}
                     />
                     <YAxis 
                       dataKey="name" 
@@ -796,15 +874,16 @@ export default function ESGDashboard() {
                       width={130}
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
+                      tick={axisTickProps}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
+                      content={<CompactTooltip unit="tCO₂e" />}
+                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
                     />
-                    <Legend />
+                    <Legend
+                      formatter={legendFormatter}
+                      wrapperStyle={legendWrapperStyle}
+                    />
                     <Bar
                       dataKey="value"
                       name="Emissions (tCO₂e)"
@@ -851,19 +930,21 @@ export default function ESGDashboard() {
                       angle={-45}
                       textAnchor="end"
                       height={80}
+                      tick={axisTickProps}
                     />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
+                      tick={axisTickProps}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
+                      content={<CompactTooltip unit="tCO₂e" />}
+                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
                     />
-                    <Legend />
+                    <Legend
+                      formatter={legendFormatter}
+                      wrapperStyle={legendWrapperStyle}
+                    />
                     <Bar 
                       dataKey="value" 
                       fill="hsl(195 85% 55%)" 
@@ -901,20 +982,22 @@ export default function ESGDashboard() {
                       dataKey="name"
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "12px", fontWeight: 500 }}
+                      tick={axisTickProps}
                     />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "12px" }}
-                      label={{ value: 'Emissions (tCO₂e)', angle: -90, position: 'insideLeft' }}
+                      tick={axisTickProps}
+                      label={{ value: "Emissions (tCO₂e)", angle: -90, position: "insideLeft", fill: chartTextColor }}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
+                      content={<CompactTooltip unit="tCO₂e" />}
+                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
                     />
-                    <Legend />
+                    <Legend
+                      formatter={legendFormatter}
+                      wrapperStyle={legendWrapperStyle}
+                    />
                     <Bar 
                       dataKey="value" 
                       fill="hsl(45 95% 60%)" 
