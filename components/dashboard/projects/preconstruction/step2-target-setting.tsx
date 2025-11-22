@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -55,6 +55,14 @@ export default function Step2TargetSetting({
     scopeThree: targets?.scopeThree ?? "",
     trir: targets?.trir ?? "",
   });
+  const inputRefs = useRef<Record<keyof ProjectTargets, HTMLInputElement | null>>({
+    id: null,
+    scopeOne: null,
+    scopeTwo: null,
+    scopeThree: null,
+    trir: null,
+  });
+  const [activeField, setActiveField] = useState<keyof ProjectTargets | null>(null);
 
   useEffect(() => {
     if (targets) {
@@ -67,6 +75,24 @@ export default function Step2TargetSetting({
       });
     }
   }, [targets]);
+
+  useEffect(() => {
+    if (!activeField || activeField === "id") {
+      return;
+    }
+    const element = inputRefs.current[activeField];
+    if (element && document.activeElement !== element) {
+      element.focus({ preventScroll: true });
+      const length = element.value.length;
+      element.setSelectionRange(length, length);
+    }
+  }, [
+    activeField,
+    formState.scopeOne,
+    formState.scopeTwo,
+    formState.scopeThree,
+    formState.trir,
+  ]);
 
   const ensureProjectAvailable = () => {
     if (!projectId) {
@@ -139,6 +165,9 @@ export default function Step2TargetSetting({
     value,
     onChange,
     placeholder,
+    inputRef,
+    onFieldFocus,
+    onFieldBlur,
   }: {
     title: string;
     description: string;
@@ -147,6 +176,9 @@ export default function Step2TargetSetting({
     value: string;
     onChange: (value: string) => void;
     placeholder: string;
+    inputRef?: (node: HTMLInputElement | null) => void;
+    onFieldFocus?: () => void;
+    onFieldBlur?: () => void;
   }) => (
     <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
       <CardHeader className="pb-3">
@@ -177,12 +209,20 @@ export default function Step2TargetSetting({
         <div className="space-y-2">
           <Label>Target Value ({unit})</Label>
           <Input
-            type="number"
-            step="any"
-            min="0"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onFocus={(event) => {
+              event.target.select();
+              onFieldFocus?.();
+            }}
+            onBlur={() => {
+              onFieldBlur?.();
+            }}
+            ref={inputRef}
           />
         </div>
       </CardContent>
@@ -223,6 +263,11 @@ export default function Step2TargetSetting({
             onChange={(val) =>
               setFormState((prev) => ({ ...prev, scopeOne: val }))
             }
+            inputRef={(node) => {
+              inputRefs.current.scopeOne = node;
+            }}
+            onFieldFocus={() => setActiveField("scopeOne")}
+            onFieldBlur={() => setActiveField(null)}
           />
 
           <TargetCard
@@ -235,6 +280,11 @@ export default function Step2TargetSetting({
             onChange={(val) =>
               setFormState((prev) => ({ ...prev, scopeTwo: val }))
             }
+            inputRef={(node) => {
+              inputRefs.current.scopeTwo = node;
+            }}
+            onFieldFocus={() => setActiveField("scopeTwo")}
+            onFieldBlur={() => setActiveField(null)}
           />
 
           <TargetCard
@@ -247,6 +297,11 @@ export default function Step2TargetSetting({
             onChange={(val) =>
               setFormState((prev) => ({ ...prev, scopeThree: val }))
             }
+            inputRef={(node) => {
+              inputRefs.current.scopeThree = node;
+            }}
+            onFieldFocus={() => setActiveField("scopeThree")}
+            onFieldBlur={() => setActiveField(null)}
           />
 
           <TargetCard
@@ -259,6 +314,11 @@ export default function Step2TargetSetting({
             onChange={(val) =>
               setFormState((prev) => ({ ...prev, trir: val }))
             }
+            inputRef={(node) => {
+              inputRefs.current.trir = node;
+            }}
+            onFieldFocus={() => setActiveField("trir")}
+            onFieldBlur={() => setActiveField(null)}
           />
         </div>
 

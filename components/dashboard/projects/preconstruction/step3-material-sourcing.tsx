@@ -24,6 +24,7 @@ import {
   X,
   ExternalLink,
   Edit,
+  FileText,
 } from "lucide-react";
 import {
   Select,
