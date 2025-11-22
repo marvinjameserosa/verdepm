@@ -27,8 +27,8 @@ export async function upsertDailyLog(
       .from("daily_logs")
       .select("id")
       .eq("project_id", projectId)
-      .gte("date", startOfDay.toISOString())
-      .lte("date", endOfDay.toISOString());
+      .gte("timestamp", startOfDay.toISOString())
+      .lte("timestamp", endOfDay.toISOString());
 
     if (fetchError) throw fetchError;
 
@@ -53,7 +53,7 @@ export async function upsertDailyLog(
         .from("daily_logs")
         .insert({
           project_id: projectId,
-          date: date.toISOString(),
+          timestamp: date.toISOString(),
           equipment_details: data.equipment_details,
           equipment_fuel_consumed: data.equipment_fuel_consumed,
           scope_one: data.scope_one,
@@ -65,12 +65,27 @@ export async function upsertDailyLog(
     }
 
     return { success: true, error: null };
-  } catch (error) {
-    console.error("Failed to upsert daily log", error);
+  } catch (error: any) {
+    console.error("Failed to upsert daily log:", error);
+    
     let errorMessage = "Failed to upsert daily log";
-    if (error instanceof Error) {
+    
+    if (error?.message) {
       errorMessage = error.message;
     }
+    
+    if (error?.details) {
+      errorMessage += ` Details: ${error.details}`;
+    }
+    
+    if (error?.hint) {
+      errorMessage += ` Hint: ${error.hint}`;
+    }
+    
+    if (error?.code) {
+      errorMessage += ` (Code: ${error.code})`;
+    }
+
     return { success: false, error: errorMessage };
   }
 }

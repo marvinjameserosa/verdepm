@@ -417,6 +417,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       });
 
       if (!result.success) {
+        console.error("Upsert daily log failed:", result);
         throw new Error((result as any).error);
       }
 

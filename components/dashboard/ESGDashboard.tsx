@@ -67,7 +67,7 @@ const WATER_EMISSION_FACTOR = 0.000264; // tCO2e per m3 (0.264 kg/m3)
 const WASTE_EMISSION_FACTOR_AVG = 0.0005; // tCO2e per kg (Estimate: 0.5 kg/kg)
 
 export default function ESGDashboard() {
-  const [year, setYear] = useState<string>(new Date().getFullYear().toString());
+  const [year, setYear] = useState<string>("all");
   const [selectedProject, setSelectedProject] = useState<string>("all");
   const [projects, setProjects] = useState<Project[]>([]);
   const [allData, setAllData] = useState<DashboardData[]>([]);
@@ -104,6 +104,7 @@ export default function ESGDashboard() {
 
   // Filter data for the selected year
   const currentYearData = useMemo(() => {
+    if (year === "all") return allData;
     return allData.filter((d) => d.month_year.startsWith(year));
   }, [allData, year]);
 
@@ -301,6 +302,7 @@ export default function ESGDashboard() {
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
                 <SelectItem value="2023">2023</SelectItem>
                 <SelectItem value="2024">2024</SelectItem>
                 <SelectItem value="2025">2025</SelectItem>
