@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardDescription,
@@ -13,21 +13,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { Zap, Droplets, Send } from "lucide-react";
+import { Zap, Droplets, Send, Save } from "lucide-react";
 import type { Project } from "@/types/project";
 import {
   MonthlyMetricKey,
   EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER,
   TRIR_STANDARD_HOURS,
   SourcedMaterial,
+  EquipmentEntry,
+  VehicleEntry,
 } from "@/types/construction";
 
 import { useConstructionMetrics } from "@/hooks/use-construction-metrics";
 import { useWasteManagement } from "@/hooks/use-waste-management";
 import { useRouteAnimation } from "@/hooks/use-route-animation";
 import { useSourcingMaterials } from "@/hooks/use-sourcing-materials";
-import { submitConstructionLog } from "@/actions/construction/submit";
+import {
+  submitDailyLog,
+  submitMonthlyLog,
+} from "@/actions/construction/submit";
 import { addMaterialFuel } from "@/actions/preconstruction/update-material";
+import { getConstructionMetricsHistory } from "@/actions/construction/fetch";
 
 import { MetricCard } from "./construction/metric-card";
 import { DistanceFuelCard } from "./construction/distance-fuel-card";
@@ -65,13 +71,15 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [isSubmittingDaily, setIsSubmittingDaily] = useState(false);
   const [isSubmittingMonthly, setIsSubmittingMonthly] = useState(false);
   const [isSavingFuel, setIsSavingFuel] = useState(false);
-  const [activeTab, setActiveTab] = useState<"monitoring" | "logistics">(
-    "monitoring"
+  const [activeTab, setActiveTab] = useState<"daily" | "monthly" | "logistics">(
+    "daily"
   );
 
   // Logistics State
   const [selectedMaterial, setSelectedMaterial] =
     useState<SourcedMaterial | null>(null);
+
+  const [equipmentList, setEquipmentList] = useState<EquipmentEntry[]>([]);
 
   const {
     dailyMetrics,
@@ -134,6 +142,21 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [monthlyReceiptFile, setMonthlyReceiptFile] = useState<File | null>(
     null
   );
+
+  const [metricsHistory, setMetricsHistory] = useState<{
+    daily: any[];
+    monthly: any[];
+  }>({ daily: [], monthly: [] });
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const { daily, monthly } = await getConstructionMetricsHistory(
+        project.id
+      );
+      setMetricsHistory({ daily, monthly });
+    };
+    fetchHistory();
+  }, [project.id]);
 
   const resetMessages = () => {
     setStatusMessage(null);
@@ -260,22 +283,39 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       const incidentCountValue = parseNumber(dailyMetrics.incidentCount);
       const hoursWorkedValue = parseNumber(dailyMetrics.hoursWorked);
 
-      if (
-        (distanceValue !== null && efficiencyValue === null) ||
-        (distanceValue === null && efficiencyValue !== null)
-      ) {
-        throw new Error(
-          "Provide both total distance and fuel efficiency to compute fuel usage."
-        );
-      }
+      // Validate Equipment List
+      const hasEquipmentList = equipmentList.length > 0;
+      let totalEquipmentFuelConsumption = 0;
+      let totalEquipmentEmissions = 0;
 
-      if (
-        (equipmentHoursValue !== null && equipmentFuelRateValue === null) ||
-        (equipmentHoursValue === null && equipmentFuelRateValue !== null)
-      ) {
-        throw new Error(
-          "Provide both equipment hours and fuel rate to compute equipment emissions."
-        );
+      if (hasEquipmentList) {
+        equipmentList.forEach((eq) => {
+          const hours = parseNumber(eq.hours);
+          const rate = parseNumber(eq.fuelRate);
+          if (hours !== null && rate !== null) {
+            const consumption = hours * rate;
+            totalEquipmentFuelConsumption += consumption;
+            totalEquipmentEmissions +=
+              consumption * EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
+          }
+        });
+      } else {
+        // Fallback to single entry inputs if list is empty (for backward compatibility or simple input)
+        if (
+          (equipmentHoursValue !== null && equipmentFuelRateValue === null) ||
+          (equipmentHoursValue === null && equipmentFuelRateValue !== null)
+        ) {
+          throw new Error(
+            "Provide both equipment hours and fuel rate to compute equipment emissions."
+          );
+        }
+
+        if (equipmentHoursValue !== null && equipmentFuelRateValue !== null) {
+          const consumption = equipmentHoursValue * equipmentFuelRateValue;
+          totalEquipmentFuelConsumption = consumption;
+          totalEquipmentEmissions =
+            consumption * EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
+        }
       }
 
       if (
@@ -316,27 +356,24 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         receiptUrl = publicUrl;
       }
 
-      const fuelConsumptionLiters =
-        distanceValue !== null && efficiencyValue !== null
-          ? Number((distanceValue * efficiencyValue).toFixed(4))
-          : null;
+      let fuelConsumptionLiters = null;
+      if (distanceValue !== null && efficiencyValue !== null) {
+        fuelConsumptionLiters = Number(
+          (distanceValue * efficiencyValue).toFixed(4)
+        );
+      }
       const fuelTco2e =
         fuelConsumptionLiters !== null
           ? Number((fuelConsumptionLiters * 2.68).toFixed(4))
           : null;
 
       const equipmentFuelConsumptionLiters =
-        equipmentHoursValue !== null && equipmentFuelRateValue !== null
-          ? equipmentHoursValue * equipmentFuelRateValue
+        totalEquipmentFuelConsumption > 0
+          ? totalEquipmentFuelConsumption
           : null;
       const equipmentEmissionsKg =
-        equipmentFuelConsumptionLiters !== null
-          ? Number(
-              (
-                equipmentFuelConsumptionLiters *
-                EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER
-              ).toFixed(4)
-            )
+        totalEquipmentEmissions > 0
+          ? Number(totalEquipmentEmissions.toFixed(4))
           : null;
 
       const scope1 =
@@ -360,17 +397,17 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         scope1,
         incidentCount: incidentCountValue,
         hoursWorked: hoursWorkedValue,
+        equipmentList: equipmentList,
       };
 
-      const result = await submitConstructionLog({
+      const result = await submitDailyLog({
         projectId: project.id,
         date: new Date().toISOString().slice(0, 10),
-        metricsPeriod: "daily",
         dailyData,
       });
 
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error((result as any).error);
       }
 
       let fuelSummary = "";
@@ -396,10 +433,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       }
 
       const combinedSummary = `${fuelSummary}${equipmentSummary}${safetySummary}`;
+      const warnings = (result as any).warnings;
       const warningSummary =
-        result.warnings && result.warnings.length > 0
-          ? ` ${result.warnings.join(" ")}`
-          : "";
+        warnings && warnings.length > 0 ? ` ${warnings.join(" ")}` : "";
 
       setStatusMessage(
         `Daily report saved successfully.${combinedSummary}${warningSummary}`.trim()
@@ -413,10 +449,23 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         incidentCount: "",
         hoursWorked: "",
       });
+      setEquipmentList([]);
+
+      // Refresh history
+      const { daily, monthly } = await getConstructionMetricsHistory(
+        project.id
+      );
+      setMetricsHistory({ daily, monthly });
     } catch (error) {
       console.error("Failed to submit daily report", error);
-      const message =
-        error instanceof Error ? error.message : "Unable to submit report.";
+      let message = "Unable to submit report.";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === "string") {
+        message = error;
+      } else if (typeof error === "object" && error !== null) {
+        message = JSON.stringify(error);
+      }
       setErrorMessage(message);
     } finally {
       setIsSubmittingDaily(false);
@@ -506,17 +555,17 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         scope3,
         receiptUrl,
         receiptPath,
+        wasteEntries,
       };
 
-      const result = await submitConstructionLog({
+      const result = await submitMonthlyLog({
         projectId: project.id,
         date: new Date().toISOString().slice(0, 10),
-        metricsPeriod: "monthly",
         monthlyData,
       });
 
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error((result as any).error);
       }
 
       let electricitySummary = "";
@@ -540,10 +589,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       }
 
       const combinedSummary = `${electricitySummary}${waterSummary}${wasteSummary}`;
+      const warnings = (result as any).warnings;
       const warningSummary =
-        result.warnings && result.warnings.length > 0
-          ? ` ${result.warnings.join(" ")}`
-          : "";
+        warnings && warnings.length > 0 ? ` ${warnings.join(" ")}` : "";
 
       setStatusMessage(
         `Monthly metrics saved successfully.${combinedSummary}${warningSummary}`.trim()
@@ -555,10 +603,22 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       });
       setWasteEntries([]);
       setNewWasteEntry(createDefaultWasteFormEntry());
+
+      // Refresh history
+      const { daily, monthly } = await getConstructionMetricsHistory(
+        project.id
+      );
+      setMetricsHistory({ daily, monthly });
     } catch (error) {
       console.error("Failed to submit monthly report", error);
-      const message =
-        error instanceof Error ? error.message : "Unable to submit report.";
+      let message = "Unable to submit report.";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === "string") {
+        message = error;
+      } else if (typeof error === "object" && error !== null) {
+        message = JSON.stringify(error);
+      }
       setErrorMessage(message);
     } finally {
       setIsSubmittingMonthly(false);
@@ -585,12 +645,16 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const monitoringTitle =
     activeTab === "logistics"
       ? "Construction Phase: Logistics & Delivery Planning"
-      : "Construction Phase: Site Monitoring";
+      : activeTab === "monthly"
+      ? "Construction Phase: Monthly Environmental Metrics"
+      : "Construction Phase: Daily Site Monitoring";
 
   const monitoringDescription =
     activeTab === "logistics"
       ? "Plan material deliveries and calculate route fuel consumption."
-      : "Track daily and monthly environmental metrics and safety performance.";
+      : activeTab === "monthly"
+      ? "Track monthly utility consumption and waste generation."
+      : "Track daily equipment usage and safety incidents.";
 
   return (
     <div className="space-y-6">
@@ -617,30 +681,33 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       <Tabs
         value={activeTab}
         onValueChange={(value) =>
-          setActiveTab(value as "monitoring" | "logistics")
+          setActiveTab(value as "daily" | "monthly" | "logistics")
         }
         className="space-y-4"
       >
         <TabsList>
-          <TabsTrigger value="monitoring">Construction Data</TabsTrigger>
+          <TabsTrigger value="daily">Daily Logs</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly Logs</TabsTrigger>
           <TabsTrigger value="logistics">
             Material Delivery & Logistics
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="monitoring">
+        <TabsContent value="daily">
           <div className="space-y-6">
             {/* Daily Inputs Section */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                Daily Logs
+              </h3>
+              <p className="text-sm text-muted-foreground pl-4">
+                Track daily equipment usage and safety incidents.
+              </p>
+            </div>
+
             <DistanceFuelCard
-              equipmentHours={dailyMetrics.equipmentHours}
-              equipmentFuelRate={dailyMetrics.equipmentFuelRate}
-              onEquipmentHoursChange={(value) =>
-                handleDailyInputChange("equipmentHours", value)
-              }
-              onEquipmentFuelRateChange={(value) =>
-                handleDailyInputChange("equipmentFuelRate", value)
-              }
-              computedEquipmentFuelLiters={computedEquipmentTotals.fuelLiters}
-              computedEquipmentCo2Kg={computedEquipmentTotals.co2Kg}
+              equipmentList={equipmentList}
+              setEquipmentList={setEquipmentList}
               incidentCount={dailyMetrics.incidentCount}
               hoursWorked={dailyMetrics.hoursWorked}
               onIncidentCountChange={(value) =>
@@ -653,9 +720,23 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               safetyTarget={preConstructionTargets.safety}
               onSave={handleSaveDaily}
               isSaving={isSubmittingDaily}
+              history={metricsHistory.daily}
             />
-
+          </div>
+        </TabsContent>
+        <TabsContent value="monthly">
+          <div className="space-y-6">
             {/* Monthly Inputs Section */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                Monthly Logs
+              </h3>
+              <p className="text-sm text-muted-foreground pl-4">
+                Record monthly utility consumption and waste generation.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {monthlyMetricConfigs.map((metric) => {
                 const isElectricity = metric.id === "electricity";
@@ -690,8 +771,6 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                       isElectricity || isWater ? "Total CO₂e (kg):" : undefined
                     }
                     secondaryValue={secondaryValue}
-                    onSave={handleSaveMonthly}
-                    isSaving={isSubmittingMonthly}
                   />
                 );
               })}
@@ -707,9 +786,21 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               totalAllocatedMassKg={totalAllocatedWasteMassKg}
               totalInputMassKg={totalWasteInputMassKg}
               totalEmissionsKg={computedMonthlyWasteEmissions}
-              onSave={handleSaveMonthly}
-              isSaving={isSubmittingMonthly}
+              history={metricsHistory.monthly}
             />
+
+            <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                onClick={handleSaveMonthly}
+                disabled={isSubmittingMonthly}
+                className="w-full sm:w-auto"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSubmittingMonthly
+                  ? "Submitting Monthly Report..."
+                  : "Submit Monthly Report"}
+              </Button>
+            </div>
           </div>
         </TabsContent>
         <TabsContent value="logistics">

@@ -23,7 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, PlusCircle, Save } from "lucide-react";
+import { Trash2, PlusCircle, Save, Eye } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 import {
   WasteFormEntry,
   WasteEntrySummary,
@@ -40,8 +48,9 @@ interface WasteEmissionsCardProps {
   totalAllocatedMassKg: number;
   totalInputMassKg: number;
   totalEmissionsKg: number;
-  onSave: () => void;
+  onSave?: () => void;
   isSaving?: boolean;
+  history?: any[];
 }
 
 export function WasteEmissionsCard({
@@ -55,7 +64,10 @@ export function WasteEmissionsCard({
   totalEmissionsKg,
   onSave,
   isSaving = false,
+  history,
 }: WasteEmissionsCardProps) {
+  const [selectedLog, setSelectedLog] = useState<any | null>(null);
+
   const percentageTotalsByWasteType = entries.reduce<Record<string, number>>(
     (accumulator, entry) => {
       accumulator[entry.wasteType] =
@@ -194,6 +206,7 @@ export function WasteEmissionsCard({
               <TableRow>
                 <TableHead>Waste Type</TableHead>
                 <TableHead>Treatment</TableHead>
+                <TableHead className="text-right">Emission Factor</TableHead>
                 <TableHead className="text-right">Mass</TableHead>
                 <TableHead className="text-right">Treatment %</TableHead>
                 <TableHead className="text-right">
@@ -212,6 +225,9 @@ export function WasteEmissionsCard({
                     </TableCell>
                     <TableCell className="capitalize">
                       {entry.treatmentMethod}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {entry.emissionFactor.toFixed(4)}
                     </TableCell>
                     <TableCell className="text-right">
                       {Number(entry.mass).toLocaleString(undefined, {
@@ -245,7 +261,7 @@ export function WasteEmissionsCard({
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={8}
                     className="text-center text-sm text-muted-foreground"
                   >
                     No waste entries recorded this month.
@@ -283,12 +299,119 @@ export function WasteEmissionsCard({
             type must add up to 100% before submission.
           </p>
         )}
-        <div className="flex justify-end pt-2">
-          <Button onClick={onSave} disabled={isSaving}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? "Saving..." : "Save Waste Data"}
-          </Button>
-        </div>
+        {onSave && (
+          <div className="flex justify-end pt-2">
+            <Button onClick={onSave} disabled={isSaving}>
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? "Saving..." : "Save Waste Data"}
+            </Button>
+          </div>
+        )}
+
+        {history && history.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <h4 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+              Monthly Waste History
+            </h4>
+            <div className="overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+              <Table>
+                <TableHeader className="bg-gray-50 dark:bg-gray-800/50">
+                  <TableRow>
+                    <TableHead className="text-gray-500 dark:text-gray-400">
+                      Month
+                    </TableHead>
+                    <TableHead className="text-gray-500 dark:text-gray-400">
+                      Total Waste (kg)
+                    </TableHead>
+                    <TableHead className="text-gray-500 dark:text-gray-400">
+                      Emissions (kgCO₂e)
+                    </TableHead>
+                    <TableHead className="text-gray-500 dark:text-gray-400">
+                      Last Updated
+                    </TableHead>
+                    <TableHead className="w-8"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((log, index) => (
+                    <TableRow
+                      key={index}
+                      className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
+                    >
+                      <TableCell className="font-medium">
+                        {log.log_month}
+                      </TableCell>
+                      <TableCell>{log.waste_placeholder ?? "-"}</TableCell>
+                      <TableCell>{log.waste_generated_kg ?? "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {log.submitted_on}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setSelectedLog(log)}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+        <Dialog
+          open={!!selectedLog}
+          onOpenChange={(open) => !open && setSelectedLog(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Waste Log Details</DialogTitle>
+              <DialogDescription>
+                Detailed view of the selected monthly waste entry.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedLog && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-semibold text-muted-foreground">
+                      Month:
+                    </span>
+                    <p>{selectedLog.log_month}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">
+                      Submitted On:
+                    </span>
+                    <p>{selectedLog.submitted_on}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">
+                      Total Waste:
+                    </span>
+                    <p>{selectedLog.waste_placeholder ?? 0} kg</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">
+                      Waste Emissions:
+                    </span>
+                    <p>{selectedLog.waste_generated_kg ?? 0} kgCO₂e</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">
+                      Scope 3 (Waste + Water):
+                    </span>
+                    <p>{selectedLog.scope3 ?? 0} kgCO₂e</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

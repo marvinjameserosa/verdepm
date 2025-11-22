@@ -13,6 +13,20 @@ export interface WasteEntry {
   treatmentPercentage: string;
 }
 
+export type EquipmentEntry = {
+  id: string;
+  name: string;
+  hours: string;
+  fuelRate: string;
+};
+
+export type VehicleEntry = {
+  id: string;
+  name: string;
+  fuelRate: string;
+  distance: string;
+};
+
 export type WasteFormEntry = {
   mass: string;
   unit: "kg" | "ton";
@@ -26,6 +40,7 @@ export type WasteEntrySummary = WasteEntry & {
   allocatedMassKg: number;
   emissionKg: number;
   percentageValue: number;
+  emissionFactor: number;
 };
 
 export type SourcedMaterial = {
@@ -67,6 +82,45 @@ export const WASTE_EMISSION_FACTORS_KG_PER_KG = {
   recycling: 0.12,
   compost: 0.1,
 } as const;
+
+// Approximate factors based on UK Gov GHG Conversion Factors 2023 (kg CO2e per kg)
+// These should be updated with specific local factors if available.
+export const WASTE_TYPE_SPECIFIC_EMISSION_FACTORS: Record<
+  string,
+  Partial<Record<WasteTreatmentMethod, number>>
+> = {
+  Plastic: {
+    landfill: 0.029,
+    incineration: 2.53,
+    recycling: 0.021,
+    compost: 0, // N/A
+  },
+  Food: {
+    landfill: 0.626,
+    incineration: 0.02, // Assuming energy recovery or biogenic
+    recycling: 0, // N/A
+    compost: 0.01,
+  },
+  Paper: {
+    landfill: 1.04,
+    incineration: 0.021,
+    recycling: 0.021,
+    compost: 0.01,
+  },
+  Metal: {
+    landfill: 0.022,
+    incineration: 0.021,
+    recycling: 0.021,
+    compost: 0,
+  },
+  Glass: {
+    landfill: 0.022,
+    incineration: 0.021,
+    recycling: 0.021,
+    compost: 0,
+  },
+  // "Other" will fall back to the generic WASTE_EMISSION_FACTORS_KG_PER_KG
+};
 
 export const EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER = 2.68;
 export const TRIR_STANDARD_HOURS = 200_000;

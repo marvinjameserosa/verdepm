@@ -1,7 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { SourcedMaterial } from "@/types/construction";
+import {
+  SourcedMaterial,
+  EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER,
+  TRIR_STANDARD_HOURS,
+} from "@/types/construction";
 
 type PreconstructionMaterialRow = {
   id: string;
@@ -82,6 +86,106 @@ export async function getSourcingMaterials(
         error instanceof Error
           ? error.message
           : "Failed to load sourcing materials.",
+    };
+  }
+}
+
+export async function getConstructionMetricsHistory(projectId: string) {
+  const supabase = await createClient();
+
+  try {
+    const { data: dailyLogs, error: dailyError } = await supabase
+      .from("daily_log")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("timestamp", { ascending: false });
+
+    if (dailyError) throw dailyError;
+
+    // Map back to expected format
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mappedDailyLogs = (dailyLogs || []).map((log: any) => {
+      let fuelConsumptionLiters = null;
+      let equipmentUsageTco2e = null;
+      let safetyTrir = null;
+      let scope1 = null;
+
+      if (typeof log.equipment_emissions === "number") {
+        // New format: equipment_emissions is kg CO2e
+        equipmentUsageTco2e = log.equipment_emissions;
+        fuelConsumptionLiters =
+          equipmentUsageTco2e / EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
+        scope1 = equipmentUsageTco2e;
+
+        if (
+          log.number_of_incidents !== null &&
+          log.total_employee_hours !== null &&
+          log.total_employee_hours > 0
+        ) {
+          safetyTrir =
+            (log.number_of_incidents * TRIR_STANDARD_HOURS) /
+            log.total_employee_hours;
+        }
+      } else if (typeof log.equipment_emissions === "object") {
+        // Old format: JSON object
+        fuelConsumptionLiters =
+          log.equipment_emissions?.fuel_consumption_liters ?? null;
+        equipmentUsageTco2e =
+          log.equipment_emissions?.equipment_usage_tco2e ?? null;
+        safetyTrir = log.equipment_emissions?.safety_trir ?? null;
+        scope1 = log.equipment_emissions?.scope1 ?? null;
+      }
+
+      return {
+        id: log.id,
+        log_date: log.timestamp,
+        fuel_consumption_liters: fuelConsumptionLiters,
+        equipment_usage_tco2e: equipmentUsageTco2e,
+        safety_incidents: safetyTrir,
+        scope1: scope1,
+        incident_count: log.number_of_incidents,
+        hours_worked: log.total_employee_hours,
+      };
+    });
+
+    const { data: monthlyLogs, error: monthlyError } = await supabase
+      .from("monthly_logs")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("timestamp", { ascending: false });
+
+    if (monthlyError) throw monthlyError;
+
+    // Map monthly logs to match expected frontend format
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mappedMonthlyLogs = (monthlyLogs || []).map((log: any) => {
+      return {
+        id: log.id,
+        log_month: log.timestamp,
+        submitted_on: log.timestamp,
+        electricity_usage_kwh: log.electricity_consumption,
+        water_consumption_cubic_m: log.water_consumption,
+        waste_generated_kg: log.total_waste_mass,
+        waste_placeholder: log.total_waste_mass,
+        scope3: log.scope_three,
+        waste_details: log.waste_details,
+      };
+    });
+
+    return {
+      daily: mappedDailyLogs,
+      monthly: mappedMonthlyLogs,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Failed to fetch metrics history", error);
+    return {
+      daily: [],
+      monthly: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch metrics history",
     };
   }
 }

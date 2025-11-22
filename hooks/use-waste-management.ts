@@ -5,6 +5,7 @@ import {
   WasteEntrySummary,
   WasteTreatmentMethod,
   WASTE_EMISSION_FACTORS_KG_PER_KG,
+  WASTE_TYPE_SPECIFIC_EMISSION_FACTORS,
 } from "@/types/construction";
 
 const createDefaultWasteFormEntry = (): WasteFormEntry => ({
@@ -142,8 +143,19 @@ export function useWasteManagement() {
         const normalizedPercentage = Number.isFinite(percentageValue)
           ? Math.max(0, percentageValue) / 100
           : 0;
+
+        // Try to find a specific factor for the waste type and treatment method
+        const specificFactor =
+          WASTE_TYPE_SPECIFIC_EMISSION_FACTORS[entry.wasteType]?.[
+            entry.treatmentMethod
+          ];
+
+        // Fallback to the generic factor if no specific factor is found
         const emissionFactor =
-          WASTE_EMISSION_FACTORS_KG_PER_KG[entry.treatmentMethod] ?? 0;
+          specificFactor ??
+          WASTE_EMISSION_FACTORS_KG_PER_KG[entry.treatmentMethod] ??
+          0;
+
         const allocatedMassKg = massKg * normalizedPercentage;
         const emissionKg = allocatedMassKg * emissionFactor;
 
@@ -152,6 +164,7 @@ export function useWasteManagement() {
           massKg,
           allocatedMassKg,
           emissionKg,
+          emissionFactor,
           percentageValue: Number.isFinite(percentageValue)
             ? percentageValue
             : 0,

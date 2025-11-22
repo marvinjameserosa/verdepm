@@ -1,6 +1,14 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  EquipmentEntry,
+  WasteEntry,
+  EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER,
+  WASTE_TYPE_SPECIFIC_EMISSION_FACTORS,
+  WASTE_EMISSION_FACTORS_KG_PER_KG,
+  WasteTreatmentMethod,
+} from "@/types/construction";
 
 type DailyLogData = {
   fuelConsumptionLiters: number | null;
@@ -9,6 +17,7 @@ type DailyLogData = {
   scope1: number;
   incidentCount: number | null;
   hoursWorked: number | null;
+  equipmentList: EquipmentEntry[];
 };
 
 type MonthlyLogData = {
@@ -20,6 +29,7 @@ type MonthlyLogData = {
   wasteEmissionsKg: number | null;
   scope2: number | null;
   scope3: number;
+  wasteEntries: WasteEntry[];
 };
 
 type SubmitConstructionLogParams = {
@@ -30,164 +40,172 @@ type SubmitConstructionLogParams = {
   monthlyData?: MonthlyLogData;
 };
 
-export async function submitConstructionLog({
+export async function submitDailyLog({
   projectId,
   date,
-  metricsPeriod,
   dailyData,
-  monthlyData,
-}: SubmitConstructionLogParams) {
+}: {
+  projectId: string;
+  date: string;
+  dailyData: DailyLogData;
+}) {
   const supabase = await createClient();
   const warnings: string[] = [];
 
   try {
-    // --- Daily Log Submission ---
-    if (metricsPeriod === "daily" && dailyData) {
-      const { data: dailyLog, error: dailyError } = await supabase
-        .from("construction_daily_log")
-        .insert([
-          {
-            project_id: projectId,
-            log_date: date,
-            fuel_consumption_liters: dailyData.fuelConsumptionLiters,
-            equipment_usage_tco2e: dailyData.equipmentEmissionsKg,
-            safety_incidents: dailyData.safetyTrirRounded,
-            scope1: dailyData.scope1,
-          },
-        ])
-        .select("id")
-        .single();
+    // Calculate total fuel consumption (liters) = Total Hours * Fuel Rate
+    const totalFuel = dailyData.equipmentList.reduce((acc, vehicle) => {
+      const hours = parseFloat(vehicle.hours) || 0;
+      const rate = parseFloat(vehicle.fuelRate) || 0;
+      return acc + hours * rate;
+    }, 0);
 
-      if (dailyError) {
-        if ("code" in dailyError && dailyError.code === "23505") {
-          throw new Error("A daily report for today already exists.");
-        }
-        throw dailyError;
+    // Calculate total emissions (kg CO2e)
+    const totalEmissions = totalFuel * EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
+
+    const { data: dailyLog, error: dailyError } = await supabase
+      .from("daily_log")
+      .insert([
+        {
+          project_id: projectId,
+          timestamp: date,
+          number_of_incidents: dailyData.incidentCount,
+          total_employee_hours: dailyData.hoursWorked,
+          equipment_emissions: totalEmissions,
+          equipment_details: dailyData.equipmentList,
+        },
+      ])
+      .select("id")
+      .single();
+
+    if (dailyError) {
+      if ("code" in dailyError && dailyError.code === "23505") {
+        throw new Error("A daily report for today already exists.");
       }
-
-      let dailyLogId = dailyLog?.id as string | undefined;
-
-      if (!dailyLogId) {
-        const { data: fallback, error: fetchError } = await supabase
-          .from("construction_daily_log")
-          .select("id")
-          .eq("project_id", projectId)
-          .eq("log_date", date)
-          .maybeSingle();
-
-        if (fetchError) {
-          throw fetchError;
-        }
-        if (!fallback) {
-          throw new Error(
-            "Daily report saved but could not retrieve identifier."
-          );
-        }
-        dailyLogId = fallback.id;
-      }
-
-      if (
-        dailyLogId &&
-        dailyData.safetyTrirRounded !== null &&
-        dailyData.incidentCount !== null &&
-        dailyData.hoursWorked !== null
-      ) {
-        const { error: safetyInsertError } = await supabase
-          .from("safety_incidents")
-          .insert([
-            {
-              project_id: projectId,
-              daily_log_id: dailyLogId,
-              log_date: date,
-              incident_count: dailyData.incidentCount,
-              total_hours_worked: dailyData.hoursWorked,
-              trir: dailyData.safetyTrirRounded,
-            },
-          ]);
-
-        if (safetyInsertError) {
-          console.error("Failed to save safety details", safetyInsertError);
-          const message =
-            typeof safetyInsertError === "object" &&
-            safetyInsertError !== null &&
-            "message" in safetyInsertError
-              ? String(
-                  (safetyInsertError as { message?: string }).message ?? ""
-                )
-              : "";
-          const warningMessage = message
-            ? `Safety details were not saved (${message}).`
-            : "Safety details were not saved. Please try again later.";
-          warnings.push(warningMessage);
-        }
-      }
-    }
-
-    // --- Monthly Log Submission ---
-    if (metricsPeriod === "monthly" && monthlyData) {
-      const monthStart = new Date(date);
-      monthStart.setDate(1);
-      const logMonth = monthStart.toISOString().slice(0, 10);
-
-      // Fetch existing placeholder values for this project/month
-      let existingElec = 0,
-        existingWater = 0,
-        existingWaste = 0;
-      const { data: existingRow, error: fetchError } = await supabase
-        .from("construction_monthly_log")
-        .select("elec_placeholder, water_placeholder, waste_placeholder")
-        .eq("project_id", projectId)
-        .eq("log_month", logMonth)
-        .maybeSingle();
-
-      if (!fetchError && existingRow) {
-        existingElec = Number(existingRow.elec_placeholder) || 0;
-        existingWater = Number(existingRow.water_placeholder) || 0;
-        existingWaste = Number(existingRow.waste_placeholder) || 0;
-      }
-
-      // Add new values to existing
-      const sumElec = monthlyData.rawElectricityKwh + existingElec;
-      const sumWater = monthlyData.rawWaterCubicM + existingWater;
-      const sumWaste = monthlyData.rawWasteKg + existingWaste;
-
-      // Add placeholder columns for summed values
-      const { error: monthlyError } = await supabase
-        .from("construction_monthly_log")
-        .upsert(
-          [
-            {
-              project_id: projectId,
-              log_month: logMonth,
-              electricity_usage_kwh: monthlyData.electricityEmissionsKg,
-              water_consumption_cubic_m: monthlyData.waterEmissionsKg,
-              waste_generated_kg: monthlyData.wasteEmissionsKg,
-              elec_placeholder: sumElec,
-              water_placeholder: sumWater,
-              waste_placeholder: sumWaste,
-              scope2: monthlyData.scope2,
-              scope3: monthlyData.scope3,
-              submitted_on: date,
-              updated_at: new Date().toISOString(),
-            },
-          ],
-          { onConflict: "project_id,log_month" }
-        );
-
-      if (monthlyError) {
-        throw monthlyError;
-      }
-
-      return { success: true, warnings, sumElec, sumWater, sumWaste };
+      throw dailyError;
     }
 
     return { success: true, warnings };
   } catch (error) {
-    console.error("Failed to submit construction log", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Unable to submit report.",
-    };
+    return handleError(error);
   }
 }
+
+export async function submitMonthlyLog({
+  projectId,
+  date,
+  monthlyData,
+}: {
+  projectId: string;
+  date: string;
+  monthlyData: MonthlyLogData;
+}) {
+  const supabase = await createClient();
+  const warnings: string[] = [];
+
+  try {
+    // Calculate Scope 3 (Water + Waste)
+    const waterEmissions = monthlyData.waterEmissionsKg ?? 0;
+    const wasteEmissions = monthlyData.wasteEmissionsKg ?? 0;
+    const scope3 = waterEmissions + wasteEmissions;
+
+    // Calculate weighted average for waste emission factor and treatment percentage
+    let totalWasteMass = 0;
+    let weightedEmissionFactorSum = 0;
+    let weightedTreatmentPercentageSum = 0;
+
+    monthlyData.wasteEntries.forEach((entry) => {
+      const mass = parseFloat(entry.mass) || 0;
+      const massKg = entry.unit === "ton" ? mass * 1000 : mass;
+      const percentage = parseFloat(entry.treatmentPercentage) || 0;
+
+      // Determine emission factor
+      let factor = 0;
+      const typeFactors = WASTE_TYPE_SPECIFIC_EMISSION_FACTORS[entry.wasteType];
+      if (
+        typeFactors &&
+        typeFactors[entry.treatmentMethod as WasteTreatmentMethod] !== undefined
+      ) {
+        factor = typeFactors[entry.treatmentMethod as WasteTreatmentMethod]!;
+      } else {
+        factor =
+          WASTE_EMISSION_FACTORS_KG_PER_KG[
+            entry.treatmentMethod as WasteTreatmentMethod
+          ] || 0;
+      }
+
+      totalWasteMass += massKg;
+      weightedEmissionFactorSum += factor * massKg;
+      weightedTreatmentPercentageSum += percentage * massKg;
+    });
+
+    const avgEmissionFactor =
+      totalWasteMass > 0 ? weightedEmissionFactorSum / totalWasteMass : 0;
+    const avgTreatmentPercentage =
+      totalWasteMass > 0 ? weightedTreatmentPercentageSum / totalWasteMass : 0;
+
+    const { error: monthlyError } = await supabase
+      .from("monthly_logs")
+      .insert([
+        {
+          project_id: projectId,
+          electricity_consumption: monthlyData.rawElectricityKwh,
+          water_consumption: monthlyData.rawWaterCubicM,
+          total_waste_mass: monthlyData.rawWasteKg,
+          treatment_percentage: avgTreatmentPercentage,
+          waste_emission_factor: avgEmissionFactor,
+          timestamp: date,
+          waste_details: monthlyData.wasteEntries,
+          scope_two: monthlyData.electricityEmissionsKg ?? 0,
+          water_emmision: waterEmissions,
+          waste_emmision: wasteEmissions,
+          scope_three: scope3,
+        },
+      ])
+      .select("id")
+      .single();
+
+    if (monthlyError) {
+      throw monthlyError;
+    }
+
+    return {
+      success: true,
+      warnings,
+      sumElec: monthlyData.rawElectricityKwh,
+      sumWater: monthlyData.rawWaterCubicM,
+      sumWaste: monthlyData.rawWasteKg,
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+function handleError(error: unknown) {
+  console.error("Failed to submit construction log", error);
+  let errorMessage = "Unable to submit report.";
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  } else if (typeof error === "object" && error !== null) {
+    // Handle Supabase error objects or other objects
+    if ("message" in error) {
+      errorMessage = String((error as any).message);
+    } else if ("code" in error && "details" in error) {
+      errorMessage = `Database Error: ${(error as any).details} (Code: ${
+        (error as any).code
+      })`;
+    } else {
+      errorMessage = JSON.stringify(error);
+    }
+  } else if (typeof error === "string") {
+    errorMessage = error;
+  }
+
+  return {
+    success: false,
+    error: errorMessage,
+  };
+}
+
+// Keep the original function for backward compatibility if needed, or remove it.
+// I will remove it as per request to split.

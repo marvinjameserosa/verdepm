@@ -18,6 +18,7 @@ export interface Project {
   status: ProjectStatus;
   priority: ProjectPriority;
   category?: string | null;
+  projectManager?: string | null;
   clientName?: string | null;
   location?: string | null;
   budget?: number | null;
@@ -41,6 +42,7 @@ export interface SupabaseProject {
   status: ProjectStatus;
   priority: ProjectPriority;
   category?: string | null;
+  project_manager?: string | null;
   client_name?: string | null;
   location?: string | null;
   budget?: number | string | null;

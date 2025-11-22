@@ -93,9 +93,7 @@ export function MaterialSourcingSection({
                   <TableHead>Category</TableHead>
                   <TableHead>Planned Supplier</TableHead>
                   <TableHead>Warehouse</TableHead>
-                  <TableHead className="text-right">
-                    Budgeted Cost ($)
-                  </TableHead>
+                  <TableHead className="text-right">Cost per Unit</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Delivery Status</TableHead>

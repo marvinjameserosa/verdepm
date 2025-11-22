@@ -137,7 +137,7 @@ export function ProjectCard({ project, onRefresh }: ProjectCardProps) {
                   <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {project.projectManager ?? "Team"}
+                  {project.managerName ?? "Team"}
                 </span>
               </div>
               <div className="flex flex-col items-center text-center">
