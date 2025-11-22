@@ -25,10 +25,7 @@ export async function getProjects(): Promise<{
       throw new Error("You must be signed in to view projects.");
     }
 
-    const {
-      data: membershipRows,
-      error: membershipError,
-    } = await supabase
+    const { data: membershipRows, error: membershipError } = await supabase
       .from("organization_member")
       .select("organization_id, role")
       .eq("user_id", user.id);
@@ -44,7 +41,9 @@ export async function getProjects(): Promise<{
         typeof membership?.role === "string"
           ? membership.role.toLowerCase()
           : "";
-      return role === "owner" && typeof membership?.organization_id === "string";
+      return (
+        role === "owner" && typeof membership?.organization_id === "string"
+      );
     });
 
     const firstMembershipWithOrganization = membershipList.find(
@@ -76,14 +75,12 @@ export async function getProjects(): Promise<{
       return [] as Project[];
     }
 
-    const {
-      data: organizationRecord,
-      error: organizationLookupError,
-    } = await supabase
-      .from("organizations")
-      .select("organization_id")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    const { data: organizationRecord, error: organizationLookupError } =
+      await supabase
+        .from("organizations")
+        .select("organization_id")
+        .eq("organization_id", organizationId)
+        .maybeSingle();
 
     if (organizationLookupError) {
       throw new Error(organizationLookupError.message);

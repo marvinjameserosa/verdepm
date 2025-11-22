@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { usePostConstructionData } from "@/hooks/use-post-construction-data";
 import {
   Card,
   CardContent,
@@ -9,50 +9,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, AlertTriangle, Award, TrendingUp } from "lucide-react";
-import { supabase } from "@/lib/supabase/client";
+import {
+  CheckCircle,
+  AlertTriangle,
+  Award,
+  TrendingUp,
+  Activity,
+  Zap,
+  Truck,
+  Leaf,
+} from "lucide-react";
 import type { Project } from "@/types/project";
 import {
-  EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER,
-  TRIR_STANDARD_HOURS,
-} from "@/types/construction";
-
-type ConstructionDailyLog = {
-  id: string;
-  log_date: string;
-  fuel_consumption_liters: number | null;
-  equipment_usage_tco2e: number | null;
-  safety_incidents: number | null;
-};
-
-type ConstructionMonthlyLog = {
-  id: string;
-  log_month: string;
-  electricity_usage_kwh: number | null;
-  water_consumption_cubic_m: number | null;
-  waste_generated_kg: number | null;
-  submitted_on: string | null;
-};
-
-type ConstructionMaterialLog = {
-  id: string;
-  material_plan: string;
-  actual_supplier: string | null;
-  quantity_and_unit: string | null;
-  total_cost: number | null;
-  delivery_fuel_used_liters: number | null;
-  receipt_path: string | null;
-  created_at: string;
-};
-
-type ProjectTargets = {
-  electricity_consumption: number | null;
-  equipment_usage: number | null;
-  logistics_fuel_consumption: number | null;
-  total_waste_mass: number | null;
-  total_water_consumed: number | null;
-  number_of_incidents: number | null;
-};
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 type PostConstructionPhaseProps = {
   project: Project;
@@ -61,282 +38,7 @@ type PostConstructionPhaseProps = {
 export default function PostConstructionPhase({
   project,
 }: PostConstructionPhaseProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [dailyLogs, setDailyLogs] = useState<ConstructionDailyLog[]>([]);
-  const [monthlyLogs, setMonthlyLogs] = useState<ConstructionMonthlyLog[]>([]);
-  const [materialLogs, setMaterialLogs] = useState<ConstructionMaterialLog[]>(
-    []
-  );
-  const [projectTargets, setProjectTargets] = useState<ProjectTargets | null>(
-    null
-  );
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      const dailyPromise = supabase
-        .from("daily_log")
-        .select(
-          "id, timestamp, number_of_incidents, total_employee_hours, equipment_emissions"
-        )
-        .eq("project_id", project.id)
-        .order("timestamp", { ascending: true });
-
-      const monthlyPromise = supabase
-        .from("monthly_logs")
-        .select(
-          "id, timestamp, electricity_consumption, water_consumption, total_waste_mass"
-        )
-        .eq("project_id", project.id)
-        .order("timestamp", { ascending: true });
-
-      const materialPromise = supabase
-        .from("construction_material_log")
-        .select(
-          "id, material_plan, actual_supplier, quantity_and_unit, total_cost, delivery_fuel_used_liters, receipt_path, created_at"
-        )
-        .eq("project_id", project.id)
-        .order("created_at", { ascending: true });
-
-      const targetsPromise = supabase
-        .from("project_targets")
-        .select("*")
-        .eq("project_id", project.id)
-        .maybeSingle();
-
-      const [dailyResult, monthlyResult, materialResult, targetsResult] =
-        await Promise.all([
-          dailyPromise,
-          monthlyPromise,
-          materialPromise,
-          targetsPromise,
-        ]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (dailyResult.error) {
-        console.error(
-          "Failed to load construction daily logs",
-          dailyResult.error
-        );
-        setErrorMessage(
-          dailyResult.error.message || "Unable to load daily performance data."
-        );
-        setDailyLogs([]);
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mappedLogs = (dailyResult.data ?? []).map((log: any) => {
-          let fuel = null;
-          let emissions = null;
-          let safety = null;
-
-          if (typeof log.equipment_emissions === "number") {
-            emissions = log.equipment_emissions;
-            fuel = emissions / EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
-            if (
-              log.number_of_incidents !== null &&
-              log.total_employee_hours !== null &&
-              log.total_employee_hours > 0
-            ) {
-              safety =
-                (log.number_of_incidents * TRIR_STANDARD_HOURS) /
-                log.total_employee_hours;
-            }
-          } else {
-            fuel = log.equipment_emissions?.fuel_consumption_liters ?? null;
-            emissions = log.equipment_emissions?.equipment_usage_tco2e ?? null;
-            safety = log.equipment_emissions?.safety_trir ?? null;
-          }
-
-          return {
-            id: log.id,
-            log_date: log.timestamp,
-            fuel_consumption_liters: fuel,
-            equipment_usage_tco2e: emissions,
-            safety_incidents: safety,
-          };
-        });
-        setDailyLogs(mappedLogs);
-      }
-
-      if (monthlyResult.error) {
-        console.error(
-          "Failed to load construction monthly logs",
-          monthlyResult.error
-        );
-        setErrorMessage(
-          (prev) =>
-            prev ??
-            monthlyResult.error.message ??
-            "Unable to load monthly performance data."
-        );
-        setMonthlyLogs([]);
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mappedMonthly = (monthlyResult.data ?? []).map((log: any) => ({
-          id: log.id,
-          log_month: log.timestamp,
-          electricity_usage_kwh: log.electricity_consumption,
-          water_consumption_cubic_m: log.water_consumption,
-          waste_generated_kg: log.total_waste_mass,
-          submitted_on: log.timestamp,
-        }));
-        setMonthlyLogs(mappedMonthly);
-      }
-
-      if (materialResult.error) {
-        console.error(
-          "Failed to load construction material logs",
-          materialResult.error
-        );
-        setErrorMessage(
-          (prev) =>
-            prev ??
-            materialResult.error.message ??
-            "Unable to load material data."
-        );
-        setMaterialLogs([]);
-      } else {
-        setMaterialLogs(materialResult.data ?? []);
-      }
-
-      if (targetsResult.error) {
-        console.error("Failed to load project targets", targetsResult.error);
-      } else if (targetsResult.data) {
-        setProjectTargets({
-          electricity_consumption: targetsResult.data.electricity_consumption,
-          equipment_usage: targetsResult.data.equipment_usage,
-          logistics_fuel_consumption:
-            targetsResult.data.logistics_fuel_consumption,
-          total_waste_mass: targetsResult.data.total_waste_mass,
-          total_water_consumed: targetsResult.data.total_water_consumed,
-          number_of_incidents: targetsResult.data.number_of_incidents,
-        });
-      }
-
-      setIsLoading(false);
-    };
-
-    fetchData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [project.id]);
-
-  const totals = useMemo(() => {
-    let fuel = 0;
-    let electricity = 0;
-    let water = 0;
-    let equipment = 0;
-    let waste = 0;
-    let safetyTrirSum = 0;
-    let safetyEntries = 0;
-
-    for (const log of dailyLogs) {
-      fuel += log.fuel_consumption_liters ?? 0;
-      equipment += log.equipment_usage_tco2e ?? 0;
-      if (
-        typeof log.safety_incidents === "number" &&
-        Number.isFinite(log.safety_incidents)
-      ) {
-        safetyTrirSum += log.safety_incidents;
-        safetyEntries += 1;
-      }
-    }
-
-    for (const log of monthlyLogs) {
-      electricity += log.electricity_usage_kwh ?? 0;
-      water += log.water_consumption_cubic_m ?? 0;
-      waste += log.waste_generated_kg ?? 0;
-    }
-
-    const incidents = safetyEntries > 0 ? safetyTrirSum / safetyEntries : 0;
-
-    return { fuel, electricity, water, equipment, waste, incidents };
-  }, [dailyLogs, monthlyLogs]);
-
-  const targetTotals = useMemo(
-    () => ({
-      fuel: projectTargets?.equipment_usage ?? 0,
-      logisticsFuel: projectTargets?.logistics_fuel_consumption ?? 0,
-      electricity: projectTargets?.electricity_consumption ?? 0,
-      water: projectTargets?.total_water_consumed ?? 0,
-      waste: projectTargets?.total_waste_mass ?? 0,
-      incidents: projectTargets?.number_of_incidents ?? 0,
-    }),
-    [projectTargets]
-  );
-
-  const totalDeliveryFuel = useMemo(() => {
-    return materialLogs.reduce(
-      (acc, log) => acc + (log.delivery_fuel_used_liters ?? 0),
-      0
-    );
-  }, [materialLogs]);
-
-  const formatNumber = (value: number, digits = 0) =>
-    new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(
-      value
-    );
-
-  const strengths: string[] = [];
-  if (totals.fuel <= targetTotals.fuel) {
-    strengths.push("Fuel consumption stayed within planned limits.");
-  }
-  if (totals.electricity <= targetTotals.electricity) {
-    strengths.push("Electricity emissions met the project efficiency target.");
-  }
-  if (totals.waste <= targetTotals.waste) {
-    strengths.push("Waste generation remained under the diversion goal.");
-  }
-  if (totals.incidents === 0) {
-    strengths.push(
-      "TRIR held at zero recordable incidents across logged days."
-    );
-  }
-  if (strengths.length === 0) {
-    strengths.push("Project team maintained consistent reporting cadence.");
-  }
-
-  const improvements: string[] = [];
-  if (totals.fuel > targetTotals.fuel) {
-    improvements.push(
-      "Review heavy equipment usage to reduce daily fuel burn."
-    );
-  }
-  if (totals.electricity > targetTotals.electricity) {
-    improvements.push(
-      "Tune temporary power loads to drive down electricity emissions."
-    );
-  }
-  if (totals.water > targetTotals.water) {
-    improvements.push(
-      "Expand on-site water reuse to stay within conservation goals."
-    );
-  }
-  if (totals.waste > targetTotals.waste) {
-    improvements.push(
-      "Increase sorting efficiency to boost landfill diversion."
-    );
-  }
-  if (totals.incidents > 0) {
-    improvements.push(
-      "Refresh safety toolbox talks to bring the TRIR back down."
-    );
-  }
-  if (improvements.length === 0) {
-    improvements.push(
-      "Continue monitoring trends to preserve strong performance."
-    );
-  }
+  const { data, isLoading, error } = usePostConstructionData(project.id);
 
   if (isLoading) {
     return (
@@ -346,7 +48,7 @@ export default function PostConstructionPhase({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Gathering construction logs and material deliveries for{" "}
+            Gathering construction logs and generating ESG report for{" "}
             {project.name}.
           </p>
         </CardContent>
@@ -354,19 +56,31 @@ export default function PostConstructionPhase({
     );
   }
 
-  if (!isLoading && dailyLogs.length === 0 && materialLogs.length === 0) {
+  if (error) {
     return (
-      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+      <Card className="border-red-200 bg-red-50 dark:bg-red-900/20">
         <CardHeader>
-          <CardTitle>No post-construction data yet</CardTitle>
-          <CardDescription>
-            Submit at least one construction daily report to unlock the
-            analytics view.
-          </CardDescription>
+          <CardTitle className="text-red-700 dark:text-red-400">
+            Error Loading Data
+          </CardTitle>
         </CardHeader>
+        <CardContent>
+          <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
+        </CardContent>
       </Card>
     );
   }
+
+  if (!data) {
+    return null;
+  }
+
+  const { targets, actuals, trends } = data;
+
+  const formatNumber = (value: number, digits = 2) =>
+    new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(
+      value
+    );
 
   const ComparisonCard = ({
     title,
@@ -374,24 +88,21 @@ export default function PostConstructionPhase({
     target,
     actual,
     unit,
-    inverse = false, // if true, higher actual is better (rare for these metrics)
+    icon: Icon,
+    inverse = false,
   }: {
     title: string;
     description: string;
     target: number | null;
     actual: number;
     unit: string;
+    icon: any;
     inverse?: boolean;
   }) => {
     const hasTarget = target !== null && target !== undefined && target > 0;
     const percentage = hasTarget ? (actual / target!) * 100 : 0;
-
-    // For consumption/emissions, lower is better.
-    // If actual > target, it's bad (red).
-    // If actual <= target, it's good (green).
     const isGood = inverse ? actual >= target! : actual <= target!;
 
-    // Status color logic
     let statusColor = "text-gray-500";
     let progressColor = "bg-gray-200";
 
@@ -400,7 +111,6 @@ export default function PostConstructionPhase({
         statusColor = "text-emerald-600 dark:text-emerald-400";
         progressColor = "bg-emerald-500";
       } else {
-        // Check how much over
         const ratio = actual / target!;
         if (ratio > 1.1) {
           statusColor = "text-red-600 dark:text-red-400";
@@ -413,14 +123,19 @@ export default function PostConstructionPhase({
     }
 
     return (
-      <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            {title}
-          </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            {description}
-          </CardDescription>
+      <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              {title}
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground mt-1">
+              {description}
+            </CardDescription>
+          </div>
+          <div className={`p-2 rounded-full bg-gray-100 dark:bg-gray-800`}>
+            <Icon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -474,6 +189,74 @@ export default function PostConstructionPhase({
     );
   };
 
+  // Generate Insights
+  const insights: { type: "strength" | "improvement"; text: string }[] = [];
+
+  if (
+    targets?.scope_one &&
+    actuals.scope_one <= targets.scope_one
+  ) {
+    insights.push({
+      type: "strength",
+      text: "Scope 1 emissions (Direct) are within the set targets, indicating efficient fuel usage and equipment management.",
+    });
+  } else if (targets?.scope_one) {
+    insights.push({
+      type: "improvement",
+      text: `Scope 1 emissions exceeded the target by ${formatNumber(
+        actuals.scope_one - targets.scope_one
+      )} tCO2e. Consider optimizing equipment runtime and maintenance schedules.`,
+    });
+  }
+
+  if (
+    targets?.scope_two &&
+    actuals.scope_two <= targets.scope_two
+  ) {
+    insights.push({
+      type: "strength",
+      text: "Scope 2 emissions (Indirect - Electricity) are well-managed, reflecting effective energy conservation measures.",
+    });
+  } else if (targets?.scope_two) {
+    insights.push({
+      type: "improvement",
+      text: "Scope 2 emissions are higher than projected. Investigate temporary lighting and HVAC usage patterns.",
+    });
+  }
+
+  if (
+    targets?.scope_three &&
+    actuals.scope_three <= targets.scope_three
+  ) {
+    insights.push({
+      type: "strength",
+      text: "Scope 3 emissions (Value Chain) are below the threshold, showing successful waste diversion and supply chain efficiency.",
+    });
+  }
+
+  if (targets?.trir && actuals.trir <= targets.trir) {
+    insights.push({
+      type: "strength",
+      text: `Safety performance is excellent with a TRIR of ${formatNumber(
+        actuals.trir
+      )}, meeting the safety target.`,
+    });
+  } else if (actuals.trir > (targets?.trir || 0)) {
+    insights.push({
+      type: "improvement",
+      text: `TRIR is currently ${formatNumber(
+        actuals.trir
+      )}, which is above the target. Immediate review of safety protocols and incident reports is recommended.`,
+    });
+  }
+
+  if (insights.length === 0) {
+    insights.push({
+      type: "strength",
+      text: "Data collection is in progress. Continue submitting daily and monthly logs to generate actionable insights.",
+    });
+  }
+
   return (
     <div className="space-y-8 pb-12">
       <header className="space-y-2">
@@ -482,109 +265,188 @@ export default function PostConstructionPhase({
             <Award className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <h2 className="text-lg font-semibold sm:text-xl">
-            Post-Construction Assessment
+            Comprehensive ESG Performance Report
           </h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Compare actual performance against pre-construction targets.
+          Detailed analysis of environmental impact and safety metrics against
+          project baselines.
         </p>
       </header>
 
-      {errorMessage && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-          {errorMessage}
-        </div>
-      )}
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <ComparisonCard
-          title="Electricity Usage"
-          description="Total electricity consumed vs target."
-          target={targetTotals.electricity}
-          actual={totals.electricity}
-          unit="kWh"
+          title="Scope 1 Emissions"
+          description="Direct emissions from owned/controlled sources."
+          target={targets?.scope_one || null}
+          actual={actuals.scope_one}
+          unit="tCO2e"
+          icon={Truck}
         />
-
         <ComparisonCard
-          title="Equipment Fuel"
-          description="Fuel consumed by heavy equipment."
-          target={targetTotals.fuel}
-          actual={totals.fuel}
-          unit="L"
+          title="Scope 2 Emissions"
+          description="Indirect emissions from purchased electricity."
+          target={targets?.scope_two || null}
+          actual={actuals.scope_two}
+          unit="tCO2e"
+          icon={Zap}
         />
-
         <ComparisonCard
-          title="Logistics Fuel"
-          description="Fuel consumed for material delivery."
-          target={targetTotals.logisticsFuel}
-          actual={totalDeliveryFuel}
-          unit="L"
+          title="Scope 3 Emissions"
+          description="All other indirect emissions (waste, water, etc.)."
+          target={targets?.scope_three || null}
+          actual={actuals.scope_three}
+          unit="tCO2e"
+          icon={Leaf}
         />
-
         <ComparisonCard
-          title="Waste Generated"
-          description="Total waste mass generated."
-          target={targetTotals.waste}
-          actual={totals.waste}
-          unit="kg"
-        />
-
-        <ComparisonCard
-          title="Water Consumption"
-          description="Total water consumed."
-          target={targetTotals.water}
-          actual={totals.water}
-          unit="m³"
-        />
-
-        <ComparisonCard
-          title="Safety Incidents"
-          description="Number of safety incidents recorded."
-          target={targetTotals.incidents}
-          actual={totals.incidents}
-          unit="Incidents"
+          title="Safety TRIR"
+          description="Total Recordable Incident Rate."
+          target={targets?.trir || null}
+          actual={actuals.trir}
+          unit=""
+          icon={Activity}
         />
       </div>
 
-      {/* Additional Insights Section */}
-      <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm mt-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-            <TrendingUp className="h-5 w-5" />
-            Performance Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-4">
-              <h3 className="font-semibold text-emerald-800 dark:text-emerald-400">
-                Strengths
-              </h3>
-              <ul className="space-y-2">
-                {strengths.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    <span>{s}</span>
-                  </li>
-                ))}
-              </ul>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
+              Emissions Trends
+            </CardTitle>
+            <CardDescription>
+              Monthly breakdown of Scope 1, 2, and 3 emissions over the project
+              lifecycle.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={trends}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `${value}t`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="scope_one"
+                    name="Scope 1"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="target_scope_one"
+                    name="Target Scope 1"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    activeDot={false}
+                    strokeOpacity={0.6}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="scope_two"
+                    name="Scope 2"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="target_scope_two"
+                    name="Target Scope 2"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    activeDot={false}
+                    strokeOpacity={0.6}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="scope_three"
+                    name="Scope 3"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="target_scope_three"
+                    name="Target Scope 3"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    activeDot={false}
+                    strokeOpacity={0.6}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-purple-600" />
+              Performance Insights
+            </CardTitle>
+            <CardDescription>
+              AI-driven analysis of your ESG performance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-4">
-              <h3 className="font-semibold text-amber-800 dark:text-amber-400">
-                Areas for Improvement
-              </h3>
-              <ul className="space-y-2">
-                {improvements.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                    <span>{s}</span>
-                  </li>
-                ))}
-              </ul>
+              {insights.map((insight, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  {insight.type === "strength" ? (
+                    <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                  )}
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {insight.text}
+                  </p>
+                </div>
+              ))}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
+

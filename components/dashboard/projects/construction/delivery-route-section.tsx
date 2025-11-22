@@ -21,6 +21,9 @@ import {
 import { Fuel, Loader2, Truck, MapPin, Save } from "lucide-react";
 import type { DeliveryRouteMapProps } from "@/components/dashboard/projects/delivery-route-map";
 import { SourcedMaterial } from "@/types/construction";
+import { useScopeOneCalculator } from "@/hooks/useScopeOneCalculator";
+import { updateMaterialDelivery } from "@/actions/material-actions";
+import { useState } from "react";
 
 const DeliveryRouteMap = dynamic<DeliveryRouteMapProps>(
   () =>
@@ -88,6 +91,11 @@ interface DeliveryRouteSectionProps {
   selectedMaterialId?: string;
   onMaterialSelect: (material: SourcedMaterial) => void;
   isSavingFuel?: boolean;
+  emissionFactorValue: string;
+  onEmissionFactorChange: (value: string) => void;
+  onMaterialUpdate?: () => void;
+  onError?: (message: string) => void;
+  onSuccess?: (message: string) => void;
 }
 
 const formatDuration = (minutes: number | null) => {
@@ -141,11 +149,66 @@ export function DeliveryRouteSection({
   selectedMaterialId,
   onMaterialSelect,
   isSavingFuel,
+  emissionFactorValue,
+  onEmissionFactorChange,
+  onMaterialUpdate,
+  onError,
+  onSuccess,
 }: DeliveryRouteSectionProps) {
+  const [deliveryDate, setDeliveryDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  const [deliveryStatus, setDeliveryStatus] = useState<string>("Pending");
+  const [isUpdatingMaterial, setIsUpdatingMaterial] = useState(false);
+
+  const { logisticsCo2 } = useScopeOneCalculator({
+    distance: parseFloat(distanceValue) || 0,
+    efficiency: parseFloat(efficiencyValue) || 0,
+    logisticsFactor: parseFloat(emissionFactorValue) || 0,
+  });
+
+  const handleUpdateMaterial = async () => {
+    if (!selectedMaterialId) return;
+    setIsUpdatingMaterial(true);
+    try {
+      const result = await updateMaterialDelivery(selectedMaterialId, {
+        delivery_distance: parseFloat(distanceValue) || 0,
+        vehicle_fuel_efficiency: parseFloat(efficiencyValue) || 0,
+        combustion_emission_factor: parseFloat(emissionFactorValue) || 0,
+        delivery_date: new Date(deliveryDate),
+        delivery_status: deliveryStatus,
+      });
+      
+      if (result.success) {
+        if (onMaterialUpdate) onMaterialUpdate();
+        if (onSuccess) onSuccess("Material delivery details updated successfully.");
+      } else {
+        if (onError) onError(result.error || "Failed to update material.");
+      }
+    } catch (e) {
+      console.error(e);
+      if (onError) onError("An unexpected error occurred.");
+    } finally {
+    }
+  };
+
+  const handleStatusChange = (value: string) => {
+    setDeliveryStatus(value);
+    if (value === "Delivered" || value === "Completed") {
+      setDeliveryDate(new Date().toISOString().split("T")[0]);
+    }
+  };
+
   const handleSelectChange = (materialId: string) => {
     const material = sourcingMaterials.find((m) => m.id === materialId);
     if (material) {
       onMaterialSelect(material);
+      if (material.deliveryStatus) {
+        setDeliveryStatus(material.deliveryStatus);
+      }
+      if (material.deliveryDate) {
+        setDeliveryDate(new Date(material.deliveryDate).toISOString().split("T")[0]);
+      }
     }
   };
 
@@ -277,6 +340,7 @@ export function DeliveryRouteSection({
           </div>
 
           {/* Fuel Efficiency Input */}
+          {/* Fuel Efficiency Input */}
           <div className="space-y-2">
             <Label htmlFor="fuel-efficiency">Fuel Efficiency (L/km)</Label>
             <Input
@@ -286,6 +350,69 @@ export function DeliveryRouteSection({
               value={efficiencyValue}
               onChange={(e) => onEfficiencyChange(e.target.value)}
             />
+          </div>
+
+          {/* Emission Factor Input */}
+          <div className="space-y-2">
+            <Label htmlFor="emission-factor">Emission Factor (kg CO₂e/L)</Label>
+            <Input
+              id="emission-factor"
+              type="number"
+              placeholder="2.68"
+              value={emissionFactorValue}
+              onChange={(e) => onEmissionFactorChange(e.target.value)}
+            />
+          </div>
+
+          {/* Delivery Status Input */}
+          <div className="space-y-2">
+            <Label htmlFor="delivery-status">Delivery Status</Label>
+            <Select
+              value={deliveryStatus}
+              onValueChange={handleStatusChange}
+            >
+              <SelectTrigger id="delivery-status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="In Transit">In Transit</SelectItem>
+                <SelectItem value="Delivered">Delivered</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Delivery Date Input */}
+          <div className="space-y-2">
+            <Label htmlFor="delivery-date">Delivery Date</Label>
+            <Input
+              id="delivery-date"
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+            />
+          </div>
+
+          {/* Logistics Emissions Display */}
+          <div className="space-y-2">
+             <Label>Projected Logistics Emissions</Label>
+             <div className="p-2 bg-muted rounded-md font-mono text-sm">
+                {logisticsCo2.toFixed(2)} kg CO₂e
+             </div>
+          </div>
+
+          {/* Update Material Button */}
+          <div className="space-y-2 flex items-end">
+            <Button 
+                type="button" 
+                onClick={handleUpdateMaterial} 
+                disabled={!selectedMaterialId || isUpdatingMaterial}
+                className="w-full"
+            >
+                {isUpdatingMaterial ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Update Material
+            </Button>
           </div>
 
           {/* Calculated Fuel */}

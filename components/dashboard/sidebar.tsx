@@ -8,22 +8,19 @@ import {
   Settings,
   HelpCircle,
   Home,
-  Flag,
   Building,
-  Truck,
 } from "lucide-react";
 
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { SettingsModal } from "./settings-modal";
 import { HelpModal } from "./help-modal";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useCurrentRole } from "@/hooks/useCurrentRole";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
   { href: "/dashboard/projects", icon: Folder, label: "Projects" },
-  { href: "/dashboard/approval", icon: Flag, label: "Approval" },
   { href: "/dashboard/members", icon: Users2, label: "Members" },
   { href: "/dashboard/organization", icon: Building, label: "Organization" },
   { href: "/dashboard/reports", icon: BarChart2, label: "Reports" },
@@ -38,18 +35,6 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const { role } = useCurrentRole();
-
-  const canAccessSupplierWorkspace = useMemo(() => {
-    if (!role || typeof role !== "string") {
-      return false;
-    }
-    const normalized = role.toLowerCase();
-    return (
-      normalized === "owner" ||
-      normalized === "manager" ||
-      normalized === "supplier"
-    );
-  }, [role]);
 
   function NavItem({
     href,
@@ -116,9 +101,6 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
                 <NavItem href="/dashboard/projects" icon={Folder}>
                   Projects
                 </NavItem>
-                <NavItem href="/dashboard/approval" icon={Flag}>
-                  Approval
-                </NavItem>
                 <NavItem href="/dashboard/reports" icon={BarChart2}>
                   Reports
                 </NavItem>
@@ -141,11 +123,6 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
                 <NavItem href="/dashboard/organization" icon={Building}>
                   Organization
                 </NavItem>
-                {canAccessSupplierWorkspace ? (
-                  <NavItem href="/dashboard/suppliers" icon={Truck}>
-                    Supplier Workspace
-                  </NavItem>
-                ) : null}
               </div>
             </div>
           </div>

@@ -61,7 +61,20 @@ export type SourcedMaterial = {
   deliveryStatus?: string;
   receiptUrl?: string;
   receiptPath?: string;
+  deliveryDistance?: number;
+  vehicleFuelEfficiency?: number;
+  combustionEmissionFactor?: number;
+  deliveryDate?: Date;
 };
+
+export interface DailyLog {
+  id: string;
+  project_id: string;
+  date: Date;
+  equipment_details: EquipmentEntry[];
+  equipment_fuel_consumed: number;
+  scope_one: number;
+}
 
 export type DailyMetricKey =
   | "distanceKm"
@@ -69,7 +82,8 @@ export type DailyMetricKey =
   | "equipmentHours"
   | "equipmentFuelRate"
   | "incidentCount"
-  | "hoursWorked";
+  | "hoursWorked"
+  | "emissionFactor";
 
 export type MonthlyMetricKey = "electricity" | "water";
 

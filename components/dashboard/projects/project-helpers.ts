@@ -76,6 +76,7 @@ export const mapProjectFromSupabase = (record: unknown): Project => {
     status: status as ProjectStatus,
     priority: priority as ProjectPriority,
     category: (category as string | null | undefined) ?? null,
+    projectManager: null,
     clientName: (clientName as string | null | undefined) ?? null,
     location: (location as string | null | undefined) ?? null,
     budget: parsedBudget,

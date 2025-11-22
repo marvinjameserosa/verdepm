@@ -40,6 +40,9 @@ export async function updateMaterialSourcing(
   if (material.receiptPath) {
     updates.receipt_path = material.receiptPath;
   }
+  if (material.deliveryDate) {
+    updates.delivery_date = material.deliveryDate;
+  }
 
   const { data, error } = await supabase
     .from("material")

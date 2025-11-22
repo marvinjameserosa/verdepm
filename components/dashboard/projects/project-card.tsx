@@ -76,30 +76,33 @@ const formatBudget = (value: number | string | null | undefined) => {
 
 export function ProjectCard({ project, onRefresh }: ProjectCardProps) {
   return (
-    <div className="group relative h-full transition-all duration-300 hover:scale-[1.02]">
+    <div className="group relative h-full">
       <Link
         href={`/dashboard/projects/${project.slug}`}
         className="block h-full"
       >
-        <Card className="h-full backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl border border-white/20 shadow-2xl transition-all duration-300">
-          <CardHeader className="relative pb-4">
+        <Card className="h-full glassmorphism card-hover border-l-4 border-l-primary overflow-hidden">
+          {/* Decorative background element */}
+          <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
+          
+          <CardHeader className="relative pb-4 z-10">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50">
-                  <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 shadow-sm">
+                  <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg font-semibold">
+                  <CardTitle className="text-xl font-bold mb-1">
                     {project.name}
                   </CardTitle>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5 font-medium">
                     <span className="inline-flex items-center gap-1">
                       <Hash className="h-3 w-3" />
                       {project.slug}
                     </span>
                   </p>
                   {project.clientName ? (
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1.5 font-medium">
                       {project.clientName}
                     </p>
                   ) : null}
@@ -109,7 +112,7 @@ export function ProjectCard({ project, onRefresh }: ProjectCardProps) {
                 <Badge
                   variant="secondary"
                   className={cn(
-                    "font-medium border text-xs px-2.5 py-1",
+                    "font-semibold border-2 text-xs px-3 py-1.5 shadow-sm",
                     projectStatusBadgeClass[project.status]
                   )}
                 >
@@ -117,63 +120,63 @@ export function ProjectCard({ project, onRefresh }: ProjectCardProps) {
                 </Badge>
               </div>
             </div>
-            <CardDescription className="text-muted-foreground mt-3 line-clamp-2 leading-relaxed">
+            <CardDescription className="text-muted-foreground mt-4 line-clamp-2 leading-relaxed text-sm">
               {project.description}
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="relative pt-0">
+          <CardContent className="relative pt-0 z-10">
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
-              <div className="flex flex-col items-center text-center">
-                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                  <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex flex-col items-center text-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div className="p-2 rounded-lg bg-chart-1/10 mb-2">
+                  <Calendar className="h-4 w-4 text-chart-1" />
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-medium">
                   {formatTimeline(project)}
                 </span>
               </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                  <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex flex-col items-center text-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div className="p-2 rounded-lg bg-chart-2/10 mb-2">
+                  <Users className="h-4 w-4 text-chart-2" />
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {project.managerName ?? "Team"}
+                <span className="text-xs text-muted-foreground font-medium">
+                  {project.projectManager ?? "Team"}
                 </span>
               </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                  <Target className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex flex-col items-center text-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div className="p-2 rounded-lg bg-chart-3/10 mb-2">
+                  <Target className="h-4 w-4 text-chart-3" />
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-medium">
                   {project.priority
                     ? projectPriorityLabels[project.priority]
                     : "Priority"}
                 </span>
               </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                  <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex flex-col items-center text-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div className="p-2 rounded-lg bg-chart-4/10 mb-2">
+                  <MapPin className="h-4 w-4 text-chart-4" />
                 </div>
                 <span
-                  className="text-xs text-muted-foreground line-clamp-1"
+                  className="text-xs text-muted-foreground line-clamp-1 font-medium"
                   title={project.location ?? ""}
                 >
                   {project.location ?? "No location"}
                 </span>
               </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                  <Layers className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex flex-col items-center text-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div className="p-2 rounded-lg bg-chart-5/10 mb-2">
+                  <Layers className="h-4 w-4 text-chart-5" />
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-medium">
                   {project.category ?? "Uncategorized"}
                 </span>
               </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 mb-2">
-                  <Wallet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex flex-col items-center text-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div className="p-2 rounded-lg bg-primary/10 mb-2">
+                  <Wallet className="h-4 w-4 text-primary" />
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-medium">
                   {formatBudget(project.budget)}
                 </span>
               </div>

@@ -16,6 +16,7 @@ export function useConstructionMetrics() {
     equipmentFuelRate: "",
     incidentCount: "",
     hoursWorked: "",
+    emissionFactor: "",
   });
 
   const [monthlyMetrics, setMonthlyMetrics] = useState<MonthlyMetricState>({

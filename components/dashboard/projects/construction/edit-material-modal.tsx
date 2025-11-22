@@ -213,6 +213,28 @@ export function EditMaterialModal({
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="deliveryDate">Delivery Date</Label>
+              <Input
+                id="deliveryDate"
+                type="date"
+                value={
+                  formData.deliveryDate
+                    ? new Date(formData.deliveryDate).toISOString().split("T")[0]
+                    : ""
+                }
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    deliveryDate: e.target.value
+                      ? new Date(e.target.value)
+                      : undefined,
+                  }))
+                }
+              />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="credentials">Sustainability Credentials</Label>
             <Textarea

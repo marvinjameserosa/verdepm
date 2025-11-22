@@ -29,9 +29,9 @@ import { useWasteManagement } from "@/hooks/use-waste-management";
 import { useRouteAnimation } from "@/hooks/use-route-animation";
 import { useSourcingMaterials } from "@/hooks/use-sourcing-materials";
 import {
-  submitDailyLog,
   submitMonthlyLog,
 } from "@/actions/construction/submit";
+import { upsertDailyLog } from "@/actions/log-actions";
 import { addMaterialFuel } from "@/actions/preconstruction/update-material";
 import { getConstructionMetricsHistory } from "@/actions/construction/fetch";
 
@@ -178,6 +178,14 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
     }
     // Reset other route states
     setRouteFuelLiters("");
+    
+    // Pre-fill emission factor if available
+    if (material.combustionEmissionFactor) {
+      handleDailyInputChange("emissionFactor", String(material.combustionEmissionFactor));
+    } else {
+      handleDailyInputChange("emissionFactor", "");
+    }
+    
     // Note: We can't easily reset routeDistanceKm etc. without exposing resetters from the hook,
     // but setting queries is a good start.
   };
@@ -400,10 +408,12 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         equipmentList: equipmentList,
       };
 
-      const result = await submitDailyLog({
-        projectId: project.id,
-        date: new Date().toISOString().slice(0, 10),
-        dailyData,
+      const result = await upsertDailyLog(project.id, new Date(), {
+        equipment_details: equipmentList,
+        equipment_fuel_consumed: equipmentFuelConsumptionLiters || 0,
+        scope_one: scope1 || 0,
+        incident_count: incidentCountValue,
+        hours_worked: hoursWorkedValue,
       });
 
       if (!result.success) {
@@ -448,6 +458,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         equipmentFuelRate: "",
         incidentCount: "",
         hoursWorked: "",
+        emissionFactor: "",
       });
       setEquipmentList([]);
 
@@ -848,6 +859,13 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               selectedMaterialId={selectedMaterial?.id}
               onMaterialSelect={handleSelectLogisticsMaterial}
               isSavingFuel={isSavingFuel}
+              emissionFactorValue={dailyMetrics.emissionFactor}
+              onEmissionFactorChange={(val) =>
+                handleDailyInputChange("emissionFactor", val)
+              }
+              onMaterialUpdate={refreshMaterials}
+              onError={setErrorMessage}
+              onSuccess={setStatusMessage}
             />
           </div>
         </TabsContent>
