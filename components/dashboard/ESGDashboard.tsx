@@ -661,13 +661,21 @@ export default function ESGDashboard() {
                     dataKey="month"
                     stroke="hsl(var(--muted-foreground))"
                     style={{ fontSize: "12px", fontWeight: 500 }}
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    tick={axisTickProps}
                   />
                   <YAxis
                     stroke="hsl(var(--muted-foreground))"
                     style={{ fontSize: "12px", fontWeight: 500 }}
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    label={{ value: 'Emissions (tCO₂e)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: 'hsl(var(--muted-foreground))' } }}
+                    tick={axisTickProps}
+                    label={{
+                      value: "Emissions (tCO₂e)",
+                      angle: -90,
+                      position: "insideLeft",
+                      style: {
+                        fontSize: "12px",
+                        fill: chartTextColor,
+                      },
+                    }}
                   />
                   <Tooltip content={<CustomEmissionsTooltip />} />
                   <Legend 

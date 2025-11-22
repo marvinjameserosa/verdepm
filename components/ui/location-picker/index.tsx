@@ -132,12 +132,14 @@ export default function LocationPicker({
         onSelectLocation={handleLocationSelect}
         onSave={onSave}
       />
-      <div className="h-[300px] w-full rounded-md overflow-hidden border border-input z-0 relative">
-        <LocationMap
-          lat={lat}
-          lng={lng}
-          onPositionChange={handlePositionChange}
-        />
+      <div className="relative w-full overflow-hidden rounded-xl border border-input/80 bg-card shadow-inner">
+        <div className="relative h-[clamp(280px,45vh,460px)] min-h-[260px] sm:min-h-[300px]">
+          <LocationMap
+            lat={lat}
+            lng={lng}
+            onPositionChange={handlePositionChange}
+          />
+        </div>
       </div>
     </div>
   );

@@ -41,7 +41,7 @@ type Props = {
 
 const numberFormatter = new Intl.NumberFormat(undefined, {
   style: "currency",
-  currency: "USD",
+  currency: "PHP",
   maximumFractionDigits: 0,
 });
 

@@ -471,17 +471,54 @@ export default function Step3MaterialSourcing({
               <Label className="flex items-center">
                 <Upload className="mr-2 h-4 w-4" /> Upload Spec Sheet/EPD
               </Label>
+              <label
+                htmlFor="spec-sheet-upload"
+                className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-emerald-300/60 bg-emerald-50/60 px-4 py-3 text-sm font-medium text-emerald-700 transition-all hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100 dark:hover:border-emerald-700/70 dark:hover:bg-emerald-900/40"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors group-hover:bg-emerald-500/20">
+                    <Upload className="h-4 w-4" />
+                  </span>
+                  <div className="flex flex-col gap-1 text-left">
+                    <span className="leading-none">Choose PDF</span>
+                    <span className="text-xs text-muted-foreground dark:text-emerald-100/70">
+                      Max 10 MB · .pdf only
+                    </span>
+                  </div>
+                </div>
+                <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 transition group-hover:bg-emerald-500/20">
+                  Browse
+                </span>
+              </label>
               <Input
+                id="spec-sheet-upload"
                 type="file"
                 accept=".pdf"
+                className="sr-only"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   setSpecSheet(file ?? null);
                 }}
               />
-              {specSheet && (
-                <p className="truncate text-xs text-muted-foreground">
-                  Selected: {specSheet.name}
+              {specSheet ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+                  <div className="flex items-center gap-2 truncate">
+                    <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="truncate" title={specSheet.name}>
+                      {specSheet.name}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-600 hover:bg-emerald-500/20 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
+                    onClick={() => setSpecSheet(null)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Attach lifecycle documentation to strengthen ESG review.
                 </p>
               )}
             </div>

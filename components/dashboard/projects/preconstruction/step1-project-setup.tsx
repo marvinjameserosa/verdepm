@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { GanttChartSquare, FileText } from "lucide-react";
+import { GanttChartSquare, FileText, Upload } from "lucide-react";
 import LocationPicker from "@/components/ui/location-picker";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { useProjectSetupForm } from "@/hooks/useProjectSetupForm";
@@ -149,8 +149,8 @@ export default function Step1ProjectSetup({
                 className="mb-6"
               />
             )}
-            <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-              <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full">
+            <div className="flex flex-col gap-8 xl:flex-row xl:items-start">
+              <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full xl:flex-1 xl:min-w-[420px]">
                 <CardHeader className="pb-2 px-6">
                   <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
                     Project Information
@@ -192,8 +192,8 @@ export default function Step1ProjectSetup({
                   </div>
                 </CardContent>
               </Card>
-              <div className="space-y-6">
-                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
+              <div className="space-y-6 xl:space-y-8 flex-1 min-w-0">
+                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm transform transition-transform duration-200 hover:-translate-y-0.5 min-w-0">
                   <CardHeader className="pb-2 px-6">
                     <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
                       Project Attributes
@@ -273,7 +273,7 @@ export default function Step1ProjectSetup({
                   </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
+                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm transform transition-transform duration-200 hover:-translate-y-0.5 min-w-0">
                   <CardHeader className="pb-2 px-6">
                     <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
                       Team & Timeline
@@ -405,11 +405,30 @@ export default function Step1ProjectSetup({
                         </div>
                       ) : (
                         <div className="space-y-3">
+                          <label
+                            htmlFor="buildingPermit"
+                            className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-emerald-300/60 bg-emerald-50/60 px-4 py-3 text-sm font-medium text-emerald-700 transition-all hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100 dark:hover:border-emerald-700/70 dark:hover:bg-emerald-900/40"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors group-hover:bg-emerald-500/20">
+                                <Upload className="h-4 w-4" />
+                              </span>
+                              <div className="flex flex-col gap-1 text-left">
+                                <span className="leading-none">Choose File</span>
+                                <span className="text-xs text-muted-foreground dark:text-emerald-100/70">
+                                  PDF only · Max 10 MB
+                                </span>
+                              </div>
+                            </div>
+                            <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 transition group-hover:bg-emerald-500/20">
+                              Browse
+                            </span>
+                          </label>
                           <Input
                             id="buildingPermit"
                             type="file"
-                            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                            className="bg-white/80 dark:bg-gray-800/80"
+                            accept=".pdf"
+                            className="sr-only"
                             onChange={(event) =>
                               registerFile(
                                 "building-permit",
@@ -417,29 +436,40 @@ export default function Step1ProjectSetup({
                               )
                             }
                           />
-                          <div className="flex justify-between items-start">
-                            <p className="text-xs text-muted-foreground">
-                              Accepted formats: PDF, DOC, DOCX, PNG, JPG.
-                            </p>
-                            {documentPaths["building-permit"] && (
-                              <Button
+                          {files["building-permit"] ? (
+                            <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+                              <div className="flex items-center gap-2 truncate">
+                                <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate" title={files["building-permit"]?.name}>
+                                  {files["building-permit"]?.name}
+                                </span>
+                              </div>
+                              <button
                                 type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() => {
-                                  setIsReplacingFile(false);
-                                  registerFile("building-permit", null);
-                                }}
+                                className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-600 hover:bg-emerald-500/20 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
+                                onClick={() => registerFile("building-permit", null)}
                               >
-                                Cancel replacement
-                              </Button>
-                            )}
-                          </div>
-                          {files["building-permit"] && (
-                            <p className="text-xs text-emerald-700 dark:text-emerald-200 font-medium">
-                              Selected: {files["building-permit"]?.name}
-                            </p>
+                                Remove
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                              <p>Accepted format: PDF.</p>
+                              {documentPaths["building-permit"] && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                                  onClick={() => {
+                                    setIsReplacingFile(false);
+                                    registerFile("building-permit", null);
+                                  }}
+                                >
+                                  Cancel replacement
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
