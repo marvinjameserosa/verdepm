@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -12,6 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText,
@@ -28,14 +35,15 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Image,
-  Video,
-  Music,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Music as MusicIcon,
 } from "lucide-react";
 import { Background } from "@/components/ui/background";
 import { LucideIcon } from "lucide-react";
 import { StorageService } from "@/lib/storage";
 import type { FileListResponse, StorageBucket } from "@/types/storage";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Report data interfaces
 interface ESGData {
@@ -79,6 +87,57 @@ interface ReportTemplate {
   color: string;
   data: Record<string, unknown>;
 }
+
+type ProjectIdValidationState = {
+  status: "idle" | "checking" | "valid" | "invalid";
+  message?: string;
+};
+
+type ProjectMetrics = {
+  projectName: string;
+  totalFuelUsed: number;
+  totalElectricityConsumption: number;
+  averageSafetyTrir: number | null;
+  materialDeliveries: number;
+};
+
+type DailyLogRow = {
+  equipment_fuel_consumed?: number | string | null;
+  number_of_incidents?: number | string | null;
+};
+
+type MonthlyLogRow = {
+  electricity_consumption?: number | string | null;
+};
+
+type MaterialRow = {
+  id: string;
+  name?: string | null;
+  supplier?: string | null;
+  cost?: number | string | null;
+};
+
+const normalizeNumericValue = (value: unknown): number => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatMetric = (
+  value: number,
+  options?: Intl.NumberFormatOptions
+): string => {
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    ...options,
+  }).format(value);
+};
 
 // Documentation items from post-construction phase
 
@@ -163,6 +222,18 @@ export default function ReportsTab() {
     message: string;
     fileName?: string;
   }>({ type: null, message: "" });
+  const [projectIdValidation, setProjectIdValidation] =
+    useState<ProjectIdValidationState>({ status: "idle" });
+  const [projectMetrics, setProjectMetrics] =
+    useState<ProjectMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [availableProjects, setAvailableProjects] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [generatedReports, setGeneratedReports] = useState<
     Array<{
       name: string;
@@ -197,6 +268,79 @@ export default function ReportsTab() {
     new Set()
   );
 
+  const loadProjects = useCallback(async () => {
+    setProjectsLoading(true);
+    setProjectsError(null);
+
+    try {
+      const { supabase } = await import("@/lib/supabase/client");
+      const { data, error } = await supabase
+        .from("projects")
+        .select("project_id, project_name")
+        .order("project_name", { ascending: true });
+
+      if (error) throw error;
+
+      const mappedProjects: Array<{ id: string; name: string }> = ((data ?? []) as Array<{
+        project_id: string;
+        project_name: string | null;
+      }>).map((project) => ({
+        id: project.project_id,
+        name: project.project_name ?? project.project_id,
+      }));
+
+      setAvailableProjects(mappedProjects);
+      let resetMetrics = false;
+
+      setSelectedProjectId((current) => {
+        if (mappedProjects.length === 0) {
+          if (current !== "") {
+            resetMetrics = true;
+          }
+          return "";
+        }
+
+        if (
+          current &&
+          !mappedProjects.some((project) => project.id === current)
+        ) {
+          resetMetrics = true;
+          return "";
+        }
+
+        return current;
+      });
+
+      if (mappedProjects.length === 0) {
+        setProjectMetrics(null);
+        setMetricsError("No projects available.");
+        setProjectIdValidation({
+          status: "invalid",
+          message: "No projects found. Add a project to continue.",
+        });
+      } else if (resetMetrics) {
+        setProjectMetrics(null);
+        setMetricsError("Select a project to continue.");
+        setProjectIdValidation({
+          status: "invalid",
+          message: "Select a project to continue.",
+        });
+      } else {
+        setProjectIdValidation({ status: "idle" });
+        setMetricsError(null);
+      }
+    } catch (error) {
+      console.error("Error loading projects:", error);
+      setProjectsError("Unable to load projects. Please try again.");
+      setProjectIdValidation({
+        status: "invalid",
+        message: "Unable to load projects. Please try again.",
+      });
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, []);
+
   // Check authentication on component mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -217,8 +361,9 @@ export default function ReportsTab() {
     };
 
     checkAuth();
-    loadProjectFiles();
-  }, []);
+    void loadProjectFiles();
+    void loadProjects();
+  }, [loadProjects]);
 
   const loadProjectFiles = async () => {
     setFilesLoading(true);
@@ -420,6 +565,141 @@ export default function ReportsTab() {
     window.location.href = mailtoLink;
   };
 
+  const gatherProjectMetrics = async (
+    supabaseClient: SupabaseClient,
+    projectId: string,
+    projectName: string | null
+  ): Promise<ProjectMetrics> => {
+    const [dailyLogsResponse, monthlyLogsResponse, materialResponse] =
+      await Promise.all([
+        supabaseClient
+          .from("daily_logs")
+          .select("equipment_fuel_consumed, number_of_incidents")
+          .eq("project_id", projectId),
+        supabaseClient
+          .from("monthly_logs")
+          .select("electricity_consumption")
+          .eq("project_id", projectId),
+        supabaseClient
+          .from("material")
+          .select("id")
+          .eq("project_id", projectId),
+      ]);
+
+    if (dailyLogsResponse.error) throw dailyLogsResponse.error;
+    if (monthlyLogsResponse.error) throw monthlyLogsResponse.error;
+    if (materialResponse.error) throw materialResponse.error;
+
+    const dailyLogs = (dailyLogsResponse.data || []) as DailyLogRow[];
+    const monthlyLogs = (monthlyLogsResponse.data || []) as MonthlyLogRow[];
+    const materialRecords = (materialResponse.data || []) as MaterialRow[];
+
+    const totalFuelUsed = dailyLogs.reduce((sum, log) => {
+      return sum + normalizeNumericValue(log.equipment_fuel_consumed);
+    }, 0);
+
+    const incidentValues = dailyLogs
+      .map((log) => {
+        if (
+          log.number_of_incidents === null ||
+          log.number_of_incidents === undefined
+        ) {
+          return null;
+        }
+        return normalizeNumericValue(log.number_of_incidents);
+      })
+      .filter((value): value is number => value !== null);
+
+    const averageSafetyTrir =
+      incidentValues.length > 0
+        ? incidentValues.reduce((acc, value) => acc + value, 0) /
+          incidentValues.length
+        : null;
+
+    const totalElectricityConsumption = monthlyLogs.reduce((sum, log) => {
+      return sum + normalizeNumericValue(log.electricity_consumption);
+    }, 0);
+
+    const materialDeliveries = materialRecords.length;
+
+    return {
+      projectName: projectName || projectId,
+      totalFuelUsed,
+      totalElectricityConsumption,
+      averageSafetyTrir,
+      materialDeliveries,
+    };
+  };
+
+  const loadProjectMetrics = async (
+    projectId: string
+  ): Promise<ProjectMetrics | null> => {
+    const trimmedId = projectId.trim();
+
+    if (!trimmedId) {
+      setProjectMetrics(null);
+      setMetricsError("Select a project to continue.");
+      setProjectIdValidation({
+        status: "invalid",
+        message: "Select a project to continue.",
+      });
+      return null;
+    }
+
+    setProjectIdValidation({
+      status: "checking",
+      message: "Loading project metrics...",
+    });
+    setMetricsLoading(true);
+    setMetricsError(null);
+
+    try {
+      const { supabase } = await import("@/lib/supabase/client");
+      const { data: projectRecord, error: projectError } = await supabase
+        .from("projects")
+        .select("project_name, project_id")
+        .eq("project_id", trimmedId)
+        .maybeSingle();
+
+      if (projectError) throw projectError;
+
+      if (!projectRecord) {
+        setProjectMetrics(null);
+        setMetricsError("Project not found.");
+        setProjectIdValidation({
+          status: "invalid",
+          message: "Project not found. Try another selection.",
+        });
+        return null;
+      }
+
+      const metrics = await gatherProjectMetrics(
+        supabase,
+        trimmedId,
+        projectRecord.project_name ?? null
+      );
+
+      setProjectMetrics(metrics);
+      setMetricsError(null);
+      setProjectIdValidation({
+        status: "valid",
+        message: `Project ${metrics.projectName} ready for ESG reporting.`,
+      });
+      return metrics;
+    } catch (err) {
+      console.error("Project metrics load failed:", err);
+      setProjectMetrics(null);
+      setMetricsError("Unable to load project metrics at this time.");
+      setProjectIdValidation({
+        status: "invalid",
+        message: "Could not load project metrics. Please try again.",
+      });
+      return null;
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
   const getFileIcon = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
     switch (ext) {
@@ -430,16 +710,16 @@ export default function ReportsTab() {
       case "png":
       case "gif":
       case "webp":
-        return <Image className="h-5 w-5 text-blue-500" />;
+        return <ImageIcon className="h-5 w-5 text-blue-500" />;
       case "mp4":
       case "avi":
       case "mov":
       case "wmv":
-        return <Video className="h-5 w-5 text-purple-500" />;
+        return <VideoIcon className="h-5 w-5 text-purple-500" />;
       case "mp3":
       case "wav":
       case "flac":
-        return <Music className="h-5 w-5 text-green-500" />;
+        return <MusicIcon className="h-5 w-5 text-green-500" />;
       default:
         return <FileText className="h-5 w-5 text-gray-500" />;
     }
@@ -451,20 +731,11 @@ export default function ReportsTab() {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      Achieved:
-        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
-      "In Progress":
-        "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
-      Complete:
-        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
-    };
-    return colors[status as keyof typeof colors] || colors["Complete"];
-  };
-
   // Function to generate report content based on template and dashboard data
-  function generateReportContent(template: ReportTemplate) {
+  function generateReportContent(
+    template: ReportTemplate,
+    metrics?: ProjectMetrics | null
+  ) {
     const currentDate = new Date().toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -474,38 +745,82 @@ export default function ReportsTab() {
     switch (template.id) {
       case "esg-summary": {
         const data = template.data as unknown as ESGData;
+        const projectName =
+          metrics?.projectName ?? "Verde Tower Construction Project";
+
+        const environmentalLines = [
+          `- **Score:** ${data.environmental.score}/100 (Target: ${
+            data.environmental.target
+          })`,
+          `- **Status:** ${data.environmental.status.toUpperCase()}`,
+          metrics
+            ? `- **Fuel Used:** ${formatMetric(metrics.totalFuelUsed)} liters`
+            : undefined,
+          metrics
+            ? `- **Electricity Consumption:** ${formatMetric(
+                metrics.totalElectricityConsumption
+              )} kWh`
+            : undefined,
+          `- **Waste Recycling Rate:** ${data.wasteRecycled}%`,
+          `- **Energy Efficiency:** ${data.energyEfficiency}%`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        const socialLines = [
+          `- **Score:** ${data.social.score}/100 (Target: ${
+            data.social.target
+          })`,
+          `- **Status:** ${data.social.status.toUpperCase()}`,
+          `- **Community Programs:** 8 initiatives launched`,
+          `- **Local Employment:** 145 jobs created`,
+          metrics
+            ? `- **Average Safety TRIR:** ${
+                metrics.averageSafetyTrir !== null
+                  ? formatMetric(metrics.averageSafetyTrir)
+                  : "N/A"
+              }`
+            : `- **Safety Record:** Zero incidents during construction`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        const governanceLines = [
+          `- **Score:** ${data.governance.score}/100 (Target: ${
+            data.governance.target
+          })`,
+          `- **Status:** ${data.governance.status.toUpperCase()}`,
+          `- **Certifications Achieved:** 4 out of 4 planned`,
+          `- **Compliance Rate:** 100%`,
+          `- **Stakeholder Engagement:** 25 sessions conducted`,
+          metrics
+            ? `- **Material Deliveries:** ${formatMetric(
+                metrics.materialDeliveries,
+                { maximumFractionDigits: 0 }
+              )}`
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
         return `# ESG Performance Summary Report
 
-**Project:** Verde Tower Construction Project
+**Project:** ${projectName}
 **Generated:** ${currentDate}
 **Period:** January 2024 - October 2024
 
 ## Executive Summary
 
-This comprehensive ESG performance report provides an overview of our project's Environmental, Social, and Governance achievements during the post-construction phase.
+This comprehensive ESG performance report provides an overview of ${projectName}'s Environmental, Social, and Governance achievements during the post-construction phase.
 
 ## Environmental Performance
-- **Score:** ${data.environmental.score}/100 (Target: ${
-          data.environmental.target
-        })
-- **Status:** ${data.environmental.status.toUpperCase()}
-- **Carbon Footprint:** ${data.carbonFootprint} tCO2e
-- **Waste Recycling Rate:** ${data.wasteRecycled}%
-- **Energy Efficiency:** ${data.energyEfficiency}%
+${environmentalLines}
 
 ## Social Impact
-- **Score:** ${data.social.score}/100 (Target: ${data.social.target})
-- **Status:** ${data.social.status.toUpperCase()}
-- **Community Programs:** 8 initiatives launched
-- **Local Employment:** 145 jobs created
-- **Safety Record:** Zero incidents during construction
+${socialLines}
 
 ## Governance Excellence
-- **Score:** ${data.governance.score}/100 (Target: ${data.governance.target})
-- **Status:** ${data.governance.status.toUpperCase()}
-- **Certifications Achieved:** 4 out of 4 planned
-- **Compliance Rate:** 100%
-- **Stakeholder Engagement:** 25 sessions conducted
+${governanceLines}
 
 ## Recommendations
 1. Continue monitoring environmental metrics quarterly
@@ -668,14 +983,32 @@ This report template is ready for customization. Please add your content here.
 
   // Function to generate ESG report via API
   const generateESGReport = async () => {
-    setIsGeneratingESG(true);
+    if (!selectedProjectId) {
+      setProjectIdValidation({
+        status: "invalid",
+        message: "Select a project before generating a report.",
+      });
+      setMetricsError("Select a project to continue.");
+      return;
+    }
+
+    let metrics = projectMetrics;
+
+    if (!metrics || projectIdValidation.status !== "valid") {
+      metrics = await loadProjectMetrics(selectedProjectId);
+      if (!metrics) {
+        return;
+      }
+    }
+
     setEsgGenerationStatus({ type: null, message: "" });
+    setIsGeneratingESG(true);
 
     try {
       const response = await fetch("/api/esg/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: "verde-tower-project" }),
+        body: JSON.stringify({ projectId: selectedProjectId }),
       });
 
       const text = await response.text();
@@ -698,13 +1031,24 @@ This report template is ready for customization. Please add your content here.
 
       if (result.error) throw new Error(result.error);
 
+      const fuelDisplay = formatMetric(metrics.totalFuelUsed);
+      const electricityDisplay = formatMetric(
+        metrics.totalElectricityConsumption
+      );
+      const safetyDisplay =
+        metrics.averageSafetyTrir !== null
+          ? formatMetric(metrics.averageSafetyTrir)
+          : "N/A";
+      const materialDisplay = formatMetric(metrics.materialDeliveries, {
+        maximumFractionDigits: 0,
+      });
+
       const newReport = {
-        name: `ESG Environment Report - ${new Date().toLocaleDateString()}`,
+        name: `${metrics.projectName} ESG Report - ${new Date().toLocaleDateString()}`,
         type: "ESG Report",
         size: "2.1 MB",
         status: "Complete",
-        description:
-          "AI-generated ESG Environment Report with charts, tables, and compliance insights",
+        description: `Fuel Used: ${fuelDisplay} L • Electricity: ${electricityDisplay} kWh • Average Safety TRIR: ${safetyDisplay} • Material Deliveries: ${materialDisplay}`,
         fileName: result.pdfFileName,
         generatedAt: new Date().toISOString(),
       };
@@ -712,7 +1056,7 @@ This report template is ready for customization. Please add your content here.
       setGeneratedReports((prev) => [newReport, ...prev]);
       setEsgGenerationStatus({
         type: "success",
-        message: "ESG report generated successfully!",
+        message: `ESG report generated successfully for ${metrics.projectName}!`,
         fileName: result.pdfFileName,
       });
     } catch (error) {
@@ -1314,11 +1658,146 @@ This report template is ready for customization. Please add your content here.
                         <span>* AI-powered insights</span>
                         <span>* PDF export ready</span>
                       </div>
+                      <div className="mt-4 w-full max-w-sm">
+                        <label className="text-sm font-medium mb-2 block">
+                          Select Project
+                        </label>
+                        <Select
+                          value={selectedProjectId}
+                          onValueChange={(value) => {
+                            setSelectedProjectId(value);
+                            setProjectMetrics(null);
+                            setMetricsError(null);
+                            void loadProjectMetrics(value);
+                          }}
+                          disabled={
+                            projectsLoading ||
+                            isGeneratingESG ||
+                            availableProjects.length === 0
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                projectsLoading
+                                  ? "Loading projects..."
+                                  : availableProjects.length === 0
+                                  ? "No projects available"
+                                  : "Choose a project"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableProjects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {projectsError && (
+                          <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>{projectsError}</span>
+                          </div>
+                        )}
+                        {!projectsLoading &&
+                          !projectsError &&
+                          availableProjects.length === 0 && (
+                            <div className="mt-2 text-sm text-muted-foreground">
+                              No projects available yet.
+                            </div>
+                          )}
+                        {projectIdValidation.status !== "idle" && (
+                          <div
+                            className={`mt-2 flex items-center gap-2 text-sm ${
+                              projectIdValidation.status === "valid"
+                                ? "text-emerald-600"
+                                : projectIdValidation.status === "invalid"
+                                ? "text-red-600"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {projectIdValidation.status === "checking" && (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            )}
+                            {projectIdValidation.status === "valid" && (
+                              <CheckCircle className="h-4 w-4" />
+                            )}
+                            {projectIdValidation.status === "invalid" && (
+                              <AlertCircle className="h-4 w-4" />
+                            )}
+                            <span>{projectIdValidation.message}</span>
+                          </div>
+                        )}
+                        {metricsLoading && (
+                          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Loading project metrics...</span>
+                          </div>
+                        )}
+                        {!metricsLoading && metricsError && (
+                          <div className="mt-3 flex items-center gap-2 text-sm text-red-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>{metricsError}</span>
+                          </div>
+                        )}
+                        {projectMetrics && !metricsLoading && !metricsError && (
+                          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 text-sm dark:border-emerald-900/40 dark:bg-emerald-900/10">
+                            <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+                              {projectMetrics.projectName}
+                            </div>
+                            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <div className="text-muted-foreground">Fuel Used</div>
+                                <div className="font-medium">
+                                  {formatMetric(projectMetrics.totalFuelUsed)} L
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">
+                                  Electricity Consumption
+                                </div>
+                                <div className="font-medium">
+                                  {formatMetric(
+                                    projectMetrics.totalElectricityConsumption
+                                  )} kWh
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">
+                                  Average Safety TRIR
+                                </div>
+                                <div className="font-medium">
+                                  {projectMetrics.averageSafetyTrir !== null
+                                    ? formatMetric(projectMetrics.averageSafetyTrir)
+                                    : "N/A"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">
+                                  Material Deliveries
+                                </div>
+                                <div className="font-medium">
+                                  {formatMetric(projectMetrics.materialDeliveries, {
+                                    maximumFractionDigits: 0,
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col gap-3">
                       <Button
                         onClick={generateESGReport}
-                        disabled={isGeneratingESG}
+                        disabled={
+                          isGeneratingESG ||
+                          projectIdValidation.status === "checking" ||
+                          metricsLoading ||
+                          !selectedProjectId
+                        }
                         className="bg-emerald-500 hover:bg-emerald-600 text-white px-6"
                       >
                         {isGeneratingESG ? (
@@ -1354,7 +1833,12 @@ This report template is ready for customization. Please add your content here.
                             <div className="flex items-center gap-2 mt-2">
                               <Button
                                 onClick={generateESGReport}
-                                disabled={isGeneratingESG}
+                                disabled={
+                                  isGeneratingESG ||
+                                  projectIdValidation.status === "checking" ||
+                                  metricsLoading ||
+                                  !selectedProjectId
+                                }
                                 size="sm"
                                 variant="outline"
                                 className="text-xs h-7 border-red-300 hover:bg-red-50"
@@ -1398,7 +1882,9 @@ This report template is ready for customization. Please add your content here.
                             onClick={() => {
                               setSelectedReport(template);
                               setReportTitle(template.title);
-                              setReportContent(generateReportContent(template));
+                              setReportContent(
+                                generateReportContent(template, projectMetrics)
+                              );
                             }}
                           >
                             <div className="flex items-center gap-3 mb-2">

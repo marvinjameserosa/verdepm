@@ -3,214 +3,225 @@ import { createClient } from "@supabase/supabase-js";
 import { generateReport } from "@/lib/ai";
 import { PDFDocument, rgb, StandardFonts, PageSizes } from "pdf-lib";
 import {
-  EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER,
-  TRIR_STANDARD_HOURS,
+  EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER as EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER_CONST,
 } from "@/types/construction";
+
+const normalizeNumericValue = (value: unknown): number => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatCurrencyPHP = (value: number): string => {
+  return `PHP ${new Intl.NumberFormat("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)}`;
+};
 
 export async function POST(req: Request) {
   try {
     const { projectId } = await req.json();
+
+    if (!projectId || typeof projectId !== "string") {
+      return NextResponse.json(
+        { error: "Project ID is required." },
+        { status: 400 }
+      );
+    }
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Gather content from ESG files
+    const {
+      data: projectRecord,
+      error: projectError,
+    } = await supabase
+      .from("projects")
+      .select("project_name")
+      .eq("project_id", projectId)
+      .maybeSingle();
+
+    if (projectError) {
+      throw projectError;
+    }
+
+    if (!projectRecord) {
+      return NextResponse.json(
+        { error: "Project not found." },
+        { status: 404 }
+      );
+    }
+
     let allContent = "";
     const { data: files } = await supabase.storage.from("esg-files").list("");
 
     if (files) {
-      for (const f of files) {
+      for (const file of files) {
         const { data: fileBlob } = await supabase.storage
           .from("esg-files")
-          .download(f.name);
+          .download(file.name);
         if (fileBlob) {
           const rawText = await fileBlob.text();
-          allContent += `\n\n---FILE: ${f.name}---\n${rawText}`;
+          allContent += `\n\n---FILE: ${file.name}---\n${rawText}`;
         }
       }
     }
 
-    // Fetch daily logs
-    const { data: dailyLogs } = await supabase
-      .from("daily_log")
-      .select("*")
-      .eq("project_id", projectId);
+    const [dailyLogsResponse, monthlyLogsResponse, materialResponse] =
+      await Promise.all([
+        supabase
+          .from("daily_logs")
+          .select(
+            "timestamp, equipment_fuel_consumed, number_of_incidents"
+          )
+          .eq("project_id", projectId),
+        supabase
+          .from("monthly_logs")
+          .select(
+            "timestamp, electricity_consumption, water_consumption, total_waste_mass"
+          )
+          .eq("project_id", projectId),
+        supabase
+          .from("material")
+          .select("id, material_name, supplier, estimated_cost")
+          .eq("project_id", projectId),
+      ]);
 
-    // Fetch monthly logs
-    const { data: monthlyLogs } = await supabase
-      .from("monthly_logs")
-      .select("*")
-      .eq("project_id", projectId);
+    if (dailyLogsResponse.error) throw dailyLogsResponse.error;
+    if (monthlyLogsResponse.error) throw monthlyLogsResponse.error;
+    if (materialResponse.error) throw materialResponse.error;
 
-    // Initialize variables for calculations
-    let totalFuel = 0;
-    let totalElectricityEmissionsKg = 0;
-    let totalWater = 0;
-    let totalEquipmentEmissionsKg = 0;
-    let totalWaste = 0;
-    let safetyTrirSum = 0;
-    let safetyEntryCount = 0;
+    const dailyLogs = dailyLogsResponse.data ?? [];
+    const monthlyLogs = monthlyLogsResponse.data ?? [];
+    const materialRecords = materialResponse.data ?? [];
 
-    // Process daily logs
-    if (dailyLogs) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dailyLogs.forEach((d: any) => {
-        let fuel = 0;
-        let equipmentEmissions = 0;
-        let safetyTrir = 0;
-        let hasSafetyTrir = false;
+    const totalFuelUsed = dailyLogs.reduce((sum, log) => {
+      return sum + normalizeNumericValue(log.equipment_fuel_consumed);
+    }, 0);
 
-        if (typeof d.equipment_emissions === "number") {
-          equipmentEmissions = d.equipment_emissions;
-          fuel = equipmentEmissions / EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
-          if (
-            d.number_of_incidents !== null &&
-            d.total_employee_hours !== null &&
-            d.total_employee_hours > 0
-          ) {
-            safetyTrir =
-              (d.number_of_incidents * TRIR_STANDARD_HOURS) /
-              d.total_employee_hours;
-            hasSafetyTrir = true;
-          }
-        } else {
-          const emissions = d.equipment_emissions || {};
-          fuel = emissions.fuel_consumption_liters || 0;
-          equipmentEmissions = emissions.equipment_usage_tco2e || 0;
-          safetyTrir = emissions.safety_trir || 0;
-          if (
-            typeof emissions.safety_trir === "number" &&
-            Number.isFinite(emissions.safety_trir)
-          ) {
-            hasSafetyTrir = true;
-          }
+    const incidentValues = dailyLogs
+      .map((log) => {
+        if (
+          log.number_of_incidents === null ||
+          log.number_of_incidents === undefined
+        ) {
+          return null;
         }
+        return normalizeNumericValue(log.number_of_incidents);
+      })
+      .filter((value): value is number => value !== null);
 
-        totalFuel += fuel;
-        totalEquipmentEmissionsKg += equipmentEmissions;
-        if (hasSafetyTrir) {
-          safetyTrirSum += safetyTrir;
-          safetyEntryCount += 1;
-        }
-      });
+    const averageSafetyTrir =
+      incidentValues.length > 0
+        ? incidentValues.reduce((acc, value) => acc + value, 0) /
+          incidentValues.length
+        : null;
 
+    const totalSafetyIncidents = incidentValues.reduce(
+      (acc, value) => acc + value,
+      0
+    );
+
+    const totalElectricityConsumption = monthlyLogs.reduce((sum, log) => {
+      return sum + normalizeNumericValue(log.electricity_consumption);
+    }, 0);
+
+    const totalWater = monthlyLogs.reduce((sum, log) => {
+      return sum + normalizeNumericValue(log.water_consumption);
+    }, 0);
+
+    const totalWaste = monthlyLogs.reduce((sum, log) => {
+      return sum + normalizeNumericValue(log.total_waste_mass);
+    }, 0);
+
+    const materialDeliveries = materialRecords.length;
+
+    const materialSpend = materialRecords.reduce((sum, record) => {
+      return sum + normalizeNumericValue(record.estimated_cost);
+    }, 0);
+
+    const totalEquipmentEmissionsKg =
+      totalFuelUsed * EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER_CONST;
+
+    const supplierMap: Record<string, { count: number; spend: number }> = {};
+    materialRecords.forEach((record) => {
+      const supplierName = record.supplier || "Unknown Supplier";
+      if (!supplierMap[supplierName]) {
+        supplierMap[supplierName] = { count: 0, spend: 0 };
+      }
+      supplierMap[supplierName].count += 1;
+      supplierMap[supplierName].spend += normalizeNumericValue(
+        record.estimated_cost
+      );
+    });
+
+    if (dailyLogs.length > 0) {
       allContent +=
         "\n\n---Daily Logs---\n" +
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dailyLogs
-          .map((d: any) => {
-            let fuel = 0;
-            let equipmentEmissions = 0;
-            let safetyTrir = 0;
-
-            if (typeof d.equipment_emissions === "number") {
-              equipmentEmissions = d.equipment_emissions;
-              fuel =
-                equipmentEmissions / EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER;
-              if (
-                d.number_of_incidents !== null &&
-                d.total_employee_hours !== null &&
-                d.total_employee_hours > 0
-              ) {
-                safetyTrir =
-                  (d.number_of_incidents * TRIR_STANDARD_HOURS) /
-                  d.total_employee_hours;
-              }
-            } else {
-              const emissions = d.equipment_emissions || {};
-              fuel = emissions.fuel_consumption_liters || 0;
-              equipmentEmissions = emissions.equipment_usage_tco2e || 0;
-              safetyTrir = emissions.safety_trir || 0;
-            }
-            return `Date: ${d.timestamp}\nFuel: ${fuel}\nEquipment CO2e (kg): ${equipmentEmissions}\nSafety TRIR: ${safetyTrir}\nNotes: ${d.notes}`;
+          .map((log) => {
+            const fuel = normalizeNumericValue(log.equipment_fuel_consumed);
+            const incidents =
+              log.number_of_incidents === null ||
+              log.number_of_incidents === undefined
+                ? "N/A"
+                : normalizeNumericValue(log.number_of_incidents);
+            return `Date: ${log.timestamp}\nFuel Used: ${fuel}\nSafety Incidents: ${incidents}`;
           })
           .join("\n\n");
     }
 
-    // Process monthly logs
-    if (monthlyLogs) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      monthlyLogs.forEach((m: any) => {
-        totalElectricityEmissionsKg += m.scope_two || 0;
-        totalWater += m.water_consumption || 0;
-        totalWaste += m.total_waste_mass || 0;
-      });
-
+    if (monthlyLogs.length > 0) {
       allContent +=
         "\n\n---Monthly Resource Logs---\n" +
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         monthlyLogs
-          .map(
-            (m: any) =>
-              `Date: ${m.timestamp}\nElectricity: ${m.electricity_consumption}\nWater: ${m.water_consumption}\nTotal Waste Mass: ${m.total_waste_mass}`
-          )
+          .map((log) => {
+            const electricity = normalizeNumericValue(
+              log.electricity_consumption
+            );
+            const water = normalizeNumericValue(log.water_consumption);
+            const waste = normalizeNumericValue(log.total_waste_mass);
+            return `Date: ${log.timestamp}\nElectricity Consumption: ${electricity}\nWater Consumption: ${water}\nTotal Waste Mass: ${waste}`;
+          })
           .join("\n\n");
     }
 
-    // Fetch material logs
-    const { data: materialLogs } = await supabase
-      .from("construction_material_log")
-      .select("*")
-      .eq("project_id", projectId);
-
-    let materialSpend = 0;
-    let materialDeliveries = 0;
-    let totalDeliveryFuel = 0;
-    const supplierMap: Record<
-      string,
-      { count: number; spend: number; fuelUsed: number }
-    > = {};
-
-    if (materialLogs) {
-      materialDeliveries = materialLogs.length;
-      for (const m of materialLogs) {
-        materialSpend += m.total_cost || 0;
-        totalDeliveryFuel += m.delivery_fuel_used_liters || 0;
-
-        if (!supplierMap[m.actual_supplier]) {
-          supplierMap[m.actual_supplier] = { count: 0, spend: 0, fuelUsed: 0 };
-        }
-        supplierMap[m.actual_supplier].count += 1;
-        supplierMap[m.actual_supplier].spend += m.total_cost || 0;
-        supplierMap[m.actual_supplier].fuelUsed +=
-          m.delivery_fuel_used_liters || 0;
-      }
-
+    if (materialRecords.length > 0) {
       allContent +=
-        "\n\n---Material Logs---\n" +
-        materialLogs
-          .map(
-            (m: any) =>
-              `Material: ${m.material_type}\nQuantity: ${m.quantity_delivered}\nSupplier: ${m.actual_supplier}\nCost: $${m.total_cost}\nDelivery Date: ${m.delivery_date}`
-          )
+        "\n\n---Material Records---\n" +
+        materialRecords
+          .map((record) => {
+            const spend = normalizeNumericValue(record.estimated_cost);
+            return `Material: ${record.material_name ?? "N/A"}\nSupplier: ${
+              record.supplier ?? "Unknown Supplier"
+            }\nCost: ${formatCurrencyPHP(spend)}`;
+          })
           .join("\n\n");
     }
 
-    // Calculate averages and totals
-    const averageSafetyTrir =
-      safetyEntryCount > 0 ? safetyTrirSum / safetyEntryCount : 0;
-    const totalElectricity = totalElectricityEmissionsKg; // Assuming this is the electricity usage
-    const totalEquipmentHours = materialDeliveries * 2; // Rough estimate
-    const totalSafetyIncidents = safetyTrirSum;
-
-    // Add summary to content
     allContent += `\n\n---SUMMARY METRICS---
-- Total Fuel Used: ${totalFuel} liters
-- Total Electricity Usage: ${totalElectricity} kWh
-- Total Water Usage: ${totalWater} m3
-- Total Equipment Hours: ${totalEquipmentHours} hours
-- Total Waste Generated: ${totalWaste} kg
-- Safety Incidents: ${totalSafetyIncidents}
+- Project Name: ${projectRecord.project_name ?? projectId}
+- Total Fuel Used: ${totalFuelUsed.toFixed(2)} liters
+- Electricity Consumption: ${totalElectricityConsumption.toFixed(2)} kWh
+- Average Safety TRIR: ${
+      averageSafetyTrir !== null ? averageSafetyTrir.toFixed(2) : "N/A"
+    }
+- Total Safety Incidents: ${totalSafetyIncidents}
 - Material Deliveries: ${materialDeliveries}
-- Total Material Spend: $${materialSpend}
-- Total Delivery Fuel: ${totalDeliveryFuel} liters`;
+- Total Material Spend: ${formatCurrencyPHP(materialSpend)}
+- Water Consumption: ${totalWater.toFixed(2)} m3
+- Total Waste Generated: ${totalWaste.toFixed(2)} kg`;
 
-    // Generate AI report
     const esgReportText = await generateReport(allContent);
 
-    // Create PDF
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage(PageSizes.A4);
     const { width, height } = page.getSize();
@@ -219,17 +230,16 @@ export async function POST(req: Request) {
     const fontSize = 12;
     let y = height - 50;
 
-    // Helper function to sanitize text for PDF (remove Unicode characters that WinAnsi can't encode)
     const sanitizeTextForPDF = (text: string): string => {
       return text
-        .replace(/₂/g, "2") // Replace subscript 2 with regular 2
-        .replace(/₃/g, "3") // Replace subscript 3 with regular 3
-        .replace(/₁/g, "1") // Replace subscript 1 with regular 1
-        .replace(/°/g, " deg") // Replace degree symbol
-        .replace(/µ/g, "u") // Replace micro symbol
-        .replace(/²/g, "2") // Replace superscript 2
-        .replace(/³/g, "3") // Replace superscript 3
-        .replace(/[^\x00-\x7F]/g, "?"); // Replace any remaining non-ASCII characters with ?
+        .replace(/₂/g, "2")
+        .replace(/₃/g, "3")
+        .replace(/₁/g, "1")
+        .replace(/°/g, " deg")
+        .replace(/µ/g, "u")
+        .replace(/²/g, "2")
+        .replace(/³/g, "3")
+        .replace(/[^\x00-\x7F]/g, "?");
     };
 
     const drawText = (
@@ -242,7 +252,6 @@ export async function POST(req: Request) {
         y?: number;
       }
     ) => {
-      // Sanitize text before drawing
       const sanitizedText = sanitizeTextForPDF(text);
       page.drawText(sanitizedText, {
         x: options?.x || 50,
@@ -253,58 +262,55 @@ export async function POST(req: Request) {
       });
       y -= (options?.size || fontSize) + 5;
 
-      // Add new page if needed
       if (y < 50) {
         page = pdfDoc.addPage(PageSizes.A4);
         y = height - 50;
       }
     };
 
-    // Draw PDF content
-    drawText(`ESG Environment Report`, { font: fontBold, size: 18 });
-    drawText(`Project: ${projectId}`, { font: fontBold, size: 14 });
+    drawText("ESG Environment Report", { font: fontBold, size: 18 });
+    drawText(`Project: ${projectRecord.project_name ?? projectId}`, {
+      font: fontBold,
+      size: 14,
+    });
     drawText(`Generated: ${new Date().toLocaleDateString()}`, { size: 10 });
     y -= 20;
 
-    // Add metrics table
     const metrics = [
       ["Metric", "Value"],
-      ["Fuel Used", `${totalFuel} liters`],
+      ["Fuel Used", `${totalFuelUsed.toFixed(2)} liters`],
       [
-        "Electricity Emissions",
-        `${totalElectricityEmissionsKg.toFixed(2)} kg CO2e`,
+        "Electricity Consumption",
+        `${totalElectricityConsumption.toFixed(2)} kWh`,
       ],
       [
-        "Equipment Combustion",
+        "Equipment Combustion Emissions",
         `${totalEquipmentEmissionsKg.toFixed(2)} kg CO2e`,
       ],
       [
         "Average Safety TRIR",
-        safetyEntryCount > 0 ? averageSafetyTrir.toFixed(2) : "N/A",
+        averageSafetyTrir !== null ? averageSafetyTrir.toFixed(2) : "N/A",
       ],
-      ["Material Deliveries", `${materialDeliveries} records`],
-      ["Material Spend", `$${materialSpend.toLocaleString()}`],
-      [
-        "Total delivery fuel used",
-        `${totalDeliveryFuel.toLocaleString()} liters`,
-      ],
+      ["Total Safety Incidents", `${totalSafetyIncidents}`],
+      ["Material Deliveries", `${materialDeliveries}`],
+      ["Material Spend", formatCurrencyPHP(materialSpend)],
+      ["Water Consumption", `${totalWater.toFixed(2)} m3`],
+      ["Total Waste Generated", `${totalWaste.toFixed(2)} kg`],
     ];
 
     drawText("Key Metrics:", { font: fontBold, size: 14 });
     y -= 10;
 
-    // Draw table
     const tableX = 50;
     let tableY = y;
-    const colWidths = [200, 150];
+    const colWidths = [220, 180];
     const rowHeight = 20;
 
     metrics.forEach((row, rowIndex) => {
       row.forEach((cell, colIndex) => {
         const x =
           tableX + colWidths.slice(0, colIndex).reduce((a, b) => a + b, 0);
-        // Ensure cell is converted to string and sanitized for PDF
-        const cellText = sanitizeTextForPDF(String(cell || ""));
+        const cellText = sanitizeTextForPDF(String(cell ?? ""));
         page.drawText(cellText, {
           x,
           y: tableY,
@@ -317,21 +323,17 @@ export async function POST(req: Request) {
 
     y = tableY - 20;
 
-    // Add AI-generated content
     drawText("AI Analysis:", { font: fontBold, size: 14 });
 
-    // Split long text into lines
     const lines = esgReportText.split("\n");
     for (const line of lines) {
       if (line.trim()) {
-        // Handle long lines by wrapping
         const words = line.split(" ");
         let currentLine = "";
 
         for (const word of words) {
           const testLine = currentLine + (currentLine ? " " : "") + word;
           if (testLine.length > 70) {
-            // Approximate character limit per line
             if (currentLine) {
               drawText(currentLine);
             }
@@ -345,29 +347,26 @@ export async function POST(req: Request) {
           drawText(currentLine);
         }
       } else {
-        y -= 10; // Add spacing for empty lines
+        y -= 10;
       }
     }
 
-    // Add supplier information
     if (Object.keys(supplierMap).length > 0) {
       y -= 20;
       drawText("Supplier Summary:", { font: fontBold, size: 14 });
 
       Object.entries(supplierMap).forEach(([supplierName, info]) => {
         drawText(
-          `${supplierName}: ${
-            info.count
-          } deliveries • $${info.spend.toLocaleString()} • ${info.fuelUsed.toLocaleString()} L fuel`
+          `${supplierName}: ${info.count} deliveries • ${formatCurrencyPHP(
+            info.spend
+          )}`
         );
       });
     }
 
-    // Save PDF
     const pdfBytes = await pdfDoc.save();
     const fileName = `ESG_Report_${projectId}_${new Date().toISOString()}.pdf`;
 
-    // Upload to Supabase
     const { error: uploadError } = await supabase.storage
       .from("esg-reports")
       .upload(fileName, pdfBytes, {
@@ -381,7 +380,6 @@ export async function POST(req: Request) {
       throw new Error(`Failed to upload PDF: ${uploadError.message}`);
     }
 
-    // Save metadata
     await supabase.from("esg_report_metadata").insert({
       project_id: projectId,
       filename: fileName,
@@ -393,7 +391,6 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     console.error("Error generating ESG report:", error);
 
-    // Return specific error messages based on error type
     if (
       error instanceof Error &&
       error.message?.includes("AI service quota exceeded")
@@ -430,7 +427,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generic error for anything else
     return NextResponse.json(
       {
         error: "Failed to generate ESG report. Please try again later.",
