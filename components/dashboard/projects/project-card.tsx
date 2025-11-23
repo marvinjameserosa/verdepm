@@ -84,7 +84,7 @@ export function ProjectCard({ project, onRefresh }: ProjectCardProps) {
         <Card className="h-full glassmorphism card-hover border-l-4 border-l-primary overflow-hidden">
           {/* Decorative background element */}
           <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
-          
+
           <CardHeader className="relative pb-4 z-10">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -95,15 +95,9 @@ export function ProjectCard({ project, onRefresh }: ProjectCardProps) {
                   <CardTitle className="text-xl font-bold mb-1">
                     {project.name}
                   </CardTitle>
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5 font-medium">
-                    <span className="inline-flex items-center gap-1">
-                      <Hash className="h-3 w-3" />
-                      {project.slug}
-                    </span>
-                  </p>
                   {project.clientName ? (
                     <p className="text-sm text-muted-foreground mt-1.5 font-medium">
-                      {project.clientName}
+                      Client: {project.clientName}
                     </p>
                   ) : null}
                 </div>
