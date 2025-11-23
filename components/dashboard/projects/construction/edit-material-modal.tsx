@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { SourcedMaterial } from "@/types/construction";
 import { updateMaterialSourcing } from "@/actions/preconstruction/update-material";
-import { Loader2, Upload } from "lucide-react";
+import { FileText, Loader2, Upload } from "lucide-react";
 import { StorageService } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/client";
 
@@ -43,12 +43,14 @@ export function EditMaterialModal({
   const [formData, setFormData] = useState<Partial<SourcedMaterial>>({});
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [specSheetFile, setSpecSheetFile] = useState<File | null>(null);
+  const [isReplacingSpecSheet, setIsReplacingSpecSheet] = useState(false);
 
   useEffect(() => {
     if (material) {
       setFormData({ ...material });
       setReceiptFile(null);
       setSpecSheetFile(null);
+      setIsReplacingSpecSheet(false);
     }
   }, [material]);
 
@@ -253,33 +255,117 @@ export function EditMaterialModal({
           </div>
           <div className="space-y-2">
             <Label>Spec Sheet Upload</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="file"
-                accept=".pdf,.doc,.docx,image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setSpecSheetFile(file);
-                }}
-                className="text-sm"
-              />
-              {specSheetFile && (
-                <span className="text-xs text-emerald-600 font-medium">
-                  Selected: {specSheetFile.name}
-                </span>
-              )}
-            </div>
-            {formData.specSheetUrl && !specSheetFile && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Current spec sheet:{" "}
-                <a
-                  href={formData.specSheetUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+            {formData.specSheetUrl && !isReplacingSpecSheet && !specSheetFile ? (
+              <div className="rounded-md border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700">
+                      <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        Spec sheet on file
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {formData.specSheetPath?.split("/").pop() ?? "spec-sheet.pdf"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (formData.specSheetUrl) {
+                          window.open(formData.specSheetUrl, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsReplacingSpecSheet(true)}
+                    >
+                      Replace
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label
+                  htmlFor="specSheetUpload"
+                  className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-emerald-300/60 bg-emerald-50/60 px-4 py-3 text-sm font-medium text-emerald-700 transition-all hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100 dark:hover:border-emerald-700/70 dark:hover:bg-emerald-900/40"
                 >
-                  View
-                </a>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors group-hover:bg-emerald-500/20">
+                      <Upload className="h-4 w-4" />
+                    </span>
+                    <div className="flex flex-col gap-1 text-left">
+                      <span className="leading-none">Choose File</span>
+                      <span className="text-xs text-muted-foreground dark:text-emerald-100/70">
+                        PDF, DOC, DOCX, or Image · Max 10 MB
+                      </span>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 transition group-hover:bg-emerald-500/20">
+                    Browse
+                  </span>
+                </label>
+                <Input
+                  id="specSheetUpload"
+                  type="file"
+                  accept=".pdf,.doc,.docx,image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setSpecSheetFile(file);
+                    if (file) {
+                      setIsReplacingSpecSheet(true);
+                    }
+                  }}
+                />
+                {specSheetFile ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate" title={specSheetFile.name}>
+                        {specSheetFile.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-600 hover:bg-emerald-500/20 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
+                        onClick={() => {
+                          setSpecSheetFile(null);
+                        }}
+                      >
+                        Remove
+                      </button>
+                      {formData.specSheetUrl ? (
+                        <button
+                          type="button"
+                          className="rounded-full bg-gray-200/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                          onClick={() => {
+                            setSpecSheetFile(null);
+                            setIsReplacingSpecSheet(false);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Accepted formats: PDF, DOC, DOCX, JPG, PNG. Max size 10 MB.
+                  </p>
+                )}
               </div>
             )}
           </div>
