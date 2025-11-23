@@ -44,6 +44,7 @@ export function EditMaterialModal({
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [specSheetFile, setSpecSheetFile] = useState<File | null>(null);
   const [isReplacingSpecSheet, setIsReplacingSpecSheet] = useState(false);
+  const [isReplacingReceipt, setIsReplacingReceipt] = useState(false);
 
   useEffect(() => {
     if (material) {
@@ -51,6 +52,7 @@ export function EditMaterialModal({
       setReceiptFile(null);
       setSpecSheetFile(null);
       setIsReplacingSpecSheet(false);
+      setIsReplacingReceipt(false);
     }
   }, [material]);
 
@@ -371,33 +373,115 @@ export function EditMaterialModal({
           </div>
           <div className="space-y-2">
             <Label>Receipt Upload</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setReceiptFile(file);
-                }}
-                className="text-sm"
-              />
-              {receiptFile && (
-                <span className="text-xs text-emerald-600 font-medium">
-                  Selected: {receiptFile.name}
-                </span>
-              )}
-            </div>
-            {formData.receiptUrl && !receiptFile && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Current receipt:{" "}
-                <a
-                  href={formData.receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+            {formData.receiptUrl && !isReplacingReceipt && !receiptFile ? (
+              <div className="rounded-md border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700">
+                      <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        Receipt on file
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {formData.receiptPath?.split("/").pop() ?? "receipt.pdf"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (formData.receiptUrl) {
+                          window.open(formData.receiptUrl, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsReplacingReceipt(true)}
+                    >
+                      Replace
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label
+                  htmlFor="receiptUpload"
+                  className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-emerald-300/60 bg-emerald-50/60 px-4 py-3 text-sm font-medium text-emerald-700 transition-all hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100 dark:hover:border-emerald-700/70 dark:hover:bg-emerald-900/40"
                 >
-                  View
-                </a>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors group-hover:bg-emerald-500/20">
+                      <Upload className="h-4 w-4" />
+                    </span>
+                    <div className="flex flex-col gap-1 text-left">
+                      <span className="leading-none">Choose File</span>
+                      <span className="text-xs text-muted-foreground dark:text-emerald-100/70">
+                        PDF or Image · Max 10 MB
+                      </span>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 transition group-hover:bg-emerald-500/20">
+                    Browse
+                  </span>
+                </label>
+                <Input
+                  id="receiptUpload"
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setReceiptFile(file);
+                    if (file) {
+                      setIsReplacingReceipt(true);
+                    }
+                  }}
+                />
+                {receiptFile ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate" title={receiptFile.name}>
+                        {receiptFile.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-600 hover:bg-emerald-500/20 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
+                        onClick={() => setReceiptFile(null)}
+                      >
+                        Remove
+                      </button>
+                      {formData.receiptUrl ? (
+                        <button
+                          type="button"
+                          className="rounded-full bg-gray-200/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                          onClick={() => {
+                            setReceiptFile(null);
+                            setIsReplacingReceipt(false);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Accepted formats: PDF, JPG, PNG. Max size 10 MB.
+                  </p>
+                )}
               </div>
             )}
           </div>
