@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GanttChartSquare, Layers, Target } from "lucide-react";
 import Step1ProjectSetup from "./preconstruction/step1-project-setup";
 import Step2TargetSetting from "./preconstruction/step2-target-setting";
 import Step3MaterialSourcing from "./preconstruction/step3-material-sourcing";
@@ -70,6 +71,21 @@ import {
 } from "@/lib/preconstruction";
 import { StepIndicator } from "./preconstruction/step-indicator";
 import { uploadProjectFile } from "@/actions/preconstruction/storage";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+type ConfirmationVariant =
+  | "step1Save"
+  | "step1Next"
+  | "step2Save"
+  | "step3Add"
+  | "step3Update";
 
 export function PreConstructionPhase({
   project,
@@ -101,6 +117,11 @@ export function PreConstructionPhase({
   const [, setSubmittedForApprovalAt] = useState<string | null>(null);
   const supportsSubmittedAtColumn = false;
   const supportsApprovalStatusColumn = false;
+  const [confirmationVariant, setConfirmationVariant] =
+    useState<ConfirmationVariant | null>(null);
+  const [modalContext, setModalContext] = useState<{ materialName?: string }>({});
+  const [pendingStepAction, setPendingStepAction] =
+    useState<(() => void) | null>(null);
 
   const columnMapRef = useRef<ColumnMapping>(buildDefaultColumnMapping());
   const columnTypesRef = useRef<Record<string, Record<string, string>>>({});
@@ -239,11 +260,24 @@ export function PreConstructionPhase({
 
   const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, 4)), []);
   const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
+  const handleModalClose = useCallback(() => {
+    setConfirmationVariant(null);
+    setModalContext({});
+    setPendingStepAction(null);
+  }, []);
+
+  const handleModalConfirm = useCallback(() => {
+    if (confirmationVariant === "step1Next" && pendingStepAction) {
+      pendingStepAction();
+    }
+    handleModalClose();
+  }, [confirmationVariant, pendingStepAction, handleModalClose]);
 
   const resetFeedback = useCallback(() => {
     setErrorMessage(null);
     setSuccessMessage(null);
-  }, []);
+    handleModalClose();
+  }, [handleModalClose]);
 
   const loadData = useCallback(async () => {
     if (!project?.id) {
@@ -465,7 +499,9 @@ export function PreConstructionPhase({
           id: recordId,
         });
 
-        setSuccessMessage("Targets saved successfully.");
+        setModalContext({});
+        setPendingStepAction(null);
+        setConfirmationVariant("step2Save");
       } catch (error) {
         console.error("Failed to save targets", error);
         setErrorMessage(
@@ -667,9 +703,13 @@ export function PreConstructionPhase({
           documentPaths: nextDocPaths,
         });
 
-        setSuccessMessage("Project details saved.");
+        setModalContext({});
         if (goToNext) {
-          nextStep();
+          setPendingStepAction(() => nextStep);
+          setConfirmationVariant("step1Next");
+        } else {
+          setPendingStepAction(null);
+          setConfirmationVariant("step1Save");
         }
       } catch (error) {
         console.error("Failed to save project setup", error);
@@ -801,6 +841,7 @@ export function PreConstructionPhase({
       setIsSavingMaterial(true);
 
       try {
+        const savedMaterialName = material.name;
         const parsedCost = Number(material.cost);
         if (!Number.isFinite(parsedCost)) {
           throw new Error("Budgeted cost must be a number.");
@@ -901,6 +942,10 @@ export function PreConstructionPhase({
             },
           ]);
         }
+
+        setModalContext({ materialName: savedMaterialName });
+        setPendingStepAction(null);
+        setConfirmationVariant(materialId ? "step3Update" : "step3Add");
       } catch (error) {
         if (isMissingRelationError(error)) {
           console.warn(
@@ -971,6 +1016,83 @@ export function PreConstructionPhase({
     [step1Values]
   );
 
+  const modalPresentation = useMemo(() => {
+    if (!confirmationVariant) {
+      return null;
+    }
+
+    const iconWrapperClass =
+      "mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200";
+    const materialName = modalContext.materialName;
+
+    switch (confirmationVariant) {
+      case "step1Save":
+        return {
+          title: "Project details saved",
+          description:
+            "Your setup is stored. You can revisit Step 1 any time without losing progress.",
+          buttonLabel: "Close",
+          icon: (
+            <div className={iconWrapperClass}>
+              <GanttChartSquare className="h-6 w-6" />
+            </div>
+          ),
+        };
+      case "step1Next":
+        return {
+          title: "Step 1 complete",
+          description:
+            "Project details are locked in. Continue to Step 2 to define ESG targets.",
+          buttonLabel: "Continue to Step 2",
+          icon: (
+            <div className={iconWrapperClass}>
+              <GanttChartSquare className="h-6 w-6" />
+            </div>
+          ),
+        };
+      case "step2Save":
+        return {
+          title: "Targets saved",
+          description:
+            "Your emissions and safety targets are now tracked for this project.",
+          buttonLabel: "Close",
+          icon: (
+            <div className={iconWrapperClass}>
+              <Target className="h-6 w-6" />
+            </div>
+          ),
+        };
+      case "step3Add":
+        return {
+          title: "Material added",
+          description: materialName
+            ? `${materialName} is now part of the sourcing plan.`
+            : "Material saved to the sourcing plan.",
+          buttonLabel: "Close",
+          icon: (
+            <div className={iconWrapperClass}>
+              <Layers className="h-6 w-6" />
+            </div>
+          ),
+        };
+      case "step3Update":
+        return {
+          title: "Material updated",
+          description: materialName
+            ? `${materialName} has been refreshed with the latest details.`
+            : "Material details updated successfully.",
+          buttonLabel: "Close",
+          icon: (
+            <div className={iconWrapperClass}>
+              <Layers className="h-6 w-6" />
+            </div>
+          ),
+        };
+      default:
+        return null;
+    }
+  }, [confirmationVariant, modalContext.materialName]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
@@ -982,7 +1104,8 @@ export function PreConstructionPhase({
   const activeStep = STEP_DEFINITIONS.find((item) => item.id === step);
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {errorMessage && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {errorMessage}
@@ -1091,7 +1214,39 @@ export function PreConstructionPhase({
           )}
         </div>
       </div>
-    </div>
+      </div>
+
+      <Dialog
+        open={Boolean(confirmationVariant)}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleModalClose();
+          }
+        }}
+      >
+        {modalPresentation ? (
+          <DialogContent
+            showCloseButton={false}
+            className="sm:max-w-md backdrop-blur-xl bg-white/90 dark:bg-gray-900/80 border border-white/40 shadow-2xl"
+          >
+            <DialogHeader className="space-y-3 text-center">
+              {modalPresentation.icon}
+              <DialogTitle className="text-lg font-semibold">
+                {modalPresentation.title}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                {modalPresentation.description}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="pt-2 flex justify-center">
+              <Button onClick={handleModalConfirm} className="px-6">
+                {modalPresentation.buttonLabel}
+              </Button>
+            </div>
+          </DialogContent>
+        ) : null}
+      </Dialog>
+    </>
   );
 }
 

@@ -8,6 +8,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -81,9 +82,17 @@ export function WasteEmissionsCard({
     <Card className="glassmorphism card-hover border-l-4 border-l-chart-3">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div>
-          <CardTitle className="text-lg font-bold text-chart-3">
-            Waste Management Summary
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg font-bold text-chart-3">
+              Waste Management Summary
+            </CardTitle>
+            <Badge
+              variant="outline"
+              className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-200"
+            >
+              Scope 3
+            </Badge>
+          </div>
           <CardDescription className="mt-1">
             Break down monthly waste streams and treatment methods to compute
             emissions.

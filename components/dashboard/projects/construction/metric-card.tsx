@@ -1,7 +1,8 @@
-import { Card, CardContent, CardHeader, CardTitle } from"@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Target, Save, Eye } from "lucide-react";
 import {
   Dialog,
@@ -11,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
   icon: React.ReactNode;
@@ -26,6 +28,8 @@ interface MetricCardProps {
   isSaving?: boolean;
   history?: any[];
   metricType?: "electricity" | "water";
+  categoryTag?: string;
+  categoryClassName?: string;
 }
 
 export function MetricCard({
@@ -42,15 +46,32 @@ export function MetricCard({
   isSaving = false,
   history,
   metricType,
+  categoryTag,
+  categoryClassName,
 }: MetricCardProps) {
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
 
   return (
     <Card className="glassmorphism card-hover border-l-4 border-l-chart-2">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-bold text-chart-2">
-          {title}
-        </CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg font-bold text-chart-2">
+              {title}
+            </CardTitle>
+            {categoryTag ? (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/50 dark:bg-slate-500/10 dark:text-slate-200",
+                  categoryClassName
+                )}
+              >
+                {categoryTag}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
         <div className="p-2 rounded-lg bg-chart-2/10">
           {icon}
         </div>

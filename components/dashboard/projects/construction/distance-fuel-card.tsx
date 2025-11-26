@@ -8,6 +8,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Construction, ShieldAlert, Target, Save, Eye } from "lucide-react";
 import { EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER } from "@/types/construction";
 import { EquipmentEntry } from "@/types/construction";
@@ -113,9 +114,19 @@ export function DistanceFuelCard({
       <CardContent className="space-y-6">
         {/* Equipment Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
-            Equipment Emissions
-          </h3>
+          <div className="border-b border-border pb-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                Equipment Emissions
+              </h3>
+              <Badge
+                variant="outline"
+                className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:text-emerald-200"
+              >
+                Scope 1
+              </Badge>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div className="space-y-2 md:col-span-2">
@@ -232,15 +243,25 @@ export function DistanceFuelCard({
 
         {/* Safety Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
-            <span>Safety Performance (TRIR)</span>
+          <div className="border-b border-border pb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                Safety Performance (TRIR)
+              </h3>
+              <Badge
+                variant="outline"
+                className="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/50 dark:bg-rose-500/10 dark:text-rose-200"
+              >
+                Social
+              </Badge>
+            </div>
             <div className="flex items-center text-xs text-muted-foreground font-normal">
               <Target className="h-3 w-3 mr-1" />
               <span>
                 Goal: {safetyTarget.goal} ({safetyTarget.metric})
               </span>
             </div>
-          </h3>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">

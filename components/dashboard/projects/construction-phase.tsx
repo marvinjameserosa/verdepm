@@ -644,6 +644,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       title: "Electricity Usage",
       unit: "kWh",
       relatedTarget: preConstructionTargets.emissions,
+      categoryTag: "Scope 2",
+      categoryClassName:
+        "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/50 dark:bg-sky-500/10 dark:text-sky-200",
     },
     {
       id: "water",
@@ -651,6 +654,9 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
       title: "Water Consumption",
       unit: "m³",
       relatedTarget: preConstructionTargets.water,
+      categoryTag: "Scope 3",
+      categoryClassName:
+        "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-200",
     },
   ] as const;
 
@@ -790,6 +796,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
                       isElectricity || isWater ? "Total CO₂e (kg):" : undefined
                     }
                     secondaryValue={secondaryValue}
+                    categoryTag={metric.categoryTag}
+                    categoryClassName={metric.categoryClassName}
                   />
                 );
               })}

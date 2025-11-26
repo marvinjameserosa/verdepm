@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Fuel, Loader2, Truck, MapPin, Save } from "lucide-react";
 import type { DeliveryRouteMapProps } from "@/components/dashboard/projects/delivery-route-map";
 import { SourcedMaterial } from "@/types/construction";
@@ -160,6 +168,7 @@ export function DeliveryRouteSection({
   );
   const [deliveryStatus, setDeliveryStatus] = useState<string>("Pending");
   const [isUpdatingMaterial, setIsUpdatingMaterial] = useState(false);
+  const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
 
   const { logisticsCo2 } = useScopeOneCalculator({
     distance: parseFloat(distanceValue) || 0,
@@ -182,6 +191,7 @@ export function DeliveryRouteSection({
       if (result.success) {
         if (onMaterialUpdate) onMaterialUpdate();
         if (onSuccess) onSuccess("Material delivery details updated successfully.");
+        setShowUpdateSuccess(true);
       } else {
         if (onError) onError(result.error || "Failed to update material.");
       }
@@ -189,6 +199,7 @@ export function DeliveryRouteSection({
       console.error(e);
       if (onError) onError("An unexpected error occurred.");
     } finally {
+      setIsUpdatingMaterial(false);
     }
   };
 
@@ -213,9 +224,10 @@ export function DeliveryRouteSection({
   };
 
   return (
-    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
-      <CardHeader>
-        <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+    <>
+      <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/30 rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
           <Truck className="h-4 w-4" />
           Logistics & Route Fuel Planning
         </CardTitle>
@@ -224,7 +236,7 @@ export function DeliveryRouteSection({
           consumption for your daily log.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+        <CardContent className="space-y-6">
         {/* Material Selection Section */}
         <div className="space-y-2">
           <Label>Quick Fill from Sourcing Plan</Label>
@@ -417,7 +429,15 @@ export function DeliveryRouteSection({
 
           {/* Calculated Fuel */}
           <div className="space-y-2">
-            <Label>Total Fuel (Liters)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Total Fuel (Liters)</Label>
+              <Badge
+                variant="outline"
+                className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:text-emerald-200"
+              >
+                Scope 1
+              </Badge>
+            </div>
             <div className="flex gap-2">
               <Input
                 value={
@@ -454,7 +474,30 @@ export function DeliveryRouteSection({
             </p>
           </div>
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showUpdateSuccess} onOpenChange={setShowUpdateSuccess}>
+        <DialogContent
+          showCloseButton={false}
+          className="sm:max-w-md backdrop-blur-xl bg-white/90 dark:bg-gray-900/80 border border-white/40 shadow-2xl"
+        >
+          <DialogHeader className="space-y-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+              <Save className="h-6 w-6" />
+            </div>
+            <DialogTitle>Material Updated</DialogTitle>
+            <DialogDescription className="text-sm">
+              Material delivery details were saved successfully.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="pt-2 flex justify-center">
+            <Button onClick={() => setShowUpdateSuccess(false)} className="px-6">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
