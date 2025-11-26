@@ -11,7 +11,6 @@ import { type Material, type MaterialStatus } from "./preconstruction/types";
 import type { Project } from "@/types/project";
 import {
   type DocumentKey,
-  type ExistingFileState,
   type Step1FormValues,
 } from "@/types/forms";
 import {
@@ -25,25 +24,18 @@ import {
 } from "@/actions/preconstruction/setup";
 import { saveSimplifiedTargets } from "@/actions/preconstruction/save-targets";
 import {
-  saveTarget,
-  saveProjectTarget,
-} from "@/actions/preconstruction/targets";
-import {
   addMaterialSourcing,
   deleteMaterialSourcing,
 } from "@/actions/preconstruction/material-sourcing";
 import { updateMaterialSourcing } from "@/actions/preconstruction/update-material";
 import {
   type TargetSectionKey,
-  type TargetSectionValuesMap,
   type PreConstructionPhaseProps,
   type Step1InitialValues,
   type DocumentPathMap,
   type ColumnMapping,
   type SectionConfig,
-  type ColumnDescriptor,
   type ColumnInfo,
-  type ProjectEsgTargets,
   type ProjectTargets,
 } from "@/types/preconstruction";
 import { isMissingRelationError } from "@/lib/supabase/errors";
@@ -52,22 +44,9 @@ import {
   getDefaultStep1Values,
   buildDefaultColumnMapping,
   selectColumnName,
-  isMissingColumnError,
-  isForeignKeyTimeframeError,
-  getErrorMessage,
-  toStringOrEmpty,
-  hasAnyValue,
-  normalizeDateInput,
-  formatDateForInput,
-  parseNumeric,
-  generateSlug,
-  buildSlugFallback,
   STEP_DEFINITIONS,
   TARGET_SECTION_CONFIG,
-  MISSING_TABLE_MESSAGES,
   DEFAULT_STEP1_VALUES,
-  FIXED_EMISSION_FACTOR,
-  FIXED_EMISSION_FACTOR_STRING,
 } from "@/lib/preconstruction";
 import { StepIndicator } from "./preconstruction/step-indicator";
 import { uploadProjectFile } from "@/actions/preconstruction/storage";
@@ -87,10 +66,25 @@ type ConfirmationVariant =
   | "step3Add"
   | "step3Update";
 
+type MaterialRecord = {
+  id: string;
+  material_category: string;
+  supplier: string;
+  material_name: string;
+  warehouse: string | null;
+  estimated_cost: number | null;
+  unit: string | null;
+  sustainability_credentials: string | null;
+  supplier_vetting_notes: string | null;
+  spec_sheet_path: string | null;
+  spec_sheet_url: string | null;
+  vetting: MaterialStatus;
+  delivery_status: string | null;
+};
+
 export function PreConstructionPhase({
   project,
   onProjectUpdated,
-  step2ReadOnly,
 }: PreConstructionPhaseProps) {
   const [projectDetails, setProjectDetails] = useState<Project | null>(
     project ?? null
@@ -199,60 +193,9 @@ export function PreConstructionPhase({
     await metadataPromiseRef.current;
   }, [loadTargetColumnMetadata]);
 
-  const registerColumnsFromRecord = useCallback(
-    (section: TargetSectionKey, record: Record<string, unknown>) => {
-      const config = TARGET_SECTION_CONFIG[section];
-      if (!config) {
-        return;
-      }
-
-      const keys = Object.keys(record);
-      if (keys.length === 0) {
-        return;
-      }
-
-      const available: ColumnInfo[] = keys.map((name) => ({
-        name,
-        lower: name.toLowerCase(),
-      }));
-
-      const mapping = { ...columnMapRef.current[section] };
-      for (const [canonicalKey, candidates] of Object.entries(
-        config.candidates
-      )) {
-        const heuristics = config.heuristics?.[canonicalKey];
-        mapping[canonicalKey] = selectColumnName(
-          available,
-          candidates,
-          heuristics
-        );
-      }
-      columnMapRef.current[section] = mapping;
-    },
-    []
-  );
-
-  const buildPayloadForSection = useCallback(
-    (section: TargetSectionKey, canonicalValues: Record<string, unknown>) => {
-      const mapping = columnMapRef.current[section];
-      const payload: Record<string, unknown> = {};
-
-      for (const [canonicalKey, value] of Object.entries(canonicalValues)) {
-        if (value === undefined) {
-          continue;
-        }
-        const columnName = mapping?.[canonicalKey] ?? canonicalKey;
-        payload[columnName] = value;
-      }
-
-      return payload;
-    },
-    []
-  );
-
   useEffect(() => {
     setProjectDetails(project ?? null);
-  }, [project, registerColumnsFromRecord]);
+  }, [project]);
 
   useEffect(() => {
     void ensureColumnMetadataLoaded();
@@ -296,9 +239,8 @@ export function PreConstructionPhase({
     try {
       const {
         user,
-        setup,
-        materials,
-        targets,
+        materials: rawMaterials,
+        targets: fetchedTargets,
         project: fetchedProject,
       } = await getPreconstructionData(project.id);
 
@@ -354,7 +296,10 @@ export function PreConstructionPhase({
         },
       });
 
-      const mappedMaterials: Material[] = materials.map((materialRow: any) => ({
+      const fetchedMaterials = rawMaterials as MaterialRecord[];
+
+      const mappedMaterials: Material[] = fetchedMaterials.map(
+        (materialRow) => ({
         id: materialRow.id,
         category: materialRow.material_category,
         name: materialRow.material_name,
@@ -371,11 +316,12 @@ export function PreConstructionPhase({
         warehouse: materialRow.warehouse ?? undefined,
         specSheetPath: materialRow.spec_sheet_path ?? undefined,
         specSheetUrl: materialRow.spec_sheet_url ?? undefined,
-      }));
+        })
+      );
       setMaterials(mappedMaterials);
 
-      if (targets) {
-        setTargets(targets);
+      if (fetchedTargets) {
+        setTargets(fetchedTargets);
       } else {
         setTargets(null);
       }
@@ -403,7 +349,7 @@ export function PreConstructionPhase({
             if (parsed.message) {
               message = parsed.message;
             }
-          } catch (e) {
+          } catch {
             // ignore parse error
           }
         }
@@ -417,7 +363,7 @@ export function PreConstructionPhase({
     } finally {
       setIsLoading(false);
     }
-  }, [project, registerColumnsFromRecord]);
+  }, [project]);
 
   useEffect(() => {
     loadData();
@@ -877,7 +823,7 @@ export function PreConstructionPhase({
           }
         }
 
-        let data: any;
+        let data: MaterialRecord;
         if (materialId) {
           data = await updateMaterialSourcing(materialId, projectId, {
             ...material,
