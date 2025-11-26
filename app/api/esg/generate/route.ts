@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generateReport } from "@/lib/ai";
-import { PDFDocument, rgb, StandardFonts, PageSizes } from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts, PageSizes, PDFPage } from "pdf-lib";
 import {
   EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER as EQUIPMENT_EMISSION_FACTOR_KG_PER_LITER_CONST,
 } from "@/types/construction";
@@ -222,13 +222,108 @@ export async function POST(req: Request) {
 
     const esgReportText = await generateReport(allContent);
 
+    const formatNumber = (
+      value: number,
+      options?: Intl.NumberFormatOptions
+    ): string => {
+      return new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+        ...options,
+      }).format(value);
+    };
+
+    const fuelDisplay = `${formatNumber(totalFuelUsed)} liters`;
+    const electricityDisplay = `${formatNumber(
+      totalElectricityConsumption
+    )} kWh`;
+    const waterDisplay = `${formatNumber(totalWater)} m3`;
+    const wasteDisplay = `${formatNumber(totalWaste)} kg`;
+    const emissionsDisplay = `${formatNumber(
+      totalEquipmentEmissionsKg
+    )} kg CO2e`;
+    const safetyTrirDisplay =
+      averageSafetyTrir !== null
+        ? formatNumber(averageSafetyTrir)
+        : "N/A";
+    const incidentsDisplay = formatNumber(totalSafetyIncidents, {
+      maximumFractionDigits: 0,
+    });
+    const deliveriesDisplay = formatNumber(materialDeliveries, {
+      maximumFractionDigits: 0,
+    });
+
+    const summarySentences: string[] = [
+      `The ${projectRecord.project_name ?? projectId} project recorded ${fuelDisplay} of fuel use, ${electricityDisplay} of electricity, and ${waterDisplay} of water consumption during the reporting period.`,
+      `Equipment combustion resulted in ${emissionsDisplay}, while construction activities generated ${wasteDisplay} of total waste across ${deliveriesDisplay} material deliveries.`,
+    ];
+    if (averageSafetyTrir !== null) {
+      summarySentences.push(
+        `Safety performance reflected an average TRIR of ${safetyTrirDisplay} across ${incidentsDisplay} recorded incidents.`
+      );
+    } else {
+      summarySentences.push(
+        "Safety incidents were not recorded for this period; confirm logging of hours to enable TRIR calculations."
+      );
+    }
+
+    const environmentalHighlights = [
+      `Equipment fuel consumption totaled ${fuelDisplay}, translating to ${emissionsDisplay}.`,
+      `Electrical usage reached ${electricityDisplay} with water demand of ${waterDisplay}.`,
+      `Construction activities generated ${wasteDisplay} of waste supported by ${deliveriesDisplay} material deliveries.`,
+    ];
+
+    const safetyHighlights =
+      averageSafetyTrir !== null
+        ? [
+            `Average TRIR registered at ${safetyTrirDisplay} with ${incidentsDisplay} incidents logged.`,
+            "Continue monitoring workforce exposure hours and near-miss reporting to sustain performance.",
+          ]
+        : [
+            "No TRIR data was captured for the selected period.",
+            "Verify daily logs include employee hours to calculate TRIR accurately.",
+          ];
+
+    const supplierEntries = Object.entries(supplierMap).sort(
+      (a, b) => b[1].spend - a[1].spend
+    );
+    const uniqueSuppliers = supplierEntries.length;
+    const supplierHighlights = supplierEntries.length
+      ? [
+          `${uniqueSuppliers} active suppliers completed ${deliveriesDisplay} deliveries supporting site activities.`,
+          `Top supplier ${supplierEntries[0][0]} managed ${supplierEntries[0][1].count} deliveries totaling ${formatCurrencyPHP(
+            supplierEntries[0][1].spend
+          )}.`,
+        ]
+      : ["No supplier deliveries were recorded for the selected period."];
+
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage(PageSizes.A4);
-    const { width, height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const fontSize = 12;
-    let y = height - 50;
+
+    const HEADER_HEIGHT = 68;
+    const FOOTER_HEIGHT = 36;
+    const PAGE_MARGIN_X = 50;
+    const BODY_FONT_SIZE = 10;
+    const SECTION_FONT_SIZE = 14;
+    const TITLE_FONT_SIZE = 20;
+    const CELL_HORIZONTAL_PADDING = 14;
+
+    const primaryColor = rgb(0.11, 0.45, 0.34);
+    const accentColor = rgb(0.17, 0.63, 0.44);
+    const borderColor = rgb(0.78, 0.88, 0.83);
+    const tableHeaderFill = rgb(0.84, 0.93, 0.89);
+    const tableAltFill = rgb(0.96, 0.98, 0.97);
+    const textColor = rgb(0.15, 0.18, 0.2);
+    const mutedTextColor = rgb(0.43, 0.47, 0.5);
+
+    let currentPage: PDFPage;
+    let pageWidth = 0;
+    let pageHeight = 0;
+    let currentY = 0;
+    let pageNumber = 0;
+
+    const generatedDateLabel = new Date().toLocaleDateString();
 
     const sanitizeTextForPDF = (text: string): string => {
       return text
@@ -242,127 +337,350 @@ export async function POST(req: Request) {
         .replace(/[^\x00-\x7F]/g, "?");
     };
 
-    const drawText = (
-      text: string,
-      options?: {
-        font?: typeof font;
-        size?: number;
-        color?: ReturnType<typeof rgb>;
-        x?: number;
-        y?: number;
-      }
-    ) => {
-      const sanitizedText = sanitizeTextForPDF(text);
-      page.drawText(sanitizedText, {
-        x: options?.x || 50,
-        y: options?.y ?? y,
-        size: options?.size || fontSize,
-        font: options?.font || font,
-        color: options?.color || rgb(0, 0, 0),
+    const drawHeader = (pageRef: PDFPage) => {
+      pageRef.drawRectangle({
+        x: 0,
+        y: pageHeight - HEADER_HEIGHT,
+        width: pageWidth,
+        height: HEADER_HEIGHT,
+        color: primaryColor,
       });
-      y -= (options?.size || fontSize) + 5;
+      pageRef.drawText("ESG Performance Report", {
+        x: PAGE_MARGIN_X,
+        y: pageHeight - HEADER_HEIGHT + 34,
+        size: TITLE_FONT_SIZE,
+        font: fontBold,
+        color: rgb(1, 1, 1),
+      });
+      pageRef.drawText(
+        sanitizeTextForPDF(projectRecord.project_name ?? projectId),
+        {
+          x: PAGE_MARGIN_X,
+          y: pageHeight - HEADER_HEIGHT + 16,
+          size: 11,
+          font,
+          color: rgb(0.9, 0.95, 0.92),
+        }
+      );
+      pageRef.drawText("VerdePM ESG Analytics", {
+        x: PAGE_MARGIN_X,
+        y: pageHeight - HEADER_HEIGHT + 2,
+        size: 8,
+        font,
+        color: rgb(0.85, 0.93, 0.9),
+      });
+    };
 
-      if (y < 50) {
-        page = pdfDoc.addPage(PageSizes.A4);
-        y = height - 50;
+    const drawFooter = (pageRef: PDFPage) => {
+      pageRef.drawLine({
+        start: { x: PAGE_MARGIN_X, y: FOOTER_HEIGHT },
+        end: { x: pageWidth - PAGE_MARGIN_X, y: FOOTER_HEIGHT },
+        thickness: 0.6,
+        color: borderColor,
+      });
+      pageRef.drawText("Generated by VerdePM", {
+        x: PAGE_MARGIN_X,
+        y: FOOTER_HEIGHT - 18,
+        size: 9,
+        font,
+        color: mutedTextColor,
+      });
+      const footerLabel = `Generated ${generatedDateLabel}  •  Page ${pageNumber}`;
+      const footerWidth = font.widthOfTextAtSize(footerLabel, 9);
+      pageRef.drawText(footerLabel, {
+        x: pageWidth - PAGE_MARGIN_X - footerWidth,
+        y: FOOTER_HEIGHT - 18,
+        size: 9,
+        font,
+        color: mutedTextColor,
+      });
+    };
+
+    const addNewPage = () => {
+      pageNumber += 1;
+      currentPage = pdfDoc.addPage(PageSizes.A4);
+      const size = currentPage.getSize();
+      pageWidth = size.width;
+      pageHeight = size.height;
+      drawHeader(currentPage);
+      drawFooter(currentPage);
+      currentY = pageHeight - HEADER_HEIGHT - 30;
+    };
+
+    const ensureSpace = (required: number) => {
+      if (currentY - required < FOOTER_HEIGHT + 24) {
+        addNewPage();
       }
     };
 
-    drawText("ESG Environment Report", { font: fontBold, size: 18 });
-    drawText(`Project: ${projectRecord.project_name ?? projectId}`, {
-      font: fontBold,
-      size: 14,
-    });
-    drawText(`Generated: ${new Date().toLocaleDateString()}`, { size: 10 });
-    y -= 20;
-
-    const metrics = [
-      ["Metric", "Value"],
-      ["Fuel Used", `${totalFuelUsed.toFixed(2)} liters`],
-      [
-        "Electricity Consumption",
-        `${totalElectricityConsumption.toFixed(2)} kWh`,
-      ],
-      [
-        "Equipment Combustion Emissions",
-        `${totalEquipmentEmissionsKg.toFixed(2)} kg CO2e`,
-      ],
-      [
-        "Average Safety TRIR",
-        averageSafetyTrir !== null ? averageSafetyTrir.toFixed(2) : "N/A",
-      ],
-      ["Total Safety Incidents", `${totalSafetyIncidents}`],
-      ["Material Deliveries", `${materialDeliveries}`],
-      ["Material Spend", formatCurrencyPHP(materialSpend)],
-      ["Water Consumption", `${totalWater.toFixed(2)} m3`],
-      ["Total Waste Generated", `${totalWaste.toFixed(2)} kg`],
-    ];
-
-    drawText("Key Metrics:", { font: fontBold, size: 14 });
-    y -= 10;
-
-    const tableX = 50;
-    let tableY = y;
-    const colWidths = [220, 180];
-    const rowHeight = 20;
-
-    metrics.forEach((row, rowIndex) => {
-      row.forEach((cell, colIndex) => {
-        const x =
-          tableX + colWidths.slice(0, colIndex).reduce((a, b) => a + b, 0);
-        const cellText = sanitizeTextForPDF(String(cell ?? ""));
-        page.drawText(cellText, {
-          x,
-          y: tableY,
-          size: rowIndex === 0 ? 11 : 10,
-          font: rowIndex === 0 ? fontBold : font,
-        });
-      });
-      tableY -= rowHeight;
-    });
-
-    y = tableY - 20;
-
-    drawText("AI Analysis:", { font: fontBold, size: 14 });
-
-    const lines = esgReportText.split("\n");
-    for (const line of lines) {
-      if (line.trim()) {
-        const words = line.split(" ");
-        let currentLine = "";
-
-        for (const word of words) {
-          const testLine = currentLine + (currentLine ? " " : "") + word;
-          if (testLine.length > 70) {
-            if (currentLine) {
-              drawText(currentLine);
-            }
-            currentLine = word;
-          } else {
-            currentLine = testLine;
+    const wrapText = (
+      text: string,
+      size = BODY_FONT_SIZE,
+      fontToUse = font
+    ): string[] => {
+      const sanitized = sanitizeTextForPDF(text);
+      const words = sanitized.split(/\s+/);
+      const lines: string[] = [];
+      const contentWidth = pageWidth - PAGE_MARGIN_X * 2;
+      let currentLine = "";
+      for (const word of words) {
+        if (!word) continue;
+        const tentative = currentLine ? `${currentLine} ${word}` : word;
+        const lineWidth = fontToUse.widthOfTextAtSize(tentative, size);
+        if (lineWidth > contentWidth) {
+          if (currentLine) {
+            lines.push(currentLine);
           }
+          currentLine = word;
+        } else {
+          currentLine = tentative;
         }
-
-        if (currentLine) {
-          drawText(currentLine);
-        }
-      } else {
-        y -= 10;
       }
-    }
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      return lines;
+    };
 
-    if (Object.keys(supplierMap).length > 0) {
-      y -= 20;
-      drawText("Supplier Summary:", { font: fontBold, size: 14 });
-
-      Object.entries(supplierMap).forEach(([supplierName, info]) => {
-        drawText(
-          `${supplierName}: ${info.count} deliveries • ${formatCurrencyPHP(
-            info.spend
-          )}`
-        );
+    const drawParagraph = (text: string, size = BODY_FONT_SIZE) => {
+      const lines = wrapText(text, size, font);
+      if (lines.length === 0) {
+        currentY -= size + 2;
+        return;
+      }
+      ensureSpace(lines.length * (size + 4));
+      lines.forEach((line) => {
+        currentPage.drawText(line, {
+          x: PAGE_MARGIN_X,
+          y: currentY,
+          size,
+          font,
+          color: textColor,
+        });
+        currentY -= size + 4;
       });
+      currentY -= 6;
+    };
+
+    const drawSectionTitle = (title: string) => {
+      ensureSpace(SECTION_FONT_SIZE + 16);
+      currentPage.drawText(sanitizeTextForPDF(title), {
+        x: PAGE_MARGIN_X,
+        y: currentY,
+        size: SECTION_FONT_SIZE,
+        font: fontBold,
+        color: primaryColor,
+      });
+      currentY -= SECTION_FONT_SIZE + 8;
+      currentPage.drawLine({
+        start: { x: PAGE_MARGIN_X, y: currentY },
+        end: { x: pageWidth - PAGE_MARGIN_X, y: currentY },
+        thickness: 1,
+        color: borderColor,
+      });
+      currentY -= 12;
+    };
+
+    const drawBulletList = (items: string[]) => {
+      if (items.length === 0) {
+        currentY -= 6;
+        return;
+      }
+      items.forEach((item) => {
+        const lines = wrapText(item, BODY_FONT_SIZE, font);
+        ensureSpace(lines.length * (BODY_FONT_SIZE + 4) + 6);
+        lines.forEach((line, index) => {
+          if (index === 0) {
+            currentPage.drawText("•", {
+              x: PAGE_MARGIN_X,
+              y: currentY,
+              size: BODY_FONT_SIZE,
+              font: fontBold,
+              color: accentColor,
+            });
+            currentPage.drawText(line, {
+              x: PAGE_MARGIN_X + 12,
+              y: currentY,
+              size: BODY_FONT_SIZE,
+              font,
+              color: textColor,
+            });
+          } else {
+            currentPage.drawText(line, {
+              x: PAGE_MARGIN_X + 12,
+              y: currentY,
+              size: BODY_FONT_SIZE,
+              font,
+              color: textColor,
+            });
+          }
+          currentY -= BODY_FONT_SIZE + 4;
+        });
+        currentY -= 6;
+      });
+      currentY -= 4;
+    };
+
+    const truncateTextToWidth = (
+      text: string,
+      maxWidth: number,
+      fontToUse: typeof font,
+      size: number
+    ): string => {
+      const sanitized = sanitizeTextForPDF(text);
+      if (fontToUse.widthOfTextAtSize(sanitized, size) <= maxWidth) {
+        return sanitized;
+      }
+      let truncated = sanitized;
+      while (
+        truncated.length > 1 &&
+        fontToUse.widthOfTextAtSize(`${truncated}...`, size) > maxWidth
+      ) {
+        truncated = truncated.slice(0, -1);
+      }
+      return `${truncated}...`;
+    };
+
+    const narrativeHeadings = new Set(
+      [
+        "Introduction",
+        "Total Emissions and Carbon Intensity",
+        "Emissions Trend Analysis",
+        "Emissions Scope Distribution",
+        "Emissions Source Breakdown",
+        "Project Emissions Breakdown",
+        "Resource and Equipment Metrics",
+        "Safety Index",
+        "Water, Fuel, and Electricity Usage",
+        "Waste Generation and Diversion Performance",
+        "Material Sourcing and Delivery",
+        "Carbon Footprint Comparison",
+        "ESG Goal Tracking",
+        "Compliance Insights",
+        "Delivery Partners",
+      ].map((heading) => heading.toLowerCase())
+    );
+
+    const renderTable = (rows: string[][], columnFractions: number[]) => {
+      if (rows.length === 0) return;
+      const contentWidth = pageWidth - PAGE_MARGIN_X * 2;
+      const colWidths = columnFractions.map(
+        (fraction) => contentWidth * fraction
+      );
+      const rowHeight = 24;
+      ensureSpace(rowHeight * rows.length + 20);
+      let tableY = currentY;
+      rows.forEach((row, rowIndex) => {
+        const isHeader = rowIndex === 0;
+        const rowTop = tableY;
+        currentPage.drawRectangle({
+          x: PAGE_MARGIN_X,
+          y: rowTop - rowHeight,
+          width: contentWidth,
+          height: rowHeight,
+          color: isHeader
+            ? tableHeaderFill
+            : rowIndex % 2 === 0
+            ? tableAltFill
+            : rgb(1, 1, 1),
+          borderColor,
+          borderWidth: 0.5,
+        });
+        let xCursor = PAGE_MARGIN_X + CELL_HORIZONTAL_PADDING;
+        row.forEach((cell, cellIndex) => {
+          const availableWidth =
+            colWidths[cellIndex] - CELL_HORIZONTAL_PADDING * 2;
+          const textValue = truncateTextToWidth(
+            cell,
+            availableWidth,
+            isHeader ? fontBold : font,
+            10
+          );
+          currentPage.drawText(textValue, {
+            x: xCursor,
+            y: rowTop - rowHeight + 8,
+            size: 10,
+            font: isHeader ? fontBold : font,
+            color: textColor,
+          });
+          xCursor += colWidths[cellIndex];
+        });
+        tableY -= rowHeight;
+      });
+      currentY = tableY - 18;
+    };
+
+    const renderNarrative = (text: string) => {
+      const paragraphs = text.split(/\n+/);
+      paragraphs.forEach((paragraph) => {
+        const trimmed = paragraph.trim();
+        if (!trimmed) {
+          currentY -= 8;
+          return;
+        }
+        const headingKey = trimmed.replace(/:$/, "").toLowerCase();
+        if (narrativeHeadings.has(headingKey)) {
+          ensureSpace(BODY_FONT_SIZE + 18);
+          currentPage.drawText(sanitizeTextForPDF(trimmed), {
+            x: PAGE_MARGIN_X,
+            y: currentY,
+            size: BODY_FONT_SIZE + 2,
+            font: fontBold,
+            color: textColor,
+          });
+          currentY -= BODY_FONT_SIZE + 10;
+          return;
+        }
+        drawParagraph(trimmed, BODY_FONT_SIZE);
+      });
+    };
+
+    addNewPage();
+
+    drawSectionTitle("Executive Summary");
+    drawParagraph(summarySentences.join(" "));
+
+    drawSectionTitle("Key Performance Metrics");
+    renderTable(
+      [
+        ["Metric", "Value"],
+        ["Fuel Used", fuelDisplay],
+        ["Electricity Consumption", electricityDisplay],
+        ["Equipment Combustion Emissions", emissionsDisplay],
+        ["Average Safety TRIR", safetyTrirDisplay],
+        ["Total Safety Incidents", incidentsDisplay],
+        ["Material Deliveries", deliveriesDisplay],
+        ["Material Spend", formatCurrencyPHP(materialSpend)],
+        ["Water Consumption", waterDisplay],
+        ["Total Waste Generated", wasteDisplay],
+      ],
+      [0.55, 0.45]
+    );
+
+    drawSectionTitle("Environmental Performance");
+    drawBulletList(environmentalHighlights);
+
+    drawSectionTitle("Health & Safety");
+    drawBulletList(safetyHighlights);
+
+    drawSectionTitle("Supply Chain & Materials");
+    drawBulletList(supplierHighlights);
+    if (supplierEntries.length > 0) {
+      const supplierRows: string[][] = [
+        ["Supplier", "Deliveries", "Spend"],
+      ];
+      supplierEntries.slice(0, 6).forEach(([name, info]) => {
+        supplierRows.push([
+          name,
+          info.count.toString(),
+          formatCurrencyPHP(info.spend),
+        ]);
+      });
+      renderTable(supplierRows, [0.5, 0.18, 0.32]);
     }
+
+    drawSectionTitle("AI Narrative");
+    renderNarrative(esgReportText);
 
     const pdfBytes = await pdfDoc.save();
     const fileName = `ESG_Report_${projectId}_${new Date().toISOString()}.pdf`;
