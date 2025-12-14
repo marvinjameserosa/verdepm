@@ -17,14 +17,24 @@ export const careersFormSchema = z.object({
 export type CareersFormData = z.infer<typeof careersFormSchema>;
 
 export const addProjectSchema = z.object({
+  projectTemplate: z.string().min(1, "Project template is required"),
   name: z.string().min(3, "Project name must be at least 3 characters"),
-  description: z.string().optional(),
+  projectId: z.string().min(1, "Project ID/Number is required"),
+  isActive: z.boolean().default(true),
+  description: z.string().min(1, "Project description is required"),
+  squareFeet: z.string().min(1, "Square feet is required"),
   status: z.enum(["planning", "in-progress", "on-hold", "completed"]),
   priority: z.enum(["low", "medium", "high"]),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: z.string().min(1, "Est. Start Date is required"),
+  endDate: z.string().min(1, "Est. Completion Date is required"),
+  address: z.string().min(1, "Project address is required"),
+  city: z.string().min(1, "City is required"),
+  country: z.string().min(1, "Country is required"),
+  zipCode: z.string().min(1, "Zip code is required"),
+  timezone: z.string().min(1, "Timezone is required"),
+  office: z.string().min(1, "Office is required"),
+  category: z.string().min(1, "Project type is required"),
   clientName: z.string().optional(),
-  category: z.string().optional(),
   budget: z.string().optional(),
   location: z.string().optional(),
 });
