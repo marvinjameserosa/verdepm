@@ -102,6 +102,7 @@ export type PreConstructionPhaseProps = {
   project?: Project;
   onProjectUpdated?: (project: Project) => void;
   step2ReadOnly?: boolean;
+  refreshKey?: number;
 };
 
 import type { InitialValues } from "@/types/forms";

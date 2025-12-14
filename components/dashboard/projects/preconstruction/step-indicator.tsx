@@ -1,14 +1,20 @@
-import { STEP_DEFINITIONS } from "@/lib/preconstruction";
+import { STEP_DEFINITIONS, type StepDefinition } from "@/lib/preconstruction";
 
-export const StepIndicator = ({ currentStep }: { currentStep: number }) => {
-  const totalSteps = STEP_DEFINITIONS.length;
-  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+type StepIndicatorProps = {
+  currentStep: number;
+  steps?: StepDefinition[];
+};
+
+export const StepIndicator = ({ currentStep, steps = STEP_DEFINITIONS }: StepIndicatorProps) => {
+  const totalSteps = steps.length || 1;
+  const safeCurrentStep = Math.min(Math.max(currentStep, 1), totalSteps);
+  const progressPercent = Math.round((safeCurrentStep / totalSteps) * 100);
 
   return (
     <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white/90 dark:bg-gray-900/70 p-4 space-y-4 shadow-sm">
       <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span className="font-medium text-gray-700 dark:text-gray-200">
-          Step {currentStep} of {totalSteps}
+          Step {safeCurrentStep} of {totalSteps}
         </span>
         <span className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
@@ -25,9 +31,11 @@ export const StepIndicator = ({ currentStep }: { currentStep: number }) => {
         className="flex w-full gap-3 overflow-x-auto pb-2 sm:flex-col sm:gap-0 sm:space-y-3 sm:overflow-visible snap-x snap-mandatory"
         style={{ scrollbarWidth: "thin" }}
       >
-        {STEP_DEFINITIONS.map((stepDef) => {
-          const isActive = currentStep === stepDef.id;
-          const isComplete = currentStep > stepDef.id;
+        {steps.map((stepDef, index) => {
+          const stepNumber = index + 1;
+          const isActive = safeCurrentStep === stepNumber;
+          const isComplete = safeCurrentStep > stepNumber;
+          const itemKey = stepDef.id ?? `${stepNumber}-${stepDef.title}`;
           const itemBorder = isActive
             ? "border-emerald-200/80 dark:border-emerald-800/60"
             : isComplete
@@ -40,7 +48,7 @@ export const StepIndicator = ({ currentStep }: { currentStep: number }) => {
             : "bg-white/70 dark:bg-gray-900/40";
           return (
             <li
-              key={stepDef.id}
+              key={itemKey}
               className={`min-w-[180px] flex-shrink-0 snap-start rounded-xl border ${itemBorder} ${itemBackground} flex items-start gap-3 p-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 sm:min-w-0`}
               tabIndex={0}
             >
@@ -53,10 +61,10 @@ export const StepIndicator = ({ currentStep }: { currentStep: number }) => {
                     : "border-gray-300 text-gray-500"
                 }`}
                 aria-label={
-                  isActive ? "Current step" : `Step ${stepDef.id} indicator`
+                  isActive ? "Current step" : `Step ${stepNumber} indicator`
                 }
               >
-                {isComplete ? "✓" : stepDef.id}
+                {isComplete ? "✓" : stepNumber}
               </div>
               <div>
                 <p

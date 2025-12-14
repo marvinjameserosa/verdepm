@@ -60,10 +60,13 @@ export default function LocationPicker({
       // Try to forward geocode the address string to restore the pin
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            value
-          )}&limit=1`
+          `/api/location/search?q=${encodeURIComponent(value)}&limit=1`
         );
+
+        if (!response.ok) {
+          throw new Error(`Search proxy failed: ${response.status}`);
+        }
+
         const data = await response.json();
         if (data && data.length > 0) {
           const newLat = parseFloat(data[0].lat);
@@ -88,8 +91,13 @@ export default function LocationPicker({
     async (newLat: number, newLng: number) => {
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}`
+          `/api/location/reverse?lat=${newLat}&lon=${newLng}`
         );
+
+        if (!response.ok) {
+          throw new Error(`Reverse proxy failed: ${response.status}`);
+        }
+
         const data = await response.json();
         if (data && data.display_name) {
           onChange(data.display_name);
