@@ -73,12 +73,15 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
         {/* Logo */}
         <Link
           href="/"
-          className="flex h-16 items-center justify-center border-b border-border px-6"
+          className={`flex h-16 items-center border-b border-border transition-all duration-300 ${
+            isSidebarOpen ? "px-3 justify-start" : "px-6 justify-center"
+          }`}
         >
           <Logo
             className={`transition-all duration-300 ${
               isSidebarOpen ? "h-6" : "h-8"
             }`}
+            showText={isSidebarOpen}
           />
         </Link>
 
