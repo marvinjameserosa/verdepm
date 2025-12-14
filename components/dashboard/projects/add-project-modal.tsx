@@ -67,7 +67,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
   ];
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="h-10 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl">
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -76,7 +76,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px] max-h-[80vh] rounded-2xl border border-emerald-100/70 dark:border-emerald-900/40 bg-gradient-to-br from-sky-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40 shadow-2xl backdrop-blur p-0 flex flex-col overflow-hidden min-h-0">
-        <form onSubmit={handleFormSubmit} className="flex h-full flex-col min-h-0">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col min-h-0">
           <DialogHeader className="text-center sm:text-left px-6 pt-6 shrink-0">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50">
