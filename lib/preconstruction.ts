@@ -535,7 +535,13 @@ export const getDefaultStep1Values = (
   documentPaths,
 });
 
-export const STEP_DEFINITIONS = [
+export type StepDefinition = {
+  id?: number;
+  title: string;
+  description: string;
+};
+
+export const STEP_DEFINITIONS: StepDefinition[] = [
   {
     id: 1,
     title: "Project Setup",

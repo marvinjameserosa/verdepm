@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -122,228 +121,237 @@ export default function Step1ProjectSetup({
   }
 
   return (
-    <section className="w-full">
-      <Card className="w-full max-w-5xl mx-auto border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-3xl shadow-lg">
-        <form onSubmit={handleSubmit}>
-          <CardHeader className="gap-3 border-b border-gray-100/80 dark:border-gray-800/80">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40">
-                <GanttChartSquare className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <CardTitle className="text-xl text-emerald-800 dark:text-emerald-200">
-                  Step 1 · Project Setup & Due Diligence
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Capture the project basics and keep primary attributes aligned
-                  with the original project record.
-                </CardDescription>
-              </div>
+    <section className="w-full pb-12">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 sm:px-6">
+        <header className="space-y-2">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+            <div className="rounded-lg bg-emerald-100 p-1.5 dark:bg-emerald-900/40">
+              <GanttChartSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-8 px-6 py-8 lg:px-10">
-            {error && (
-              <ErrorDisplay
-                title={error.title}
-                message={error.message}
-                className="mb-6"
-              />
-            )}
-            <div className="flex flex-col gap-8 xl:flex-row xl:items-start">
-              <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm h-full xl:flex-1 xl:min-w-[420px]">
-                <CardHeader className="pb-2 px-6">
-                  <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
-                    Project Information
-                  </CardTitle>
-                  <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Required fields
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-6 pb-6 space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="projectName">Project Name</Label>
-                    <Input
-                      id="projectName"
-                      placeholder="e.g., 'Greenwood Tower'"
+            <h2 className="text-lg font-semibold sm:text-xl">Step 1: Project Overview</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Capture the baseline project narrative, location, and compliance context before moving into target setting.
+          </p>
+        </header>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <ErrorDisplay
+              title={error.title}
+              message={error.message}
+              className="mb-2"
+            />
+          )}
+          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <div className="space-y-6">
+              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+              <CardHeader className="pb-2 px-6">
+                <CardTitle className="text-base text-emerald-800 dark:text-emerald-200 tracking-wide">
+                  Project Information
+                </CardTitle>
+                <CardDescription className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Required fields
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6 space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="projectName">Project Name</Label>
+                  <Input
+                    id="projectName"
+                    placeholder="e.g., 'Greenwood Tower'"
+                    className="bg-white/80 dark:bg-gray-800/80"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="projectAddress">Project Address</Label>
+                  <LocationPicker
+                    value={projectAddress}
+                    onChange={setProjectAddress}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="projectDescription">Project Description</Label>
+                  <Textarea
+                    id="projectDescription"
+                    placeholder="Describe the project's vision and scope."
+                    className="bg-white/80 dark:bg-gray-800/80 min-h-[140px]"
+                    value={projectDescription}
+                    onChange={(e) => setProjectDescription(e.target.value)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+              <CardHeader className="pb-3 px-6">
+                <CardTitle className="text-base text-emerald-900 dark:text-emerald-100">
+                  Alignment checklist
+                </CardTitle>
+                <CardDescription className="text-xs uppercase tracking-[0.3em] text-emerald-700/80 dark:text-emerald-200/70">
+                  Before you continue
+                </CardDescription>
+              </CardHeader>
+                <CardContent className="px-6 pb-6 space-y-3 text-sm text-muted-foreground">
+                  <p>✔ Names mirror the client contract.</p>
+                  <p>✔ Address pin drops on the right parcel.</p>
+                  <p>✔ Compliance docs are uploaded or linked.</p>
+                  <p>✔ Dates reflect the signed LOA.</p>
+              </CardContent>
+            </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+              <CardHeader className="pb-2 px-6">
+                <CardTitle className="text-base text-emerald-800 dark:text-emerald-200 tracking-wide">
+                  Project Attributes
+                </CardTitle>
+                <CardDescription className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Status, priority, category
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6 space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="status">Current Status</Label>
+                  <Select
+                    value={status}
+                    onValueChange={(value) => setStatus(value as ProjectStatus)}
+                  >
+                    <SelectTrigger
+                      id="status"
                       className="bg-white/80 dark:bg-gray-800/80"
-                      value={projectName}
-                      onChange={(e) => setProjectName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="projectAddress">Project Address</Label>
-                    <LocationPicker
-                      value={projectAddress}
-                      onChange={setProjectAddress}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="projectDescription">
-                      Project Description
-                    </Label>
-                    <Textarea
-                      id="projectDescription"
-                      placeholder="Describe the project's vision and scope."
-                      className="bg-white/80 dark:bg-gray-800/80 min-h-[120px]"
-                      value={projectDescription}
-                      onChange={(e) => setProjectDescription(e.target.value)}
-                    />
-                  </div>
-                </CardContent>
+                    >
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[60] max-h-60">
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select
+                    value={priority}
+                    onValueChange={(value) => setPriority(value as ProjectPriority)}
+                  >
+                    <SelectTrigger
+                      id="priority"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                    >
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[60] max-h-60">
+                      {priorityOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={category || undefined}
+                    onValueChange={(value) => setCategory(value)}
+                  >
+                    <SelectTrigger
+                      id="category"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                    >
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[60] max-h-60">
+                      {categoryOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
               </Card>
-              <div className="space-y-6 xl:space-y-8 flex-1 min-w-0">
-                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm transform transition-transform duration-200 hover:-translate-y-0.5 min-w-0">
-                  <CardHeader className="pb-2 px-6">
-                    <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
-                      Project Attributes
-                    </CardTitle>
-                    <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Status, priority, category
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-6 pb-6 space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Current Status</Label>
-                      <Select
-                        value={status}
-                        onValueChange={(value) =>
-                          setStatus(value as ProjectStatus)
-                        }
-                      >
-                        <SelectTrigger
-                          id="status"
-                          className="bg-white/80 dark:bg-gray-800/80"
-                        >
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent className="z-[60] max-h-60">
-                          {statusOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="priority">Priority</Label>
-                      <Select
-                        value={priority}
-                        onValueChange={(value) =>
-                          setPriority(value as ProjectPriority)
-                        }
-                      >
-                        <SelectTrigger
-                          id="priority"
-                          className="bg-white/80 dark:bg-gray-800/80"
-                        >
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                        <SelectContent className="z-[60] max-h-60">
-                          {priorityOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Category</Label>
-                      <Select
-                        value={category || undefined}
-                        onValueChange={(value) => setCategory(value)}
-                      >
-                        <SelectTrigger
-                          id="category"
-                          className="bg-white/80 dark:bg-gray-800/80"
-                        >
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent className="z-[60] max-h-60">
-                          {categoryOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
 
-                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm transform transition-transform duration-200 hover:-translate-y-0.5 min-w-0">
-                  <CardHeader className="pb-2 px-6">
-                    <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
-                      Team & Timeline
-                    </CardTitle>
-                    <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Ownership, schedule, client
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-6 pb-6 space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="clientName">Client / Customer</Label>
-                      <Input
-                        id="clientName"
-                        placeholder="Enter client name"
-                        className="bg-white/80 dark:bg-gray-800/80"
-                        value={clientName}
-                        onChange={(e) => setClientName(e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="startDate">Start Date</Label>
-                        <Input
-                          id="startDate"
-                          type="date"
-                          className="bg-white/80 dark:bg-gray-800/80"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="endDate">Target End Date</Label>
-                        <Input
-                          id="endDate"
-                          type="date"
-                          className="bg-white/80 dark:bg-gray-800/80"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="budget">Estimated Budget</Label>
-                      <Input
-                        id="budget"
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        placeholder="e.g., 500000"
-                        className="bg-white/80 dark:bg-gray-800/80"
-                        value={budget}
-                        onChange={(e) => setBudget(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Leave blank to keep the current budget value.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+              <CardHeader className="pb-2 px-6">
+                <CardTitle className="text-base text-emerald-800 dark:text-emerald-200 tracking-wide">
+                  Team & Timeline
+                </CardTitle>
+                <CardDescription className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Ownership, schedule, client
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6 space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="clientName">Client / Customer</Label>
+                  <Input
+                    id="clientName"
+                    placeholder="Enter client name"
+                    className="bg-white/80 dark:bg-gray-800/80"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">Target End Date</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="budget">Estimated Budget</Label>
+                  <Input
+                    id="budget"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    placeholder="e.g., 500000"
+                    className="bg-white/80 dark:bg-gray-800/80"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to keep the current budget value.
+                  </p>
+                </div>
+              </CardContent>
+              </Card>
 
-                <Card className="bg-white dark:bg-gray-950/40 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
-                  <CardHeader className="pb-2 px-6">
-                    <CardTitle className="text-base text-emerald-700 dark:text-emerald-200 tracking-wide">
-                      Compliance Documents
-                    </CardTitle>
-                    <CardDescription className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Upload building permit for reference
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-6 pb-6 space-y-4 text-sm">
+              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+              <CardHeader className="pb-2 px-6">
+                <CardTitle className="text-base text-emerald-800 dark:text-emerald-200 tracking-wide">
+                  Compliance Documents
+                </CardTitle>
+                <CardDescription className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Upload building permit for reference
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6 space-y-4 text-sm">
                     <div className="space-y-2">
                       <Label htmlFor="buildingPermit">Building Permit</Label>
                       {documentPaths["building-permit"] &&
@@ -476,37 +484,32 @@ export default function Step1ProjectSetup({
                     </div>
                   </CardContent>
                 </Card>
-              </div>
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3 border-t border-gray-100 dark:border-gray-800 p-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="text-sm text-muted-foreground">
-              <p>You can revisit this step anytime—details stay saved.</p>
-              <p className="text-xs mt-1">
-                Need to brief a teammate? Share the overview link after saving.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 w-full lg:w-auto">
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-gray-100 pt-6 text-sm text-muted-foreground dark:border-gray-800 lg:flex-row lg:items-center lg:justify-between">
+            <p>You can revisit this step anytime—details stay saved.</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Button
                 type="button"
                 variant="outline"
                 disabled={isSubmitting}
                 onClick={handleSave}
-                className="w-full lg:w-auto"
+                className="w-full sm:w-auto"
               >
-                Save
+                Save progress
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full lg:w-auto"
+                className="w-full sm:w-auto"
               >
-                {isSubmitting ? "Saving..." : "Next"}
+                {isSubmitting ? "Saving..." : "Continue"}
               </Button>
             </div>
-          </CardFooter>
+          </div>
         </form>
-      </Card>
+      </div>
     </section>
   );
 }

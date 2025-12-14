@@ -75,10 +75,13 @@ export function LocationSearchInput({
         setIsSearching(true);
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-              query
-            )}&limit=5`
+            `/api/location/search?q=${encodeURIComponent(query)}&limit=5`
           );
+
+          if (!response.ok) {
+            throw new Error(`Search proxy failed: ${response.status}`);
+          }
+
           const data = (await response.json()) as NominatimSearchResult[];
           const mappedResults: SearchResult[] = data.map((item) => ({
             display_name: item.display_name,
@@ -134,10 +137,13 @@ export function LocationSearchInput({
       setIsSearching(true);
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            result.query
-          )}&limit=1`
+          `/api/location/search?q=${encodeURIComponent(result.query)}&limit=1`
         );
+
+        if (!response.ok) {
+          throw new Error(`Suggestion search failed: ${response.status}`);
+        }
+
         const data = (await response.json()) as NominatimSearchResult[];
         if (data && data[0]) {
           const lat = Number.parseFloat(data[0].lat);
