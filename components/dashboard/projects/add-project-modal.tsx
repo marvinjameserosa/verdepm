@@ -35,90 +35,36 @@ import {
   categoryOptions,
   priorityOptions,
   statusOptions,
+  templateOptions,
+  timezoneOptions,
+  officeOptions,
 } from "@/lib/project-options";
 
 export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
   const {
     open,
+    currentStep,
     formState,
     isSubmitting,
     errorMessage,
     isSubmitDisabled,
+    canProceedToNextStep,
     handleInputChange,
     handleSelectChange,
     handleSubmit,
     handleOpenChange,
+    nextStep,
+    prevStep,
   } = useAddProjectForm(onProjectCreated);
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
 
-  const handleNext = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handleBack = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleDialogOpenChange = (isOpen: boolean) => {
-    handleOpenChange(isOpen);
-    if (!isOpen) {
-      setCurrentStep(1);
-    } else {
-      setCurrentStep(1);
-    }
-  };
-
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    if (currentStep === totalSteps) {
-      handleSubmit(e);
-    } else {
-      e.preventDefault();
-    }
-  };
-
-  const getStepTitle = () => {
-    switch (currentStep) {
-      case 1:
-        return "Basic Information";
-      case 2:
-        return "Timeline & Status";
-      case 3:
-        return "Project Details";
-      default:
-        return "";
-    }
-  };
-
-  const isStepValid = () => {
-    switch (currentStep) {
-      case 1:
-        return formState.name.trim() !== "" && (formState.description?.trim() || "") !== "";
-      case 2:
-        return (
-          formState.status &&
-          formState.priority &&
-          formState.startDate !== "" &&
-          formState.endDate !== ""
-        );
-      case 3:
-        return (
-          (formState.clientName?.trim() || "") !== "" &&
-          formState.category !== "" &&
-          formState.budget !== "" &&
-          formState.location !== ""
-        );
-      default:
-        return false;
-    }
-  };
+  const stepTitles = [
+    "Project Setup",
+    "Project Details",
+    "Location Information",
+    "Organization & Budget",
+  ];
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
@@ -141,25 +87,21 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
               </DialogTitle>
             </div>
             <DialogDescription className="text-muted-foreground">
-              Start a new construction project with essential details and
-              tracking capabilities.
+              Step {currentStep} of {totalSteps}: {stepTitles[currentStep - 1]}
             </DialogDescription>
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-emerald-100/70 dark:border-emerald-900/40">
-              <div className="text-sm font-medium text-muted-foreground">
-                Step {currentStep} of {totalSteps}: {getStepTitle()}
-              </div>
-              <div className="flex gap-2">
-                {[1, 2, 3].map((step) => (
-                  <div
-                    key={step}
-                    className={`h-2 w-8 rounded-full transition-colors ${
-                      step <= currentStep
-                        ? "bg-emerald-500"
-                        : "bg-gray-200 dark:bg-gray-700"
-                    }`}
-                  />
-                ))}
-              </div>
+            
+            {/* Progress Bar */}
+            <div className="mt-4 flex gap-2">
+              {Array.from({ length: totalSteps }).map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-2 flex-1 rounded-full transition-all ${
+                    index < currentStep
+                      ? "bg-emerald-500"
+                      : "bg-gray-200 dark:bg-gray-700"
+                  }`}
+                />
+              ))}
             </div>
           </DialogHeader>
 
@@ -168,8 +110,35 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
               <ErrorDisplay title="Error" message={errorMessage} />
             )}
 
+            {/* Step 1: Project Setup */}
             {currentStep === 1 && (
-              <>
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="projectTemplate"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Select Project Template *
+                  </Label>
+                  <Select
+                    value={formState.projectTemplate}
+                    onValueChange={(value: string) =>
+                      handleSelectChange("projectTemplate", value)
+                    }
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select template" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      {templateOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label
                     htmlFor="name"
@@ -187,12 +156,53 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                   />
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="projectId"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Project ID/Number *
+                    </Label>
+                    <Input
+                      id="projectId"
+                      value={formState.projectId}
+                      onChange={handleInputChange}
+                      placeholder="e.g., PRJ-2024-001"
+                      className="rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="isActive"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Active Project *
+                    </Label>
+                    <Select
+                      value={formState.isActive ? "true" : "false"}
+                      onValueChange={(value: string) =>
+                        handleSelectChange("isActive", value === "true")
+                      }
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="true">Active</SelectItem>
+                        <SelectItem value="false">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label
                     htmlFor="description"
                     className="text-sm font-medium text-foreground"
                   >
-                    Description *
+                    Project Description *
                   </Label>
                   <Textarea
                     id="description"
@@ -203,18 +213,74 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                     required
                   />
                 </div>
-              </>
+              </div>
             )}
 
+            {/* Step 2: Project Details */}
             {currentStep === 2 && (
-              <>
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="squareFeet"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Square Feet *
+                  </Label>
+                  <Input
+                    id="squareFeet"
+                    type="number"
+                    inputMode="decimal"
+                    value={formState.squareFeet}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 50000"
+                    className="rounded-xl"
+                    min="0"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="startDate"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Est. Start Date *
+                    </Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={formState.startDate}
+                      onChange={handleInputChange}
+                      className="rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="endDate"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Est. Completion Date *
+                    </Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={formState.endDate}
+                      onChange={handleInputChange}
+                      className="rounded-xl"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label
                       htmlFor="status"
                       className="text-sm font-medium text-foreground"
                     >
-                      Initial Status *
+                      Project Stage *
                     </Label>
                     <Select
                       value={formState.status}
@@ -237,97 +303,13 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
 
                   <div className="space-y-2">
                     <Label
-                      htmlFor="priority"
-                      className="text-sm font-medium text-foreground"
-                    >
-                      Priority *
-                    </Label>
-                    <Select
-                      value={formState.priority}
-                      onValueChange={(value: ProjectPriority) =>
-                        handleSelectChange("priority", value)
-                      }
-                    >
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="z-[100]">
-                        {priorityOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="startDate"
-                      className="text-sm font-medium text-foreground"
-                    >
-                      Start Date *
-                    </Label>
-                    <Input
-                      id="startDate"
-                      type="date"
-                      value={formState.startDate}
-                      onChange={handleInputChange}
-                      className="rounded-xl"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="endDate"
-                      className="text-sm font-medium text-foreground"
-                    >
-                      Target End Date *
-                    </Label>
-                    <Input
-                      id="endDate"
-                      type="date"
-                      value={formState.endDate}
-                      onChange={handleInputChange}
-                      className="rounded-xl"
-                      required
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {currentStep === 3 && (
-              <>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="clientName"
-                    className="text-sm font-medium text-foreground"
-                  >
-                    Client / Customer *
-                  </Label>
-                  <Input
-                    id="clientName"
-                    value={formState.clientName}
-                    onChange={handleInputChange}
-                    placeholder="Enter client's name..."
-                    className="rounded-xl"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label
                       htmlFor="category"
                       className="text-sm font-medium text-foreground"
                     >
-                      Project Type / Category *
+                      Project Type *
                     </Label>
                     <Select
-                      value={formState.category || undefined}
+                      value={formState.category}
                       onValueChange={(value: string) =>
                         handleSelectChange("category", value)
                       }
@@ -344,25 +326,199 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="priority"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Priority
+                  </Label>
+                  <Select
+                    value={formState.priority}
+                    onValueChange={(value: ProjectPriority) =>
+                      handleSelectChange("priority", value)
+                    }
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      {priorityOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Location Information */}
+            {currentStep === 3 && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="address"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Project Address *
+                  </Label>
+                  <Input
+                    id="address"
+                    value={formState.address}
+                    onChange={handleInputChange}
+                    placeholder="Enter project address..."
+                    className="rounded-xl"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label
-                      htmlFor="budget"
+                      htmlFor="city"
                       className="text-sm font-medium text-foreground"
                     >
-                      Estimated Budget *
+                      City *
                     </Label>
                     <Input
-                      id="budget"
-                      type="number"
-                      inputMode="decimal"
-                      value={formState.budget}
+                      id="city"
+                      value={formState.city}
                       onChange={handleInputChange}
-                      placeholder="e.g., 500000"
+                      placeholder="Enter city..."
                       className="rounded-xl"
-                      min="0"
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="country"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Country *
+                    </Label>
+                    <Input
+                      id="country"
+                      value={formState.country}
+                      onChange={handleInputChange}
+                      placeholder="Enter country..."
+                      className="rounded-xl"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="zipCode"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Zip Code *
+                    </Label>
+                    <Input
+                      id="zipCode"
+                      value={formState.zipCode}
+                      onChange={handleInputChange}
+                      placeholder="Enter zip code..."
+                      className="rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="timezone"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Timezone *
+                    </Label>
+                    <Select
+                      value={formState.timezone}
+                      onValueChange={(value: string) =>
+                        handleSelectChange("timezone", value)
+                      }
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Select timezone" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100] max-h-[200px]">
+                        {timezoneOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Organization & Budget */}
+            {currentStep === 4 && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="office"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Office *
+                  </Label>
+                  <Select
+                    value={formState.office}
+                    onValueChange={(value: string) =>
+                      handleSelectChange("office", value)
+                    }
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select office" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      {officeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="clientName"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Client / Customer
+                  </Label>
+                  <Input
+                    id="clientName"
+                    value={formState.clientName}
+                    onChange={handleInputChange}
+                    placeholder="Enter client's name..."
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="budget"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Estimated Budget
+                  </Label>
+                  <Input
+                    id="budget"
+                    type="number"
+                    inputMode="decimal"
+                    value={formState.budget}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 500000"
+                    className="rounded-xl"
+                    min="0"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -370,60 +526,59 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                     htmlFor="location"
                     className="text-sm font-medium text-foreground"
                   >
-                    Site Location *
+                    Site Location
                   </Label>
                   <LocationPicker
                     value={formState.location || ""}
                     onChange={(value) => handleSelectChange("location", value)}
                   />
                 </div>
-              </>
+              </div>
             )}
           </div>
 
           <DialogFooter className="flex flex-col sm:flex-row gap-3 px-6 pb-6 pt-4 border-t border-emerald-100/70 dark:border-emerald-900/40 bg-white/60 dark:bg-slate-950/40 backdrop-blur shrink-0">
-            <div className="flex gap-3 w-full">
+            <div className="flex gap-3 flex-1">
               {currentStep > 1 && (
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-xl flex-1"
-                  onClick={handleBack}
+                  className="rounded-xl"
+                  onClick={prevStep}
                   disabled={isSubmitting}
                 >
-                  <ChevronLeft className="mr-2 h-4 w-4" />
-                  Back
+                  Previous
                 </Button>
               )}
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl flex-1"
-                onClick={() => handleDialogOpenChange(false)}
+                className="rounded-xl ml-auto"
+                onClick={() => handleOpenChange(false)}
                 disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              {currentStep < totalSteps ? (
-                <Button
-                  type="button"
-                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl flex-1"
-                  onClick={handleNext}
-                  disabled={!isStepValid()}
-                >
-                  Next
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl flex-1"
-                  disabled={isSubmitDisabled}
-                >
-                  {isSubmitting ? "Creating..." : "Create Project"}
-                </Button>
-              )}
             </div>
+            
+            {currentStep < totalSteps ? (
+              <Button
+                type="button"
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl"
+                onClick={nextStep}
+                disabled={!canProceedToNextStep}
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-md transition-all duration-200 rounded-xl"
+                disabled={isSubmitDisabled}
+              >
+                {isSubmitting ? "Creating..." : "Create Project"}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
