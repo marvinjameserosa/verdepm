@@ -1,4 +1,5 @@
 import { type Project } from "./project";
+import type { ReactNode } from "react";
 import type { InitialValues, Step1FormValues } from "@/types/forms";
 
 export type AddProjectModalProps = {
@@ -10,4 +11,5 @@ export type Step1ProjectSetupProps = {
   onSave: (values: Step1FormValues) => Promise<void>;
   initialValues?: InitialValues;
   isSubmitting: boolean;
+  insightsContent?: ReactNode;
 };

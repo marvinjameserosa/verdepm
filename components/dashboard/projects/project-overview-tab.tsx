@@ -736,17 +736,12 @@ export default function ProjectOverviewTab({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-          <div className="lg:col-span-7">
-            <Step1ProjectSetup
-              onSubmit={handleStep1Submit}
-              onSave={handleStep1Save}
-              initialValues={step1InitialValues}
-              isSubmitting={isSavingStep1}
-            />
-          </div>
-
-          <div className="lg:col-span-5">
+        <Step1ProjectSetup
+          onSubmit={handleStep1Submit}
+          onSave={handleStep1Save}
+          initialValues={step1InitialValues}
+          isSubmitting={isSavingStep1}
+          insightsContent={
             <Card className="border border-gray-200/80 dark:border-gray-800/70 bg-white/80 dark:bg-gray-900/60 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base font-semibold">
@@ -802,8 +797,8 @@ export default function ProjectOverviewTab({
                 )}
               </CardContent>
             </Card>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       <Dialog

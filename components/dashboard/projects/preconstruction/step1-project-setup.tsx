@@ -40,6 +40,7 @@ export default function Step1ProjectSetup({
   onSave,
   initialValues,
   isSubmitting,
+  insightsContent,
 }: Step1ProjectSetupProps) {
   const [verifyingFile, setVerifyingFile] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -143,7 +144,7 @@ export default function Step1ProjectSetup({
               className="mb-2"
             />
           )}
-          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             <div className="space-y-6">
               <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
               <CardHeader className="pb-2 px-6">
@@ -185,101 +186,6 @@ export default function Step1ProjectSetup({
                 </div>
               </CardContent>
             </Card>
-
-              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
-              <CardHeader className="pb-3 px-6">
-                <CardTitle className="text-base text-emerald-900 dark:text-emerald-100">
-                  Alignment checklist
-                </CardTitle>
-                <CardDescription className="text-xs uppercase tracking-[0.3em] text-emerald-700/80 dark:text-emerald-200/70">
-                  Before you continue
-                </CardDescription>
-              </CardHeader>
-                <CardContent className="px-6 pb-6 space-y-3 text-sm text-muted-foreground">
-                  <p>✔ Names mirror the client contract.</p>
-                  <p>✔ Address pin drops on the right parcel.</p>
-                  <p>✔ Compliance docs are uploaded or linked.</p>
-                  <p>✔ Dates reflect the signed LOA.</p>
-              </CardContent>
-            </Card>
-            </div>
-
-            <div className="space-y-6">
-              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
-              <CardHeader className="pb-2 px-6">
-                <CardTitle className="text-base text-emerald-800 dark:text-emerald-200 tracking-wide">
-                  Project Attributes
-                </CardTitle>
-                <CardDescription className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-                  Status, priority, category
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-6 pb-6 space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="status">Current Status</Label>
-                  <Select
-                    value={status}
-                    onValueChange={(value) => setStatus(value as ProjectStatus)}
-                  >
-                    <SelectTrigger
-                      id="status"
-                      className="bg-white/80 dark:bg-gray-800/80"
-                    >
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[60] max-h-60">
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select
-                    value={priority}
-                    onValueChange={(value) => setPriority(value as ProjectPriority)}
-                  >
-                    <SelectTrigger
-                      id="priority"
-                      className="bg-white/80 dark:bg-gray-800/80"
-                    >
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[60] max-h-60">
-                      {priorityOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={category || undefined}
-                    onValueChange={(value) => setCategory(value)}
-                  >
-                    <SelectTrigger
-                      id="category"
-                      className="bg-white/80 dark:bg-gray-800/80"
-                    >
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[60] max-h-60">
-                      {categoryOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-              </Card>
 
               <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
               <CardHeader className="pb-2 px-6">
@@ -484,6 +390,103 @@ export default function Step1ProjectSetup({
                     </div>
                   </CardContent>
                 </Card>
+            </div>
+
+            <div className="space-y-6">
+              {insightsContent ? <div className="space-y-6">{insightsContent}</div> : null}
+
+              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+              <CardHeader className="pb-2 px-6">
+                <CardTitle className="text-base text-emerald-800 dark:text-emerald-200 tracking-wide">
+                  Project Attributes
+                </CardTitle>
+                <CardDescription className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Status, priority, category
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6 space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="status">Current Status</Label>
+                  <Select
+                    value={status}
+                    onValueChange={(value) => setStatus(value as ProjectStatus)}
+                  >
+                    <SelectTrigger
+                      id="status"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                    >
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[60] max-h-60">
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select
+                    value={priority}
+                    onValueChange={(value) => setPriority(value as ProjectPriority)}
+                  >
+                    <SelectTrigger
+                      id="priority"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                    >
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[60] max-h-60">
+                      {priorityOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={category || undefined}
+                    onValueChange={(value) => setCategory(value)}
+                  >
+                    <SelectTrigger
+                      id="category"
+                      className="bg-white/80 dark:bg-gray-800/80"
+                    >
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[60] max-h-60">
+                      {categoryOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              </Card>
+
+              <Card className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+              <CardHeader className="pb-3 px-6">
+                <CardTitle className="text-base text-emerald-900 dark:text-emerald-100">
+                  Alignment checklist
+                </CardTitle>
+                <CardDescription className="text-xs uppercase tracking-[0.3em] text-emerald-700/80 dark:text-emerald-200/70">
+                  Before you continue
+                </CardDescription>
+              </CardHeader>
+                <CardContent className="px-6 pb-6 space-y-3 text-sm text-muted-foreground">
+                  <p>✔ Names mirror the client contract.</p>
+                  <p>✔ Address pin drops on the right parcel.</p>
+                  <p>✔ Compliance docs are uploaded or linked.</p>
+                  <p>✔ Dates reflect the signed LOA.</p>
+              </CardContent>
+            </Card>
             </div>
           </div>
 
