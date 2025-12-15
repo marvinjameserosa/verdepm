@@ -839,6 +839,8 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               onOpenLogisticsModal={handleSelectLogisticsMaterial}
               projectId={project.id}
               onMaterialUpdated={refreshMaterials}
+              projectStartDate={project.startDate}
+              projectEndDate={project.endDate}
             />
             <DeliveryRouteSection
               routeStartQuery={routeStartQuery}
