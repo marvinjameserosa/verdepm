@@ -28,7 +28,7 @@ export async function getPostConstructionData(
 
   // Fetch Daily Logs (Scope 1 & TRIR)
   const { data: dailyLogsData, error: dailyLogsError } = await supabase
-    .from("daily_log")
+    .from("daily_logs")
     .select(
       "id, project_id, timestamp, number_of_incidents, total_employee_hours, equipment_emissions"
     )

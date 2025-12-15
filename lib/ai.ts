@@ -1,24 +1,157 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const GEMINI_GENERATION_MODEL = process.env.GEMINI_GENERATION_MODEL;
+
+let cachedGenAI: GoogleGenerativeAI | null = null;
+
+function getGeminiApiKey(): string | undefined {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY
+  );
+}
+
+function getGenAI(): GoogleGenerativeAI {
+  if (cachedGenAI) return cachedGenAI;
+
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "AI service configuration error: missing Gemini API key. Set GEMINI_API_KEY (or GOOGLE_GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY) and restart the server."
+    );
+  }
+
+  cachedGenAI = new GoogleGenerativeAI(apiKey);
+  return cachedGenAI;
+}
+
+function handleGeminiError(error: unknown, context: string): never {
+  console.error(`Error generating ${context}:`, error);
+
+  const status =
+    error &&
+    typeof error === "object" &&
+    "status" in error &&
+    typeof (error as { status?: unknown }).status === "number"
+      ? (error as { status: number }).status
+      : undefined;
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "status" in error &&
+    (error as { status?: number }).status === 429
+  ) {
+    throw new Error(
+      "AI service quota exceeded. Please try again later or contact support."
+    );
+  }
+
+  if (status === 401 || status === 403) {
+    throw new Error(
+      "AI service configuration error: Gemini API key is invalid or unauthorized. Verify GEMINI_API_KEY and that the key has access to the selected model."
+    );
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "status" in error &&
+    typeof (error as { status?: number }).status === "number" &&
+    (error as { status?: number }).status! >= 400 &&
+    (error as { status?: number }).status! < 500
+  ) {
+    throw new Error(
+      "AI service configuration error. Verify your Gemini API key and model configuration."
+    );
+  }
+
+  throw new Error(
+    `Failed to generate ${context}. Please check your connection and try again.`
+  );
+}
 
 export async function embedText(text: string) {
-  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-  const res = await model.embedContent(text);
-  return res.embedding.values;
+  try {
+    const model = getGenAI().getGenerativeModel({ model: "text-embedding-004" });
+    const res = await model.embedContent(text);
+    return res.embedding.values;
+  } catch (error: unknown) {
+    handleGeminiError(error, "embeddings");
+  }
+}
+
+async function generateWithFallbackModels(options: {
+  context: string;
+  prompt: string;
+  generationConfig: {
+    temperature: number;
+    topP: number;
+    maxOutputTokens: number;
+  };
+}): Promise<string> {
+  const candidates = [
+    GEMINI_GENERATION_MODEL,
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-1.5-pro-latest",
+  ].filter((value): value is string => Boolean(value));
+
+  const tried = new Set<string>();
+  const modelsToTry = candidates.filter((model) => {
+    if (tried.has(model)) return false;
+    tried.add(model);
+    return true;
+  });
+
+  let lastError: unknown;
+  for (const modelName of modelsToTry) {
+    try {
+      const model = getGenAI().getGenerativeModel({
+        model: modelName,
+        generationConfig: options.generationConfig,
+      });
+
+      const out = await model.generateContent(options.prompt);
+      return out.response.text();
+    } catch (error: unknown) {
+      lastError = error;
+
+      const status =
+        error &&
+        typeof error === "object" &&
+        "status" in error &&
+        typeof (error as { status?: unknown }).status === "number"
+          ? (error as { status: number }).status
+          : undefined;
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+          ? error
+          : "";
+
+      const modelLikelyIssue =
+        status === 404 ||
+        /model/i.test(message) ||
+        /not\s*found/i.test(message) ||
+        /does\s*not\s*exist/i.test(message);
+
+      if (modelLikelyIssue) {
+        continue;
+      }
+
+      handleGeminiError(error, options.context);
+    }
+  }
+
+  handleGeminiError(lastError, options.context);
 }
 
 export async function generateReport(knowledge: string) {
-  // Use the recommended Gemini 2.5 Pro Preview model for higher quota limits
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-pro-preview-03-25",
-    generationConfig: {
-      temperature: 0.7,
-      topP: 0.8,
-      maxOutputTokens: 8192,
-    },
-  });
-
   const prompt = `
 Generate a comprehensive Environmental ESG Report for the project using all available construction logs, material logs, delivery logs, equipment records, utility data, and project documents. Use the emissions, resource consumption, and safety data reflected in the dashboard metrics when available. Please use plain text, no markup and no decorators. The final report must be written in a formal and structured manner consistent with standard ESG documentation and suitable for inclusion in an official report.
 
@@ -59,40 +192,47 @@ ${knowledge}
 `;
 
   try {
-    const out = await model.generateContent(prompt);
-    return out.response.text();
+    return await generateWithFallbackModels({
+      context: "AI report",
+      prompt,
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.8,
+        maxOutputTokens: 8192,
+      },
+    });
   } catch (error: unknown) {
-    console.error("Error generating AI report:", error);
+    handleGeminiError(error, "AI report");
+  }
+}
 
-    // Handle quota exceeded errors
-    if (
-      error &&
-      typeof error === "object" &&
-      "status" in error &&
-      error.status === 429
-    ) {
-      throw new Error(
-        "AI service quota exceeded. Please try again later or contact support."
-      );
-    }
+export async function generateScopeEmissionsInsights(knowledge: string) {
+  const prompt = `
+You are a sustainability analyst specializing in Scope 1, Scope 2, and Scope 3 emissions for large construction projects. Using only the structured data provided, craft a concise narrative (3-4 short paragraphs) that covers:
 
-    // Handle other API errors
-    if (
-      error &&
-      typeof error === "object" &&
-      "status" in error &&
-      typeof error.status === "number" &&
-      error.status >= 400 &&
-      error.status < 500
-    ) {
-      throw new Error(
-        "AI service configuration error. Please contact support."
-      );
-    }
+If a project name is provided in the data, refer to the project by that name. Do not mention any internal IDs, UUIDs, or "Project ID" values.
 
-    // Handle network or other errors
-    throw new Error(
-      "Failed to generate AI report. Please check your connection and try again."
-    );
+1. Current performance for each scope, highlighting which scope drives the largest share of emissions and any notable month-over-month shifts.
+2. Alignment against project targets, calling out where actuals are trending above or below the defined thresholds.
+3. Specific corrective or acceleration actions that the project team should take in the next reporting cycle. Mention equipment, grid power, logistics, or supplier levers where relevant.
+
+Keep the tone professional, avoid markdown or lists, and reference concrete numbers when available. Do not invent data outside of what is provided.
+
+Data:
+${knowledge}
+`;
+
+  try {
+    return await generateWithFallbackModels({
+      context: "scope emissions insight",
+      prompt,
+      generationConfig: {
+        temperature: 0.35,
+        topP: 0.8,
+        maxOutputTokens: 1024,
+      },
+    });
+  } catch (error: unknown) {
+    handleGeminiError(error, "scope emissions insight");
   }
 }

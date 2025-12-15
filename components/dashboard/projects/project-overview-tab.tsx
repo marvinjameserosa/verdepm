@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GanttChartSquare } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Award, GanttChartSquare } from "lucide-react";
 
 import Step1ProjectSetup from "./preconstruction/step1-project-setup";
 
@@ -21,12 +21,20 @@ import { uploadProjectFile } from "@/actions/preconstruction/storage";
 import { isMissingRelationError } from "@/lib/supabase/errors";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePostConstructionData } from "@/hooks/use-post-construction-data";
 
 type ConfirmationVariant = "step1Save" | "step1Next";
 
@@ -35,6 +43,83 @@ type ProjectOverviewTabProps = {
   onProjectUpdated?: (project: Project) => void;
   onContinueToPreConstruction?: () => void;
   onSetupSaved?: () => void;
+};
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const splitInsightToBullets = (insight: string): string[] =>
+  insight
+    .split(/\n\s*\n/g)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+
+const renderHighlightedInsight = (text: string, projectName?: string): ReactNode => {
+  const safeProjectName = projectName?.trim() ? projectName.trim() : null;
+
+  const tokenPatterns: string[] = [
+    "Scope\\s[123]",
+    "\\b\\d+(?:\\.\\d+)?\\s*tCO2e\\b",
+    "\\bTRIR\\b",
+    "\\bbelow\\s+target\\b",
+    "\\babove\\s+target\\b",
+    "\\bexceed(?:s|ed)?\\s+target\\b",
+    "\\bdominant\\b",
+    "\\btargets?\\b",
+  ];
+
+  if (safeProjectName) {
+    tokenPatterns.unshift(escapeRegExp(safeProjectName));
+  }
+
+  const splitter = new RegExp(`(${tokenPatterns.join("|")})`, "gi");
+  const parts = text.split(splitter);
+
+  const classify = (segment: string): string | null => {
+    if (!segment) return null;
+
+    if (safeProjectName && segment.localeCompare(safeProjectName, undefined, { sensitivity: "accent" }) === 0) {
+      return "font-semibold text-foreground";
+    }
+
+    if (/^Scope\s[123]$/i.test(segment)) {
+      return "font-semibold text-purple-700 dark:text-purple-300";
+    }
+
+    if (/^\d+(?:\.\d+)?\s*tCO2e$/i.test(segment)) {
+      return "font-semibold text-emerald-700 dark:text-emerald-300";
+    }
+
+    if (/^TRIR$/i.test(segment)) {
+      return "font-semibold text-purple-700 dark:text-purple-300";
+    }
+
+    if (/below\s+target/i.test(segment)) {
+      return "font-semibold text-emerald-700 dark:text-emerald-300";
+    }
+
+    if (/above\s+target|exceed(?:s|ed)?\s+target/i.test(segment)) {
+      return "font-semibold text-red-600 dark:text-red-400";
+    }
+
+    if (/dominant|targets?/i.test(segment)) {
+      return "font-semibold text-purple-700 dark:text-purple-300";
+    }
+
+    return null;
+  };
+
+  return parts.map((segment, index) => {
+    const className = classify(segment);
+    if (!className) {
+      return <span key={index}>{segment}</span>;
+    }
+    return (
+      <span key={index} className={className}>
+        {segment}
+      </span>
+    );
+  });
 };
 
 export default function ProjectOverviewTab({
@@ -57,6 +142,150 @@ export default function ProjectOverviewTab({
   const [isSavingStep1, setIsSavingStep1] = useState(false);
   const [confirmationVariant, setConfirmationVariant] =
     useState<ConfirmationVariant | null>(null);
+
+  const resolvedProjectId = projectDetails?.id ?? project?.id ?? "";
+  const resolvedProjectName = projectDetails?.name ?? project?.name ?? "";
+  const {
+    data: postConstructionData,
+    isLoading: isPerformanceInsightsLoading,
+    error: performanceInsightsError,
+  } = usePostConstructionData(resolvedProjectId);
+
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [aiInsightError, setAiInsightError] = useState<string | null>(null);
+  const [aiInsightWarning, setAiInsightWarning] = useState<string | null>(null);
+  const [isAiInsightLoading, setIsAiInsightLoading] = useState(false);
+  const lastInsightSignatureRef = useRef<string | null>(null);
+
+  const hasPreconstructionSetup = Boolean(postConstructionData?.targets);
+  const hasConstructionLogs = useMemo(() => {
+    if (!postConstructionData) {
+      return false;
+    }
+
+    return (
+      postConstructionData.trends.length > 0 ||
+      postConstructionData.actuals.scope_one > 0 ||
+      postConstructionData.actuals.scope_two > 0 ||
+      postConstructionData.actuals.scope_three > 0
+    );
+  }, [postConstructionData]);
+
+  const canRequestScopeInsights =
+    Boolean(resolvedProjectId) &&
+    hasPreconstructionSetup &&
+    hasConstructionLogs &&
+    !performanceInsightsError;
+
+  const insightSignature = useMemo(() => {
+    if (!postConstructionData || !canRequestScopeInsights) {
+      return null;
+    }
+
+    const { actuals, targets, trends } = postConstructionData;
+    const trendKey = trends
+      .slice(-6)
+      .map(
+        (entry) =>
+          `${entry.date}:${entry.scope_one}:${entry.scope_two}:${entry.scope_three}`
+      )
+      .join("|");
+
+    return [
+      resolvedProjectId,
+      actuals.scope_one,
+      actuals.scope_two,
+      actuals.scope_three,
+      targets?.scope_one ?? "null",
+      targets?.scope_two ?? "null",
+      targets?.scope_three ?? "null",
+      trendKey,
+    ].join(":");
+  }, [postConstructionData, resolvedProjectId, canRequestScopeInsights]);
+
+  useEffect(() => {
+    if (!canRequestScopeInsights || !insightSignature) {
+      setAiInsight(null);
+      setAiInsightError(null);
+      setAiInsightWarning(null);
+      setIsAiInsightLoading(false);
+      lastInsightSignatureRef.current = null;
+      return;
+    }
+
+    if (lastInsightSignatureRef.current === insightSignature && aiInsight) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const fetchInsights = async () => {
+      setIsAiInsightLoading(true);
+      setAiInsightError(null);
+
+      try {
+        const response = await fetch("/api/projects/scope-insights", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: resolvedProjectId,
+            projectName: resolvedProjectName || null,
+          }),
+          signal: controller.signal,
+        });
+
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const message =
+            payload?.message ||
+            payload?.error ||
+            "Failed to generate scope emissions insight.";
+          throw new Error(message);
+        }
+
+        const insightText =
+          typeof payload?.insight === "string" ? payload.insight.trim() : "";
+        const warningText =
+          typeof payload?.warning === "string"
+            ? payload.warning.trim()
+            : null;
+
+        lastInsightSignatureRef.current = insightSignature;
+        setAiInsight(insightText);
+        setAiInsightWarning(warningText && warningText.length > 0 ? warningText : null);
+      } catch (error) {
+        if ((error as { name?: string })?.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed to load AI performance insights:", error);
+        setAiInsightError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load performance insights."
+        );
+        setAiInsightWarning(null);
+        lastInsightSignatureRef.current = null;
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsAiInsightLoading(false);
+        }
+      }
+    };
+
+    void fetchInsights();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    aiInsight,
+    canRequestScopeInsights,
+    insightSignature,
+    resolvedProjectId,
+    resolvedProjectName,
+  ]);
 
   useEffect(() => {
     setProjectDetails(project ?? null);
@@ -506,12 +735,75 @@ export default function ProjectOverviewTab({
             Capture the foundational project details and confirm compliance files before the ESG workflow.
           </p>
         </div>
-        <Step1ProjectSetup
-          onSubmit={handleStep1Submit}
-          onSave={handleStep1Save}
-          initialValues={step1InitialValues}
-          isSubmitting={isSavingStep1}
-        />
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+          <div className="lg:col-span-7">
+            <Step1ProjectSetup
+              onSubmit={handleStep1Submit}
+              onSave={handleStep1Save}
+              initialValues={step1InitialValues}
+              isSubmitting={isSavingStep1}
+            />
+          </div>
+
+          <div className="lg:col-span-5">
+            <Card className="border border-gray-200/80 dark:border-gray-800/70 bg-white/80 dark:bg-gray-900/60 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <Award className="h-5 w-5 text-purple-600" />
+                  Performance Insights
+                </CardTitle>
+                <CardDescription>
+                  {resolvedProjectName
+                    ? `AI-driven analysis of ${resolvedProjectName} ESG performance.`
+                    : "AI-driven analysis of your ESG performance."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!resolvedProjectId ? (
+                  <p className="text-sm text-muted-foreground">
+                    Select or create a project to unlock ESG performance highlights.
+                  </p>
+                ) : performanceInsightsError ? (
+                  <p className="text-sm text-red-600">{performanceInsightsError}</p>
+                ) : isPerformanceInsightsLoading ? (
+                  <p className="text-sm text-muted-foreground animate-pulse">
+                    Loading project metrics…
+                  </p>
+                ) : !hasPreconstructionSetup || !hasConstructionLogs ? (
+                  <p className="text-sm text-muted-foreground">
+                    No insight available yet. Complete the Pre-Construction and Construction tabs to unlock AI analysis.
+                  </p>
+                ) : aiInsightError ? (
+                  <p className="text-sm text-red-600">{aiInsightError}</p>
+                ) : isAiInsightLoading ? (
+                  <p className="text-sm text-muted-foreground animate-pulse">
+                    Generating AI summary for Scope 1, 2, and 3 emissions…
+                  </p>
+                ) : aiInsight ? (
+                  <div className="space-y-3">
+                    {aiInsightWarning ? (
+                      <div className="text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200/80 dark:border-amber-500/30 rounded-md px-3 py-2">
+                        {aiInsightWarning}
+                      </div>
+                    ) : null}
+                    <div className="rounded-md border border-gray-200/80 dark:border-gray-800/70 bg-white/60 dark:bg-gray-950/20 p-3">
+                      <ul className="space-y-2 pl-5 list-disc marker:text-purple-600">
+                        {splitInsightToBullets(aiInsight).map((bullet, index) => (
+                          <li key={index} className="text-sm text-foreground leading-relaxed">
+                            {renderHighlightedInsight(bullet, resolvedProjectName)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No insight available yet.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <Dialog

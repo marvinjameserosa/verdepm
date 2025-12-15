@@ -9,16 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  CheckCircle,
-  AlertTriangle,
-  Award,
-  TrendingUp,
-  Activity,
-  Zap,
-  Truck,
-  Leaf,
-} from "lucide-react";
+import { Award, TrendingUp, Activity, Zap, Truck, Leaf } from "lucide-react";
 import type { Project } from "@/types/project";
 import {
   LineChart,
@@ -189,74 +180,6 @@ export default function PostConstructionPhase({
     );
   };
 
-  // Generate Insights
-  const insights: { type: "strength" | "improvement"; text: string }[] = [];
-
-  if (
-    targets?.scope_one &&
-    actuals.scope_one <= targets.scope_one
-  ) {
-    insights.push({
-      type: "strength",
-      text: "Scope 1 emissions (Direct) are within the set targets, indicating efficient fuel usage and equipment management.",
-    });
-  } else if (targets?.scope_one) {
-    insights.push({
-      type: "improvement",
-      text: `Scope 1 emissions exceeded the target by ${formatNumber(
-        actuals.scope_one - targets.scope_one
-      )} tCO2e. Consider optimizing equipment runtime and maintenance schedules.`,
-    });
-  }
-
-  if (
-    targets?.scope_two &&
-    actuals.scope_two <= targets.scope_two
-  ) {
-    insights.push({
-      type: "strength",
-      text: "Scope 2 emissions (Indirect - Electricity) are well-managed, reflecting effective energy conservation measures.",
-    });
-  } else if (targets?.scope_two) {
-    insights.push({
-      type: "improvement",
-      text: "Scope 2 emissions are higher than projected. Investigate temporary lighting and HVAC usage patterns.",
-    });
-  }
-
-  if (
-    targets?.scope_three &&
-    actuals.scope_three <= targets.scope_three
-  ) {
-    insights.push({
-      type: "strength",
-      text: "Scope 3 emissions (Value Chain) are below the threshold, showing successful waste diversion and supply chain efficiency.",
-    });
-  }
-
-  if (targets?.trir && actuals.trir <= targets.trir) {
-    insights.push({
-      type: "strength",
-      text: `Safety performance is excellent with a TRIR of ${formatNumber(
-        actuals.trir
-      )}, meeting the safety target.`,
-    });
-  } else if (actuals.trir > (targets?.trir || 0)) {
-    insights.push({
-      type: "improvement",
-      text: `TRIR is currently ${formatNumber(
-        actuals.trir
-      )}, which is above the target. Immediate review of safety protocols and incident reports is recommended.`,
-    });
-  }
-
-  if (insights.length === 0) {
-    insights.push({
-      type: "strength",
-      text: "Data collection is in progress. Continue submitting daily and monthly logs to generate actionable insights.",
-    });
-  }
-
   return (
     <div className="space-y-8 pb-12">
       <header className="space-y-2">
@@ -309,8 +232,8 @@ export default function PostConstructionPhase({
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
+      <div>
+        <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-emerald-600" />
@@ -414,34 +337,6 @@ export default function PostConstructionPhase({
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/40 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-purple-600" />
-              Performance Insights
-            </CardTitle>
-            <CardDescription>
-              AI-driven analysis of your ESG performance.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {insights.map((insight, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  {insight.type === "strength" ? (
-                    <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
-                  ) : (
-                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
-                  )}
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {insight.text}
-                  </p>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>
