@@ -282,7 +282,7 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
             <PanelRightClose className="h-5 w-5 text-muted-foreground" />
           )}
         </button>
-        <div className="font-medium text-sm hidden lg:flex items-center space-x-1 truncate max-w-[300px]">
+        <div className="font-medium text-sm hidden lg:flex items-center space-x-1 max-w-[300px] overflow-hidden whitespace-nowrap">
           {breadcrumbs.map((crumb, index) => (
             <React.Fragment key={index}>
               {index > 0 && (
@@ -296,7 +296,26 @@ export default function TopNav({ toggleSidebar, isSidebarOpen }: TopNavProps) {
                   {crumb.label}
                 </Link>
               ) : (
-                <span className="text-foreground font-medium">
+                <span
+                  className="text-foreground font-medium"
+                  style={
+                    index === breadcrumbs.length - 1 &&
+                    mainCategory === "projects" &&
+                    slug
+                      ? {
+                          maxWidth: "180px",
+                          display: "inline-block",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          WebkitMaskImage:
+                            "linear-gradient(90deg, #000 80%, transparent)",
+                          maskImage:
+                            "linear-gradient(90deg, #000 80%, transparent)",
+                        }
+                      : undefined
+                  }
+                >
                   {crumb.label}
                 </span>
               )}

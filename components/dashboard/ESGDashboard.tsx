@@ -83,35 +83,52 @@ const CustomEmissionsTooltip = ({ active, payload, label }: any) => {
         </p>
         <div className="space-y-2">
           {payload.map((entry: any, index: number) => {
-            if (entry.dataKey === 'trend') {
+            if (entry.dataKey === "trend") {
               return (
-                <div key={index} className="flex items-center justify-between gap-4 text-sm">
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-4 text-sm"
+                >
                   <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-0.5" 
-                      style={{ 
-                        backgroundImage: 'repeating-linear-gradient(90deg, hsl(320 75% 60%), hsl(320 75% 60%) 4px, transparent 4px, transparent 8px)' 
+                    <div
+                      className="w-3 h-0.5"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(90deg, hsl(320 75% 60%), hsl(320 75% 60%) 4px, transparent 4px, transparent 8px)",
                       }}
                     />
-                    <span className="text-muted-foreground font-medium">{entry.name}:</span>
+                    <span className="text-muted-foreground font-medium">
+                      {entry.name}:
+                    </span>
                   </div>
                   <span className="font-semibold text-foreground">
-                    {typeof entry.value === 'number' ? entry.value.toFixed(2) : '0.00'} tCO₂e
+                    {typeof entry.value === "number"
+                      ? entry.value.toFixed(2)
+                      : "0.00"}{" "}
+                    tCO₂e
                   </span>
                 </div>
               );
             }
             return (
-              <div key={index} className="flex items-center justify-between gap-4 text-sm">
+              <div
+                key={index}
+                className="flex items-center justify-between gap-4 text-sm"
+              >
                 <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded" 
+                  <div
+                    className="w-3 h-3 rounded"
                     style={{ backgroundColor: entry.color || entry.fill }}
                   />
-                  <span className="text-muted-foreground font-medium">{entry.name}:</span>
+                  <span className="text-muted-foreground font-medium">
+                    {entry.name}:
+                  </span>
                 </div>
                 <span className="font-semibold text-foreground">
-                  {typeof entry.value === 'number' ? entry.value.toFixed(2) : '0.00'} tCO₂e
+                  {typeof entry.value === "number"
+                    ? entry.value.toFixed(2)
+                    : "0.00"}{" "}
+                  tCO₂e
                 </span>
               </div>
             );
@@ -121,9 +138,14 @@ const CustomEmissionsTooltip = ({ active, payload, label }: any) => {
               <span className="text-foreground">Total Emissions:</span>
               <span className="text-foreground">
                 {payload
-                  .filter((p: any) => p.dataKey !== 'trend')
-                  .reduce((sum: number, p: any) => sum + (typeof p.value === 'number' ? p.value : 0), 0)
-                  .toFixed(2)} tCO₂e
+                  .filter((p: any) => p.dataKey !== "trend")
+                  .reduce(
+                    (sum: number, p: any) =>
+                      sum + (typeof p.value === "number" ? p.value : 0),
+                    0
+                  )
+                  .toFixed(2)}{" "}
+                tCO₂e
               </span>
             </div>
           </div>
@@ -196,6 +218,38 @@ const CompactTooltip = ({
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+const ProjectTitleTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+}) => {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+
+  const value = payload[0]?.value;
+
+  return (
+    <div className="min-w-[220px] rounded-xl border border-border bg-card/90 p-4 shadow-xl backdrop-blur-sm">
+      {label ? (
+        <p className="text-sm font-semibold text-foreground leading-snug">
+          {label}
+        </p>
+      ) : null}
+      <p className="mt-2 text-xs text-muted-foreground">
+        Emissions:{" "}
+        <span className="font-semibold text-foreground">
+          {typeof value === "number" ? value.toFixed(2) : "0.00"} tCO₂e
+        </span>
+      </p>
     </div>
   );
 };
@@ -282,10 +336,11 @@ export default function ESGDashboard() {
     // Calculate Trend Line
     const emissionsArray = sortedMonths.map((d) => d.totalEmissions);
     const { slope, intercept } = calculateTrend(emissionsArray);
+    const trendBase = intercept; // align trend line to start at 0
 
     return sortedMonths.map((d, index) => ({
       ...d,
-      trend: slope * index + intercept,
+      trend: slope * index + intercept - trendBase,
       intensity: calculateIntensity(d.totalEmissions, d.manHours),
     }));
   }, [currentYearData]);
@@ -572,22 +627,52 @@ export default function ESGDashboard() {
             </div>
             <div className="flex flex-wrap gap-4 mt-4 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(180deg, hsl(158 70% 45%) 0%, hsl(158 70% 45% / 0.2) 100%)' }}></div>
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, hsl(158 70% 45%) 0%, hsl(158 70% 45% / 0.2) 100%)",
+                  }}
+                ></div>
                 <span className="legend-pill">Scope 1:</span>
-                <strong className="legend-pill legend-pill--strong">Direct Emissions (Equipment, Fuel)</strong>
+                <strong className="legend-pill legend-pill--strong">
+                  Direct Emissions (Equipment, Fuel)
+                </strong>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(180deg, hsl(195 85% 55%) 0%, hsl(195 85% 55% / 0.2) 100%)' }}></div>
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, hsl(195 85% 55%) 0%, hsl(195 85% 55% / 0.2) 100%)",
+                  }}
+                ></div>
                 <span className="legend-pill">Scope 2:</span>
-                <strong className="legend-pill legend-pill--strong">Indirect Emissions (Electricity)</strong>
+                <strong className="legend-pill legend-pill--strong">
+                  Indirect Emissions (Electricity)
+                </strong>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(180deg, hsl(265 75% 65%) 0%, hsl(265 75% 65% / 0.2) 100%)' }}></div>
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, hsl(265 75% 65%) 0%, hsl(265 75% 65% / 0.2) 100%)",
+                  }}
+                ></div>
                 <span className="legend-pill">Scope 3:</span>
-                <strong className="legend-pill legend-pill--strong">Value Chain (Water, Waste, Logistics)</strong>
+                <strong className="legend-pill legend-pill--strong">
+                  Value Chain (Water, Waste, Logistics)
+                </strong>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-12 h-0.5 bg-chart-5" style={{ backgroundImage: 'repeating-linear-gradient(90deg, hsl(320 75% 60%), hsl(320 75% 60%) 5px, transparent 5px, transparent 10px)' }}></div>
+                <div
+                  className="w-12 h-0.5 bg-chart-5"
+                  style={{
+                    backgroundImage:
+                      "repeating-linear-gradient(90deg, hsl(320 75% 60%), hsl(320 75% 60%) 5px, transparent 5px, transparent 10px)",
+                  }}
+                ></div>
                 <span className="legend-pill">Trend Line</span>
               </div>
             </div>
@@ -595,7 +680,10 @@ export default function ESGDashboard() {
           <CardContent className="pl-2 relative z-10">
             <div className="h-[450px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={aggregatedData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <ComposedChart
+                  data={aggregatedData}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
                   <defs>
                     <linearGradient
                       id="colorScope1"
@@ -678,7 +766,7 @@ export default function ESGDashboard() {
                     }}
                   />
                   <Tooltip content={<CustomEmissionsTooltip />} />
-                  <Legend 
+                  <Legend
                     wrapperStyle={{ paddingTop: "20px" }}
                     iconType="rect"
                     iconSize={14}
@@ -761,7 +849,7 @@ export default function ESGDashboard() {
                     />
                     <Tooltip
                       content={<CompactTooltip unit="tCO₂e" />}
-                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
+                      cursor={{ fill: "hsl(var(--card) / 0.18)" }}
                     />
                     <Legend
                       formatter={legendFormatter}
@@ -816,7 +904,7 @@ export default function ESGDashboard() {
                     />
                     <Tooltip
                       content={<CompactTooltip unit="tCO₂e" />}
-                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
+                      cursor={{ fill: "hsl(var(--card) / 0.18)" }}
                     />
                     <Legend
                       formatter={legendFormatter}
@@ -856,8 +944,12 @@ export default function ESGDashboard() {
                   <Truck className="h-5 w-5 text-chart-1" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-bold">Emissions Source Breakdown</CardTitle>
-                  <CardDescription className="mt-1">Contributors to total emissions</CardDescription>
+                  <CardTitle className="text-xl font-bold">
+                    Emissions Source Breakdown
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Contributors to total emissions
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -865,20 +957,20 @@ export default function ESGDashboard() {
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={emissionsSourceBreakdown} layout="vertical">
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
                       stroke="hsl(var(--border))"
                       opacity={0.3}
                     />
-                    <XAxis 
-                      type="number" 
+                    <XAxis
+                      type="number"
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
                       tick={axisTickProps}
                     />
-                    <YAxis 
-                      dataKey="name" 
-                      type="category" 
+                    <YAxis
+                      dataKey="name"
+                      type="category"
                       width={130}
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "11px" }}
@@ -886,7 +978,7 @@ export default function ESGDashboard() {
                     />
                     <Tooltip
                       content={<CompactTooltip unit="tCO₂e" />}
-                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
+                      cursor={{ fill: "hsl(var(--card) / 0.18)" }}
                     />
                     <Legend
                       formatter={legendFormatter}
@@ -917,8 +1009,12 @@ export default function ESGDashboard() {
                   <HardHat className="h-5 w-5 text-chart-2" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-bold">Project Emissions Breakdown</CardTitle>
-                  <CardDescription className="mt-1">Emissions by project</CardDescription>
+                  <CardTitle className="text-xl font-bold">
+                    Project Emissions Breakdown
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Emissions by project
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -926,36 +1022,31 @@ export default function ESGDashboard() {
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={projectBreakdown}>
-                    <CartesianGrid 
+                    <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="hsl(var(--border))"
                       opacity={0.3}
                     />
-                    <XAxis 
-                      dataKey="name"
-                      stroke="hsl(var(--muted-foreground))"
-                      style={{ fontSize: "11px" }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      tick={axisTickProps}
-                    />
+                    <XAxis dataKey="name" hide />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
-                      style={{ fontSize: "11px" }}
-                      tick={axisTickProps}
+                      tick={{
+                        fill: chartTextColor,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
                     />
                     <Tooltip
-                      content={<CompactTooltip unit="tCO₂e" />}
-                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
+                      content={<ProjectTitleTooltip />}
+                      cursor={{ fill: "hsl(var(--card) / 0.18)" }}
                     />
                     <Legend
                       formatter={legendFormatter}
                       wrapperStyle={legendWrapperStyle}
                     />
-                    <Bar 
-                      dataKey="value" 
-                      fill="hsl(195 85% 55%)" 
+                    <Bar
+                      dataKey="value"
+                      fill="hsl(195 85% 55%)"
                       name="Emissions (tCO₂e)"
                       radius={[8, 8, 0, 0]}
                     />
@@ -972,8 +1063,12 @@ export default function ESGDashboard() {
                   <Activity className="h-5 w-5 text-chart-4" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-bold">Yearly Emissions Comparison</CardTitle>
-                  <CardDescription className="mt-1">Year-over-year emissions trends</CardDescription>
+                  <CardTitle className="text-xl font-bold">
+                    Yearly Emissions Comparison
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Year-over-year emissions trends
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -981,12 +1076,12 @@ export default function ESGDashboard() {
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={yearlyBreakdown}>
-                    <CartesianGrid 
+                    <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="hsl(var(--border))"
                       opacity={0.3}
                     />
-                    <XAxis 
+                    <XAxis
                       dataKey="name"
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "12px", fontWeight: 500 }}
@@ -996,19 +1091,24 @@ export default function ESGDashboard() {
                       stroke="hsl(var(--muted-foreground))"
                       style={{ fontSize: "12px" }}
                       tick={axisTickProps}
-                      label={{ value: "Emissions (tCO₂e)", angle: -90, position: "insideLeft", fill: chartTextColor }}
+                      label={{
+                        value: "Emissions (tCO₂e)",
+                        angle: -90,
+                        position: "insideLeft",
+                        fill: chartTextColor,
+                      }}
                     />
                     <Tooltip
                       content={<CompactTooltip unit="tCO₂e" />}
-                      cursor={{ fill: "hsl(var(--muted) / 0.12)" }}
+                      cursor={{ fill: "hsl(var(--card) / 0.18)" }}
                     />
                     <Legend
                       formatter={legendFormatter}
                       wrapperStyle={legendWrapperStyle}
                     />
-                    <Bar 
-                      dataKey="value" 
-                      fill="hsl(45 95% 60%)" 
+                    <Bar
+                      dataKey="value"
+                      fill="hsl(45 95% 60%)"
                       name="Total Emissions (tCO₂e)"
                       radius={[8, 8, 0, 0]}
                     />

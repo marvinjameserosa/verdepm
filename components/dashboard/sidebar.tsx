@@ -86,7 +86,7 @@ export default function Sidebar({ isSidebarOpen }: SidebarProps) {
         </Link>
 
         {/* Navigation groups */}
-        <div className="flex-grow overflow-y-auto p-4">
+        <div className="flex-grow overflow-y-auto overflow-x-hidden p-4">
           <div className="space-y-6">
             {/* Overview */}
             <div>
