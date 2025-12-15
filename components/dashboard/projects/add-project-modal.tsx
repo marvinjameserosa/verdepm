@@ -245,7 +245,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                       htmlFor="startDate"
                       className="text-sm font-medium text-foreground"
                     >
-                      Est. Start Date *
+                      Estimated Start Date *
                     </Label>
                     <Input
                       id="startDate"
@@ -261,7 +261,7 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
                       htmlFor="endDate"
                       className="text-sm font-medium text-foreground"
                     >
-                      Est. Completion Date *
+                      Estimated Completion Date *
                     </Label>
                     <Input
                       id="endDate"
@@ -460,31 +460,6 @@ export function AddProjectModal({ onProjectCreated }: AddProjectModalProps) {
             {/* Step 4: Organization & Budget */}
             {currentStep === 4 && (
               <div className="space-y-5">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="office"
-                    className="text-sm font-medium text-foreground"
-                  >
-                    Office *
-                  </Label>
-                  <Select
-                    value={formState.office}
-                    onValueChange={(value: string) =>
-                      handleSelectChange("office", value)
-                    }
-                  >
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Select office" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[100]">
-                      {officeOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="space-y-2">
                   <Label
