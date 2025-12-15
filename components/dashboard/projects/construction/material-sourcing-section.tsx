@@ -45,6 +45,8 @@ interface MaterialSourcingSectionProps {
   onOpenLogisticsModal: (material: SourcedMaterial) => void;
   projectId: string;
   onMaterialUpdated: () => void;
+  projectStartDate?: Date | string | null;
+  projectEndDate?: Date | string | null;
 }
 
 const MATERIAL_STATUS_BADGE: Record<string, string> = {
@@ -98,7 +100,13 @@ export function MaterialSourcingSection({
   onOpenLogisticsModal,
   projectId,
   onMaterialUpdated,
+  projectStartDate,
+  projectEndDate,
 }: MaterialSourcingSectionProps) {
+  const minDate = projectStartDate ? toDateInputValue(projectStartDate) : "";
+  const maxDate = projectEndDate ? toDateInputValue(projectEndDate) : "";
+  
+  
   const [editingMaterial, setEditingMaterial] =
     useState<SourcedMaterial | null>(null);
   const [deliveryDateModalMaterial, setDeliveryDateModalMaterial] =
@@ -136,6 +144,22 @@ export function MaterialSourcingSection({
     if (normalizedDate && Number.isNaN(normalizedDate.getTime())) {
       setDeliveryDateError("Enter a valid delivery date.");
       return;
+    }
+
+    // Validate delivery date is within project start and end dates
+    if (normalizedDate) {
+      const startDate = projectStartDate ? parseMaterialDate(projectStartDate) : null;
+      const endDate = projectEndDate ? parseMaterialDate(projectEndDate) : null;
+
+      if (startDate && normalizedDate < startDate) {
+        setDeliveryDateError(`Delivery date must be on or after the project start date (${formatDateValue(startDate)}).`);
+        return;
+      }
+
+      if (endDate && normalizedDate > endDate) {
+        setDeliveryDateError(`Delivery date must be on or before the project end date (${formatDateValue(endDate)}).`);
+        return;
+      }
     }
 
     setIsSavingDeliveryDate(true);
@@ -198,13 +222,13 @@ export function MaterialSourcingSection({
             table completed before groundbreaking. Use this list to confirm
             deliveries match the approved sourcing strategy.
           </p>
-          <div className="border rounded-lg overflow-x-auto">
+          <div className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Material</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Planned Supplier</TableHead>
+                  <TableHead>Supplier</TableHead>
                   <TableHead>Warehouse</TableHead>
                   <TableHead className="text-right">Cost per Unit</TableHead>
                   <TableHead>Unit</TableHead>
@@ -212,12 +236,12 @@ export function MaterialSourcingSection({
                   <TableHead>Delivery Status</TableHead>
                   <TableHead>Delivery Date</TableHead>
                   <TableHead>Approval</TableHead>
-                  <TableHead>Fuel Summary (L)</TableHead>
-                  <TableHead>Credentials</TableHead>
-                  <TableHead>Notes</TableHead>
+                  {/* <TableHead>Fuel Summary (L)</TableHead> */}
+                  {/*<TableHead>Credentials</TableHead>*/}
+                  {/* <TableHead>Notes</TableHead> */}
                   <TableHead>Spec Sheet</TableHead>
                   <TableHead>Receipt</TableHead>
-                  <TableHead>Actions</TableHead>
+                  {/*<TableHead>Actions</TableHead>*/}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,7 +262,7 @@ export function MaterialSourcingSection({
                       </TableCell>
                       <TableCell>{material.category}</TableCell>
                       <TableCell>{material.supplier}</TableCell>
-                      <TableCell>{material.warehouse ?? "—"}</TableCell>
+                      <TableCell className="min-w-[150px] max-w-[250px] whitespace-normal">{material.warehouse ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         {formatCurrencyValue(material.cost)}
                       </TableCell>
@@ -259,23 +283,21 @@ export function MaterialSourcingSection({
                         {formatDateValue(material.deliveryDate)}
                       </TableCell>
                       <TableCell>{material.approvalStatus ?? "—"}</TableCell>
-                      <TableCell className="text-right">
+                      {/* <TableCell className="text-right">
                         {material.fuelSummary
                           ? material.fuelSummary.toFixed(2)
                           : "—"}
-                      </TableCell>
-                      <TableCell
-                        className="max-w-[200px] truncate"
-                        title={material.credentials}
+                      </TableCell> */}
+                      {/*<TableCell
+                        className="max-w-[200px] break-words"
                       >
                         {material.credentials ?? "—"}
-                      </TableCell>
-                      <TableCell
-                        className="max-w-[200px] truncate"
-                        title={material.notes}
+                      </TableCell>*/}
+                      {/*<TableCell
+                        className="max-w-[200px] break-words"
                       >
                         {material.notes ?? "—"}
-                      </TableCell>
+                      </TableCell>*/}
                       <TableCell>
                         {material.specSheetUrl ? (
                           <a
@@ -369,9 +391,13 @@ export function MaterialSourcingSection({
                   setDeliveryDateError(null);
                 }}
                 disabled={isSavingDeliveryDate}
+                min={minDate || undefined}
+                max={maxDate || undefined}
               />
               <p className="text-xs text-muted-foreground">
-                Leave blank to clear the delivery date.
+                {projectStartDate && projectEndDate
+                  ? `Select a date between ${formatDateValue(projectStartDate)} and ${formatDateValue(projectEndDate)}.`
+                  : "Leave blank to clear the delivery date."}
               </p>
             </div>
             {deliveryDateError && (
@@ -407,6 +433,8 @@ export function MaterialSourcingSection({
         material={editingMaterial}
         projectId={projectId}
         onMaterialUpdated={onMaterialUpdated}
+        projectStartDate={projectStartDate}
+        projectEndDate={projectEndDate}
       />
     </>
   );

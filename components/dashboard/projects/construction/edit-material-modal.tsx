@@ -30,6 +30,8 @@ interface EditMaterialModalProps {
   material: SourcedMaterial | null;
   projectId: string;
   onMaterialUpdated: () => void;
+  projectStartDate?: Date | string | null;
+  projectEndDate?: Date | string | null;
 }
 
 export function EditMaterialModal({
@@ -38,7 +40,16 @@ export function EditMaterialModal({
   material,
   projectId,
   onMaterialUpdated,
+  projectStartDate,
+  projectEndDate,
 }: EditMaterialModalProps) {
+  const minDate = projectStartDate
+    ? new Date(projectStartDate).toISOString().split("T")[0]
+    : "";
+  const maxDate = projectEndDate
+    ? new Date(projectEndDate).toISOString().split("T")[0]
+    : "";
+
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<SourcedMaterial>>({});
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -236,7 +247,14 @@ export function EditMaterialModal({
                       : undefined,
                   }))
                 }
+                min={minDate || undefined}
+                max={maxDate || undefined}
               />
+              {projectStartDate && projectEndDate && (
+                <p className="text-xs text-muted-foreground">
+                  Must be between {new Date(projectStartDate).toLocaleDateString()} and {new Date(projectEndDate).toLocaleDateString()}
+                </p>
+              )}
             </div>
           </div>
           <div className="space-y-2">
