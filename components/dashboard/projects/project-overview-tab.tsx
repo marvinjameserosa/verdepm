@@ -122,6 +122,66 @@ const renderHighlightedInsight = (text: string, projectName?: string): ReactNode
   });
 };
 
+const SCOPE_INSIGHT_CACHE_VERSION = 1;
+const getScopeInsightCacheKey = (projectId: string, signature: string) =>
+  `scope-insights:v${SCOPE_INSIGHT_CACHE_VERSION}:${projectId}:${signature}`;
+
+type ScopeInsightCacheEntry = {
+  signature: string;
+  insight: string;
+  warning: string | null;
+  cachedAt: string;
+};
+
+const readScopeInsightCache = (
+  projectId: string,
+  signature: string
+): ScopeInsightCacheEntry | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(
+      getScopeInsightCacheKey(projectId, signature)
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ScopeInsightCacheEntry>;
+    if (parsed.signature !== signature) return null;
+    if (typeof parsed.insight !== "string" || parsed.insight.trim().length === 0)
+      return null;
+    return {
+      signature,
+      insight: parsed.insight,
+      warning: typeof parsed.warning === "string" ? parsed.warning : null,
+      cachedAt:
+        typeof parsed.cachedAt === "string" ? parsed.cachedAt : new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+};
+
+const writeScopeInsightCache = (
+  projectId: string,
+  signature: string,
+  insight: string,
+  warning: string | null
+) => {
+  if (typeof window === "undefined") return;
+  try {
+    const entry: ScopeInsightCacheEntry = {
+      signature,
+      insight,
+      warning,
+      cachedAt: new Date().toISOString(),
+    };
+    window.localStorage.setItem(
+      getScopeInsightCacheKey(projectId, signature),
+      JSON.stringify(entry)
+    );
+  } catch {
+    // Ignore cache write failures (private mode, quota, etc.)
+  }
+};
+
 export default function ProjectOverviewTab({
   project,
   onProjectUpdated,
@@ -196,6 +256,9 @@ export default function ProjectOverviewTab({
       actuals.scope_one,
       actuals.scope_two,
       actuals.scope_three,
+      actuals.trir,
+      actuals.total_incidents,
+      actuals.total_hours,
       targets?.scope_one ?? "null",
       targets?.scope_two ?? "null",
       targets?.scope_three ?? "null",
@@ -214,6 +277,16 @@ export default function ProjectOverviewTab({
     }
 
     if (lastInsightSignatureRef.current === insightSignature && aiInsight) {
+      return;
+    }
+
+    const cached = readScopeInsightCache(resolvedProjectId, insightSignature);
+    if (cached) {
+      lastInsightSignatureRef.current = cached.signature;
+      setAiInsight(cached.insight);
+      setAiInsightWarning(cached.warning);
+      setAiInsightError(null);
+      setIsAiInsightLoading(false);
       return;
     }
 
@@ -254,6 +327,15 @@ export default function ProjectOverviewTab({
         lastInsightSignatureRef.current = insightSignature;
         setAiInsight(insightText);
         setAiInsightWarning(warningText && warningText.length > 0 ? warningText : null);
+
+        if (insightText.length > 0) {
+          writeScopeInsightCache(
+            resolvedProjectId,
+            insightSignature,
+            insightText,
+            warningText && warningText.length > 0 ? warningText : null
+          );
+        }
       } catch (error) {
         if ((error as { name?: string })?.name === "AbortError") {
           return;
