@@ -65,6 +65,38 @@ type ConstructionPhaseProps = {
   project: Project;
 };
 
+const toLocalDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const toLocalMonthInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
+const parseLocalDateInputValue = (value: string) => {
+  // Expect yyyy-mm-dd from <input type="date" />
+  const match = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (!match) return null;
+  const [year, month, day] = value.split("-").map((part) => Number(part));
+  if (!year || !month || !day) return null;
+  // Use local noon to avoid timezone-edge shifts when converting to ISO.
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+};
+
+const parseLocalMonthInputValue = (value: string) => {
+  // Expect yyyy-mm from <input type="month" />
+  const match = /^\d{4}-\d{2}$/.test(value);
+  if (!match) return null;
+  const [year, month] = value.split("-").map((part) => Number(part));
+  if (!year || !month) return null;
+  return new Date(year, month - 1, 1, 12, 0, 0, 0);
+};
+
 export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -141,6 +173,14 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
   const [dailyReceiptFile, setDailyReceiptFile] = useState<File | null>(null);
   const [monthlyReceiptFile, setMonthlyReceiptFile] = useState<File | null>(
     null
+  );
+
+  const [dailyLogDate, setDailyLogDate] = useState<string>(() =>
+    toLocalDateInputValue(new Date())
+  );
+
+  const [monthlyLogMonth, setMonthlyLogMonth] = useState<string>(() =>
+    toLocalMonthInputValue(new Date())
   );
 
   const [metricsHistory, setMetricsHistory] = useState<{
@@ -270,6 +310,18 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   const handleSaveDaily = async () => {
     resetMessages();
+
+    if (!dailyLogDate || dailyLogDate.trim().length === 0) {
+      setErrorMessage("Select a date for this daily log.");
+      return;
+    }
+
+    const selectedDate = parseLocalDateInputValue(dailyLogDate);
+    if (!selectedDate) {
+      setErrorMessage("Daily log date is invalid.");
+      return;
+    }
+
     const hasDailyMetrics = Object.values(dailyMetrics).some(
       (value) => value.trim() !== ""
     );
@@ -408,7 +460,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         equipmentList: equipmentList,
       };
 
-      const result = await upsertDailyLog(project.id, new Date(), {
+      const result = await upsertDailyLog(project.id, selectedDate, {
         equipment_details: equipmentList,
         equipment_fuel_consumed: equipmentFuelConsumptionLiters || 0,
         scope_one: scope1 || 0,
@@ -449,7 +501,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         warnings && warnings.length > 0 ? ` ${warnings.join(" ")}` : "";
 
       setStatusMessage(
-        `Daily report saved successfully.${combinedSummary}${warningSummary}`.trim()
+        `Daily report saved successfully for ${dailyLogDate}.${combinedSummary}${warningSummary}`.trim()
       );
 
       setDailyMetrics({
@@ -486,6 +538,18 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
   const handleSaveMonthly = async () => {
     resetMessages();
+
+    if (!monthlyLogMonth || monthlyLogMonth.trim().length === 0) {
+      setErrorMessage("Select a month for this monthly log.");
+      return;
+    }
+
+    const selectedMonthDate = parseLocalMonthInputValue(monthlyLogMonth);
+    if (!selectedMonthDate) {
+      setErrorMessage("Monthly log month is invalid.");
+      return;
+    }
+
     const hasMonthlyMetrics = Object.values(monthlyMetrics).some(
       (value) => value.trim() !== ""
     );
@@ -572,7 +636,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
 
       const result = await submitMonthlyLog({
         projectId: project.id,
-        date: new Date().toISOString().slice(0, 10),
+        date: toLocalDateInputValue(selectedMonthDate),
         monthlyData,
       });
 
@@ -606,7 +670,7 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
         warnings && warnings.length > 0 ? ` ${warnings.join(" ")}` : "";
 
       setStatusMessage(
-        `Monthly metrics saved successfully.${combinedSummary}${warningSummary}`.trim()
+        `Monthly metrics saved successfully for ${monthlyLogMonth}.${combinedSummary}${warningSummary}`.trim()
       );
 
       setMonthlyMetrics({
@@ -730,6 +794,16 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               </p>
             </div>
 
+            <div className="grid gap-2 max-w-xs">
+              <Label htmlFor="dailyLogDate">Log date</Label>
+              <Input
+                id="dailyLogDate"
+                type="date"
+                value={dailyLogDate}
+                onChange={(event) => setDailyLogDate(event.target.value)}
+              />
+            </div>
+
             <DistanceFuelCard
               equipmentList={equipmentList}
               setEquipmentList={setEquipmentList}
@@ -760,6 +834,16 @@ export default function ConstructionPhase({ project }: ConstructionPhaseProps) {
               <p className="text-sm text-muted-foreground pl-4">
                 Record monthly utility consumption and waste generation.
               </p>
+            </div>
+
+            <div className="grid gap-2 max-w-xs">
+              <Label htmlFor="monthlyLogMonth">Log month</Label>
+              <Input
+                id="monthlyLogMonth"
+                type="month"
+                value={monthlyLogMonth}
+                onChange={(event) => setMonthlyLogMonth(event.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
